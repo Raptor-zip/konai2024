@@ -1,0 +1,127 @@
+html,* {
+    font-size: 36px;
+    font-family: Arial, Helvetica, sans-serif;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    color: #ffffff;
+}
+
+html,body {
+    background-color: #111111;
+}
+
+#text{
+    color: #111111;
+}
+
+.container {
+    width: 100vw;
+    height: 100vh;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr;
+    gap: 0px 0px;
+    grid-template-areas:
+        "robot controller"
+        "robot UDP_reception"
+        "robot Timer";
+}
+
+.robot {
+    grid-area: robot;
+        width: calc(100%-1rem);
+            height: calc(100%-1rem);
+            margin: 1rem;
+            padding: 0.5em;
+            background-color: #444444;
+}
+
+.controller {
+    grid-area: controller;
+        width: calc(100%-1rem);
+            height: calc(100%-1rem);
+            margin: 1rem;
+            padding: 0.5em;
+            background-color: #444444;
+}
+
+.UDP_reception {
+    grid-area: UDP_reception;
+        width: calc(100%-1rem);
+            height: calc(100%-1rem);
+            margin: 1rem;
+            padding: 0.5em;
+            background-color: #444444;
+}
+
+.Timer {
+    grid-area: Timer;
+        width: calc(100%-1rem);
+            height: calc(100%-1rem);
+            margin: 1rem;
+            padding: 0.5em;
+            background-color: #444444;
+}
+
+input[type="range"] {
+    -webkit-appearance: none;
+    /* 🚩これ無しだとスタイルがほぼ全く反映されないので注意 */
+    appearance: none;
+    cursor: pointer;
+    /* カーソルを分かりやすく */
+    outline: none;
+    /* スライダーのアウトラインは見た目がキツイので消す */
+    height: 14px;
+    /* バーの高さ */
+    width: 100%;
+    /* バーの幅 */
+    background: #8acdff;
+    /* バーの背景色 */
+    border-radius: 10px;
+    /* バーの両端の丸み */
+    border: solid 3px #dff1ff;
+    /* バー周囲の線 */
+}
+
+/* WebKit向けのつまみ */
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    /*  🚩デフォルトのつまみのスタイルを解除 */
+    background: #53aeff;
+    /* 背景色 */
+    width: 24px;
+    /* 幅 */
+    height: 24px;
+    /* 高さ */
+    border-radius: 50%;
+    /* 円形に */
+    box-shadow: 0px 3px 6px 0px rgba(0, 0, 0, 0.15);
+    /* 影 */
+}
+
+/* Moz向けのつまみ */
+input[type="range"]::-moz-range-thumb {
+    background: #53aeff;
+    /* 背景色 */
+    width: 24px;
+    /* 幅 */
+    height: 24px;
+    /* 高さ */
+    border-radius: 50%;
+    /* 円形に */
+    box-shadow: 0px 3px 6px 0px rgba(0, 0, 0, 0.15);
+    /* 影 */
+    border: none;
+    /* デフォルトの線を消す */
+}
+
+/* Firefoxで点線が周りに表示されてしまう問題の解消 */
+input[type="range"]::-moz-focus-outer {
+    border: 0;
+}
+
+/* つまみをドラッグしているときのスタイル */
+input[type="range"]:active::-webkit-slider-thumb {
+    box-shadow: 0px 5px 10px -2px rgba(0, 0, 0, 0.3);
+}

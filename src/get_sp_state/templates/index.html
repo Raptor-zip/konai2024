@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <h1>WebSocket Chat</h1>
+    <form action="" onsubmit="sendMessage(event)">
+      <input type="text" id="messageText" autocomplete="off" />
+      <button>Send</button>
+    </form>
+    <ul id="messages"></ul>
+    <p id="last"></p>
+    <script>
+      var ws = new WebSocket("wss://192.168.211.68:8000/ws");
+      ws.onmessage = function (event) {
+        var messages = document.getElementById("messages");
+        var message = document.createElement("li");
+        var content = document.createTextNode(event.data);
+        // message.appendChild(content);
+        // messages.appendChild(message);
+      };
+
+      temp = 0;
+      window.setInterval(send_state, 20);
+      function send_state() {
+        // state.raw_angle = temp;
+        // ws.send(temp);
+        xhr.open("POST", "/stream", true);
+        xhr.setRequestHeader("Content-Type", "application/json");
+        // フォームに入力した値をリクエストとして設定
+        var request = JSON.stringify(state);
+        xhr.send(request);
+        temp++;
+
+        document.getElementById("last").innerHTML = temp;
+      }
+
+      window.onload = function () {
+        xhr = new XMLHttpRequest();
+
+        // サーバからのデータ受信を行った際の動作
+        xhr.onload = function (e) {
+          if (xhr.readyState === 4) {
+            if (xhr.status === 200) {
+              var answer = document.getElementById("answer");
+              answer.value = xhr.responseText;
+            }
+          }
+        };
+      };
+    </script>
+  </body>
+</html>

@@ -1,0 +1,68 @@
+<html>
+  <head>
+    <title>ロボット制御</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js" integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA==" crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+    <link rel=stylesheet type=text/css href="{{ url_for('static', filename='main.css') }}">
+    <script type=text/javascript src="{{ url_for('static', filename='main.js') }}"></script>
+  </head>
+  <body>
+    <div class="container">
+      <div class="robot">
+        <h1>ロボット</h1>
+        <div id="esp32_ip_value">192.168.-</div>
+
+        <div id="motor1" class="change_inputnumber_range_grid">
+          <p>左車輪</p>
+          <input type="range" id="motor1_speed_range" name="motor1" min="0" max="510" step="1" value="255">
+          <p id="motor1_speed_value">0</p>
+        </div>
+        <div id="motor2" class="change_inputnumber_range_grid">
+          <p>右車輪</p>
+          <input type="range" id="motor2_speed_range" name="motor2" min="0" max="510" step="1" value="255">
+          <p id="motor2_speed_value">0</p>
+        </div>
+        <div id="motor3" class="change_inputnumber_range_grid">
+          <p>回収機構</p>
+          <input type="range" id="motor3_speed_range" name="motor3" min="0" max="510" step="1" value="255">
+          <p id="motor3_speed_value">0</p>
+        </div>
+
+        <div id="distance">
+          <p>距離</p>
+          <p id="distance_value">0</p>
+        </div>
+        <div id="angle">
+          <p>角度</p>
+          <p id="angle_value">0</p>
+        </div>
+
+        <div id="battery_voltage">
+          <p>バッテリー電圧</p>
+          <p><span id="battery_voltage_value">-</span>V</p>
+        </div>
+
+        <div id="wifi_signal_strength">
+          <p>WiFi電波強度</p>
+          <p><span id="wifi_signal_strength_value">-</span>dBm</p>
+        </div>
+
+      </div>
+      <div class="controller">
+        <h1>コントローラー</h1>
+        <div id="ubuntu_ip_value">192.168.-</div>
+      </div>
+
+      <!-- <div class="Timer">
+        <h1>タイマー</h1>
+          <div id="countdown_time">3:58</div>
+      </div> -->
+      <div class="connection">
+        <div id="ubuntu_ssid_value">名刺2g</div>
+        <div id="ping"><span>-</span>ping</div>
+        <p>接続者数<span id="user_count"></span>人</p>
+      </div>
+    </div>
+  </body>
+</html>

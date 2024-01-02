@@ -1,0 +1,15 @@
+package.xml
+setup.cfg
+setup.py
+../../build/minirobo2023_2_python/minirobo2023_2_python.egg-info/PKG-INFO
+../../build/minirobo2023_2_python/minirobo2023_2_python.egg-info/SOURCES.txt
+../../build/minirobo2023_2_python/minirobo2023_2_python.egg-info/dependency_links.txt
+../../build/minirobo2023_2_python/minirobo2023_2_python.egg-info/entry_points.txt
+../../build/minirobo2023_2_python/minirobo2023_2_python.egg-info/requires.txt
+../../build/minirobo2023_2_python/minirobo2023_2_python.egg-info/top_level.txt
+../../build/minirobo2023_2_python/minirobo2023_2_python.egg-info/zip-safe
+minirobo2023_2_python/__init__.py
+resource/minirobo2023_2_python
+test/test_copyright.py
+test/test_flake8.py
+test/test_pep257.py
