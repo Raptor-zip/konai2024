@@ -11,9 +11,9 @@ def generate_launch_description():
     return LaunchDescription(
         [
             Node(
-                package="experiment_python",
-                executable="communicateWiFiUDP_ESP32",
-                output="screen",  # print wo hyouzi
+                package="minirobo2023_2_python",
+                executable="communicate_ESP32",
+                output="screen",
                 prefix="xterm -e",
             ),
             # Node(
@@ -35,9 +35,9 @@ def generate_launch_description():
             #     remappings=[("/joy", "/joy1")],
             # ),
             Node(
-                package="experiment_python",
+                package="minirobo2023_2_python",
                 executable="webserver",
-                output="screen",  # print wo hyouzi
+                output="screen",
                 # prefix="xterm -e",
             ),
         ]

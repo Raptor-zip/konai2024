@@ -20,8 +20,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'communicate_ESP32 = kounai2023_python.communicate_ESP32:main',
-            'webserver = kounai2023_python.webserver:main',
+            'communicate_ESP32 = minirobo2023_2_python.communicate_ESP32:main',
+            'webserver = minirobo2023_2_python.webserver:main',
         ],
     },
 )

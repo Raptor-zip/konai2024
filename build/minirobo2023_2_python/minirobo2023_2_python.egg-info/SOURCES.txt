@@ -9,6 +9,8 @@ setup.py
 ../../build/minirobo2023_2_python/minirobo2023_2_python.egg-info/top_level.txt
 ../../build/minirobo2023_2_python/minirobo2023_2_python.egg-info/zip-safe
 minirobo2023_2_python/__init__.py
+minirobo2023_2_python/communicate_ESP32.py
+minirobo2023_2_python/webserver.py
 resource/minirobo2023_2_python
 test/test_copyright.py
 test/test_flake8.py

@@ -39,7 +39,8 @@ typedef struct {
 const dataDictionary PIN_array[]{
   { 0, 25, 32, 33 },
   { 1, 26, 14, 27 },
-  { 2, 13, 16, 17 },  ////////////////////////変える
+  { 2, 12, 23, 19 },
+  { 3, 13, 4, 18 }
 };
 
 float battery_voltage = 0;
@@ -50,28 +51,23 @@ float distance_raw = 0;
 
 String jsonString = "{}";
 
+// HardwareSerial Serial1(2); // UART2を使う
+
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(battery_voltage_PIN, INPUT);
 
   Serial.begin(921600);
+  Serial2.begin(921600);
 
   display.init();                     //ディスプレイを初期化
   display.setFont(ArialMT_Plain_16);  //フォントを設定
-
-  if (!lox.begin()) {
-    Serial.println(F("Failed to boot VL53L0X"));
-    while (1)
-      ;
-  }
-
-  lox.startRangeContinuous();
 
   delay(1000);
 
   connectToWiFi();
 
-  for (int i = 0; i < 3; i++) {
+  for (int i = 0; i < 4; i++) {
     //INA,INBの設定
     pinMode(PIN_array[i].INA, OUTPUT);
     pinMode(PIN_array[i].INB, OUTPUT);
@@ -111,7 +107,7 @@ void loop() {
     String json = String(packetData);
 
     Serial.print("Received data: ");
-    Serial.print(json);
+    Serial.println(json);
 
     // udp.beginPacket(python_ip, python_port);
     // udp.print(json);
@@ -136,16 +132,32 @@ void loop() {
     if (doc.containsKey("motor1")) {
       // Serial.println(String(doc["motor1"]["speed"].as<float>()));
       PWM(1, doc["motor1"]["speed"]);
-      analogWrite(LED_BUILTIN, abs(int(doc["motor1"]["speed"])));
+      // analogWrite(LED_BUILTIN, abs(int(doc["motor1"]["speed"])));
     }
     if (doc.containsKey("motor2")) {
       // Serial.println(String(doc["motor2"]["speed"].as<float>()));
       PWM(2, doc["motor2"]["speed"]);
+      analogWrite(LED_BUILTIN, abs(int(doc["motor2"]["speed"])));
     }
     if (doc.containsKey("motor3")) {
       // Serial.println(String(doc["motor3"]["speed"].as<float>()));
       PWM(3, doc["motor3"]["speed"]);
     }
+    if (doc.containsKey("motor4")) {
+      // Serial.println(String(doc["motor3"]["speed"].as<float>()));
+      PWM(4, doc["motor4"]["speed"]);
+    }
+    if (doc.containsKey("motor5")) {
+      Serial2.println("5,"+String(doc["motor5"]["speed"].as<float>()));
+    }
+    if (doc.containsKey("motor6")) {
+      Serial2.println("6,"+String(doc["motor6"]["speed"].as<float>()));
+    }
+    if (doc.containsKey("servo")) {
+      Serial.println("servo,"+String(doc["servo"]["angle"].as<float>()));
+      // analogWrite(LED_BUILTIN, abs(int(doc["servo"]["angle"])));
+    }
+
 
     // const char* motor1 = doc["motor1"];
 
@@ -158,7 +170,7 @@ void loop() {
   if (every50thExecution > 47) {
     every50thExecution = 0;
     // 電圧監視
-    battery_voltage = analogRead(35) * 4.034 * 3.3 / 4096;
+    battery_voltage = analogRead(battery_voltage_PIN) * 4.034 * 3.3 / 4096;
     if (battery_voltage < 9) {
       low_battery_voltage = true;
       // digitalWrite(23, HIGH);

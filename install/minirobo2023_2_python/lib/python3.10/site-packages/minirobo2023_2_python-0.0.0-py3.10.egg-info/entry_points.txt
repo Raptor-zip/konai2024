@@ -1,3 +1,4 @@
 [console_scripts]
-
+communicate_ESP32 = minirobo2023_2_python.communicate_ESP32:main
+webserver = minirobo2023_2_python.webserver:main
 

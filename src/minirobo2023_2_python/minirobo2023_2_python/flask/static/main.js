@@ -114,8 +114,21 @@ socket.on('json_receive', function (json) {
         document.getElementById("motor3_speed_value").innerText = Math.round(json["motor3_speed"]);
         document.getElementById("motor3_speed_range").value = json["motor3_speed"] + 256;
     }
-    if ("distance_value" in json) {
-        document.getElementById("distance_value").innerText = json["distance_value"] + "mm";
+    if ("motor4_speed" in json) {
+        document.getElementById("motor4_speed_value").innerText = Math.round(json["motor4_speed"]);
+        document.getElementById("motor4_speed_range").value = json["motor4_speed"] + 256;
+    }
+    if ("motor5_speed" in json) {
+        document.getElementById("motor5_speed_value").innerText = Math.round(json["motor5_speed"]);
+        document.getElementById("motor5_speed_range").value = json["motor5_speed"] + 256;
+    }
+    if ("motor6_speed" in json) {
+        document.getElementById("motor6_speed_value").innerText = Math.round(json["motor6_speed"]);
+        document.getElementById("motor6_speed_range").value = json["motor6_speed"] + 256;
+    }
+    if ("servo_angle" in json) {
+        document.getElementById("servo_angle_value").innerText = Math.round(json["servo_angle"]);
+        document.getElementById("servo_angle_range").value = json["servo_angle"];
     }
     if ("angle_value" in json) {
         document.getElementById("angle_value").innerText = Math.round(json["angle_value"]) + "°";
