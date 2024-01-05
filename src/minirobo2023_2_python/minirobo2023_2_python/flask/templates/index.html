@@ -1,84 +1,113 @@
 <html>
-  <head>
+
+<head>
     <title>ロボット制御</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js" integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA==" crossorigin="anonymous"></script>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"
+        integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA=="
+        crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"
+        integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
     <link rel=stylesheet type=text/css href="{{ url_for('static', filename='main.css') }}">
     <script type=text/javascript src="{{ url_for('static', filename='main.js') }}"></script>
-  </head>
-  <body>
+</head>
+
+<body>
     <div class="container">
-      <div class="robot">
-        <h1>ロボット</h1>
-        <div id="esp32_ip_value">192.168.-</div>
+        <div class="robot parents">
+            <!-- <h1>ロボット</h1> -->
+            <div id="esp32_ip_value">192.168.-</div>
+            <div id="motor_grid">
+                <div>
+                    <!-- <p>左前メカナム</p> -->
+                    <div class='motor_gauge'>
+                        <div id='motor1_speed_gauge' style='width:0' class="motor_gauge_gauge"></div>
+                        <div id='motor1_speed_char' class="motor_gauge_char">左前メカナム</div>
+                    </div>
+                </div>
+                <div>
+                    <!-- <p>右前メカナム</p> -->
+                    <div class='motor_gauge'>
+                        <div id='motor2_speed_gauge' style='width:0' class="motor_gauge_gauge"></div>
+                        <div id='motor2_speed_char' class="motor_gauge_char">右前メカナム</div>
+                    </div>
+                </div>
+                <div>
+                    <!-- <p>左後メカナム</p> -->
+                    <div class='motor_gauge'>
+                        <div id='motor3_speed_gauge' style='width:0' class="motor_gauge_gauge"></div>
+                        <div id='motor3_speed_char' class="motor_gauge_char">左後メカナム</div>
+                    </div>
+                </div>
+                <div>
+                    <!-- <p>右後メカナム</p> -->
+                    <div class='motor_gauge'>
+                        <div id='motor4_speed_gauge' style='width:0' class="motor_gauge_gauge"></div>
+                        <div id='motor4_speed_char' class="motor_gauge_char">右後メカナム</div>
+                    </div>
+                </div>
+                <div>
+                    <!-- <p>回収機構1</p> -->
+                    <div class='motor_gauge'>
+                        <div id='motor5_speed_gauge' style='width:0' class="motor_gauge_gauge"></div>
+                        <div id='motor5_speed_char' class="motor_gauge_char">回収機構1</div>
+                    </div>
+                </div>
+                <div>
+                    <!-- <p>回収機構2</p> -->
+                    <div class='motor_gauge'>
+                        <div id='motor6_speed_gauge' style='width:0' class="motor_gauge_gauge"></div>
+                        <div id='motor6_speed_char' class="motor_gauge_char">回収機構2</div>
+                    </div>
+                </div>
+                <div>
+                    <!-- <p></p> -->
+                    <div class='motor_gauge'>
+                        <div id='servo_angle_gauge' style='width:0' class="motor_gauge_gauge"></div>
+                        <div id='servo_angle_char' class="motor_gauge_char">排出蓋サーボ</div>
+                    </div>
+                </div>
+            </div>
 
-        <div id="motor1" class="change_inputnumber_range_grid">
-          <p>右左メカナム</p>
-          <input type="range" id="motor1_speed_range" name="motor1" min="0" max="510" step="1" value="255">
-          <p id="motor1_speed_value">0</p>
+            <div id="angle">
+                <p>角度</p>
+                <p id="angle_value">0</p>
+            </div>
+
+            <div id="battery_voltage">
+                <p>バッテリー電圧</p>
+                <p><span id="battery_voltage_value">-</span>V</p>
+            </div>
+
+            <div id="wifi_signal_strength">
+                <p>WiFi電波強度</p>
+                <p><span id="wifi_signal_strength_value">-</span>dBm</p>
+            </div>
+
         </div>
-        <div id="motor2" class="change_inputnumber_range_grid">
-          <p>右前メカナム</p>
-          <input type="range" id="motor2_speed_range" name="motor2" min="0" max="510" step="1" value="255">
-          <p id="motor2_speed_value">0</p>
-        </div>
-        <div id="motor3" class="change_inputnumber_range_grid">
-          <p>左後メカナム</p>
-          <input type="range" id="motor3_speed_range" name="motor3" min="0" max="510" step="1" value="255">
-          <p id="motor3_speed_value">0</p>
-        </div>
-        <div id="motor4" class="change_inputnumber_range_grid">
-          <p>右後メカナム</p>
-          <input type="range" id="motor4_speed_range" name="motor4" min="0" max="510" step="1" value="255">
-          <p id="motor4_speed_value">0</p>
-        </div>
-        <div id="motor5" class="change_inputnumber_range_grid">
-          <p>回収機構1</p>
-          <input type="range" id="motor5_speed_range" name="motor5" min="0" max="510" step="1" value="255">
-          <p id="motor5_speed_value">0</p>
-        </div>
-        <div id="motor6" class="change_inputnumber_range_grid">
-          <p>回収機構2</p>
-          <input type="range" id="motor6_speed_range" name="motor6" min="0" max="510" step="1" value="255">
-          <p id="motor6_speed_value">0</p>
-        </div>
-        <div id="servo" class="change_inputnumber_range_grid">
-          <p>排出蓋</p>
-          <input type="range" id="servo_angle_range" name="servo" min="0" max="360" step="1" value="0">
-          <p id="servo_angle_value">0</p>
+        <div class="controller parents">
+            <!-- <h1>コントローラー</h1> -->
+            <div id="ubuntu_ip_value">192.168.-</div>
+            <div id="controller1">
+                <div id="controller1_axes" class="controller_axes"></div>
+                <div id="controller1_buttons" class="controller_buttons"></div>
+            </div>
         </div>
 
-        <div id="angle">
-          <p>角度</p>
-          <p id="angle_value">0</p>
+        <div class="timer">
+            <!-- <h1>タイマー</h1> -->
+            <div id='countdown_time'>
+                <div id='countdown_time_gauge' style='width:0'></div>
+                <div id='countdown_time_char'>--:--</div>
+            </div>
         </div>
-
-        <div id="battery_voltage">
-          <p>バッテリー電圧</p>
-          <p><span id="battery_voltage_value">-</span>V</p>
+        <div id="connection" class="parents">
+            <!-- <h1>接続</h1> -->
+            <div>SSID:<span id="ubuntu_ssid_value">-</span></div>
+            <div>Ping:<span id="ping">-</span>ms</div>
+            <div>接続端末数:<span id="user_count">-</span>台</div>
         </div>
-
-        <div id="wifi_signal_strength">
-          <p>WiFi電波強度</p>
-          <p><span id="wifi_signal_strength_value">-</span>dBm</p>
-        </div>
-
-      </div>
-      <div class="controller">
-        <h1>コントローラー</h1>
-        <div id="ubuntu_ip_value">192.168.-</div>
-      </div>
-
-      <!-- <div class="Timer">
-        <h1>タイマー</h1>
-          <div id="countdown_time">3:58</div>
-      </div> -->
-      <div class="connection">
-        <div id="ubuntu_ssid_value">SSID</div>
-        <div id="ping"><span>-</span>ping</div>
-        <p>接続者数<span id="user_count"></span>人</p>
-      </div>
     </div>
-  </body>
+</body>
+
 </html>

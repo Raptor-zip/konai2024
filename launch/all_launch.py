@@ -14,7 +14,7 @@ def generate_launch_description():
                 package="minirobo2023_2_python",
                 executable="communicate_ESP32",
                 output="screen",
-                prefix="xterm -e",
+                # prefix="xterm -e",
             ),
             # Node(
             #     package="joy",
@@ -38,7 +38,7 @@ def generate_launch_description():
                 package="minirobo2023_2_python",
                 executable="webserver",
                 output="screen",
-                # prefix="xterm -e",
+                prefix="xterm -e",
             ),
         ]
     )

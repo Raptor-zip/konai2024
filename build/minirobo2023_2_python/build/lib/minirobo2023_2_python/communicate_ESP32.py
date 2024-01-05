@@ -10,6 +10,7 @@ import time
 import ipget
 import socket
 import math
+import array
 motor_speed = [0, 0, 0, 0]
 reception_json = {
     "raw_angle": 0,
@@ -19,7 +20,8 @@ reception_json = {
 
 # ESP32のIPアドレスとポート番号
 # esp32_ip = "192.168.211.78"
-esp32_ip = "192.168.211.241"
+# esp32_ip = "192.168.211.241"
+esp32_ip = "192.168.28.241"
 esp32_port = 12345
 
 # UDPソケットの作成
@@ -45,8 +47,8 @@ except subprocess.CalledProcessError:
 def main():
     with ThreadPoolExecutor(max_workers=4) as executor:
         # executor.submit(sp_udp_reception)
-        executor.submit(udp_reception)
-        executor.submit(battery_alert)
+        # executor.submit(udp_reception)
+        # executor.submit(battery_alert)
         future = executor.submit(ros)
         future.result()         # 全てのタスクが終了するまで待つ
 
@@ -132,6 +134,11 @@ class MinimalSubscriber(Node):
     angle_adjust = 0
     current_angle = 0
 
+    joy1_axes = {"none":"none"}
+    joy1_buttons = {"none":"none"}
+    joy2_axes = {"none":"none"}
+    joy2_buttons = {"none":"none"}
+
     axes_0 = 0
     axes_1 = 0
     axes_2 = 0
@@ -186,15 +193,19 @@ class MinimalSubscriber(Node):
             "esp32_ip": esp32_ip,
             "battery_voltage": reception_json["battery_voltage"],
             "wifi_signal_strength": reception_json["wifi_signal_strength"],
-            "motor1_speed": self.motor1_speed,
-            "motor2_speed": self.motor2_speed,
-            "motor3_speed": self.motor3_speed,
-            "motor4_speed": self.motor4_speed,
-            "motor5_speed": self.motor5_speed,
-            "motor6_speed": self.motor6_speed,
-            "servo_angle":self.servo_angle,
+            "motor1_speed": int(self.motor1_speed),
+            "motor2_speed": int(self.motor2_speed),
+            "motor3_speed": int(self.motor3_speed),
+            "motor4_speed": int(self.motor4_speed),
+            "motor5_speed": int(self.motor5_speed),
+            "motor6_speed": int(self.motor6_speed),
+            "servo_angle":int(self.servo_angle),
             "angle_value": self.current_angle,
-            "start_time": self.start_time
+            "start_time": self.start_time,
+            "joy1_axes": self.joy1_axes,
+            "joy1_buttons": self.joy1_buttons,
+            "joy2_axes": self.joy2_axes,
+            "joy2_buttons": self.joy2_buttons
         }
         msg.data = json.dumps(send_json)
         self.publisher_ESP32_to_Webserver.publish(msg)
@@ -282,6 +293,9 @@ class MinimalSubscriber(Node):
         self.axes_2 = joy.axes[2]
         self.axes_3 = joy.axes[3]
 
+        self.joy1_axes = list(joy.axes)
+        self.joy1_buttons = list(joy.buttons)
+
         if joy.buttons[6] == 1 or joy.buttons[7] == 1:
             # 走行補助強制停止
             self.state = 0
@@ -304,10 +318,10 @@ class MinimalSubscriber(Node):
             self.state = 4
         if self.buttons_up == 0 and joy.buttons[13] == 1:
             # 排出蓋を閉じる
-            self.servo_angle = 0
+            self.servo_angle = -135
         if self.buttons_down == 0 and joy.buttons[14] == 1:
             # 排出蓋を開く
-            self.servo_angle = 270
+            self.servo_angle = 135
 
         if self.buttons_L == 1 and self.buttons_R == 1:
             # 角度リセット
@@ -336,6 +350,9 @@ class MinimalSubscriber(Node):
         self.buttons_right = joy.buttons[15]
 
     def joy2_listener_callback(self, joy):
+        self.joy2_axes = list(joy.axes)
+        self.joy2_buttons = list(joy.buttons)
+
         # 回収機構のモーター
         self.motor5_speed = int(joy.axes[1]*256)
         self.motor6_speed = int(joy.axes[3]*256)

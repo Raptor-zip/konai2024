@@ -1,4 +1,5 @@
-html,* {
+html,
+* {
     font-size: 36px;
     font-family: Arial, Helvetica, sans-serif;
     margin: 0;
@@ -7,12 +8,12 @@ html,* {
     color: #ffffff;
 }
 
-html,body {
+body {
     background-color: #111111;
 }
 
-#text{
-    color: #111111;
+h1 {
+    font-size: 1rem;
 }
 
 .container {
@@ -20,48 +21,139 @@ html,body {
     height: 100vh;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1fr 1fr 1fr;
+    grid-template-rows: 2.6rem 1fr 1fr;
     gap: 0px 0px;
     grid-template-areas:
+        "robot Timer"
         "robot controller"
-        "robot UDP_reception"
-        "robot Timer";
+        "robot UDP_reception";
+}
+
+.parents {
+    background-color: #444444;
+    width: calc(100%-1rem);
+    height: calc(100%-1rem);
+    margin: 0.3rem;
+    padding: 0.3rem;
 }
 
 .robot {
     grid-area: robot;
-        width: calc(100%-1rem);
-            height: calc(100%-1rem);
-            margin: 1rem;
-            padding: 0.5em;
-            background-color: #444444;
 }
 
 .controller {
     grid-area: controller;
-        width: calc(100%-1rem);
-            height: calc(100%-1rem);
-            margin: 1rem;
-            padding: 0.5em;
-            background-color: #444444;
+}
+
+#motor_grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.1rem;
+}
+
+.motor_gauge {
+    position: relative;
+    border: 1px solid #fff;
+    width: 100%;
+}
+
+.motor_gauge_gauge {
+    height: 1rem;
+    background: #53aeff;
+}
+
+.motor_gauge_char {
+    position: absolute;
+    width: 100%;
+    top: 0;
+    text-align: center;
+    font-size: 0.9rem;
+    line-height: 1rem;
+}
+
+.controller_axes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.1rem;
+    padding: 0.1rem;
+}
+
+#countdown_time {
+    position: relative;
+    /* border: 1px solid #fff; */
+    width: 100%;
+    margin: 0.1rem;
+    background-color: #444444;
+}
+
+#countdown_time_gauge {
+    height: 2rem;
+    background: #53aeff;
+}
+
+#countdown_time_char {
+    position: absolute;
+    width: 100%;
+    top: 0;
+    text-align: center;
+    font-size: 1.9rem;
+    line-height: 2rem;
+}
+
+.axes {
+    position: relative;
+    border: 1px solid #fff;
+    width: 100%;
+}
+
+.axes>div.axes_gauge {
+    height: 0.7rem;
+    background: #53aeff;
+}
+
+.axes>div.axes_char {
+    position: absolute;
+    width: 100%;
+    top: 0;
+    text-align: center;
+    font-size: 0.6rem;
+    line-height: 0.7rem;
+}
+
+.buttons {
+    display: inline-block;
+    margin: 0.1rem;
+    width: 1rem;
+    height: 1rem;
+    text-align: center;
+    line-height: 1rem;
+    font-size: 0.6rem;
+    border: solid #fff 1px;
+}
+
+.buttons[true_false='1'] {
+    background-color: #53aeff;
+    color: #000;
+}
+
+.buttons[true_false='0'] {
+    background-color: #444444;
+    color: #fff;
 }
 
 .UDP_reception {
     grid-area: UDP_reception;
-        width: calc(100%-1rem);
-            height: calc(100%-1rem);
-            margin: 1rem;
-            padding: 0.5em;
-            background-color: #444444;
+    width: calc(100%-1rem);
+    height: calc(100%-1rem);
+    margin: 1rem;
+    padding: 0.5em;
+    background-color: #444444;
 }
 
 .Timer {
     grid-area: Timer;
-        width: calc(100%-1rem);
-            height: calc(100%-1rem);
-            margin: 1rem;
-            padding: 0.5em;
-            background-color: #444444;
+    width: calc(50vw - 0.6rem);
+    margin: 0.2rem;
 }
 
 input[type="range"] {
@@ -121,7 +213,9 @@ input[type="range"]::-moz-focus-outer {
     border: 0;
 }
 
-/* つまみをドラッグしているときのスタイル */
-input[type="range"]:active::-webkit-slider-thumb {
-    box-shadow: 0px 5px 10px -2px rgba(0, 0, 0, 0.3);
+/* SP用のスタイル */
+@media only screen and (max-width: 767px) {
+    html {
+        font-size: 26px;
+    }
 }

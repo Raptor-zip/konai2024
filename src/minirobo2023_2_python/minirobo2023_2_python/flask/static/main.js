@@ -12,22 +12,11 @@ namespace = '/test';
 
 // 接続者数の更新
 socket.on('count_update', function (msg) {
-    console.log(9);
     $('#user_count').html(msg.user_count);
 });
 
-// テキストエリアの更新
-socket.on('text_update', function (msg) {
-    console.log(14);
-    $('#text').val(msg.text);
-});
-
 socket.on('connect', function () {
-    console.log(31);
     socket.emit('my event', { data: 'I\'m connected!' });
-});
-
-socket.on('json', function () {
 });
 
 window.setInterval(function () {
@@ -36,22 +25,7 @@ window.setInterval(function () {
 }, 33);
 
 socket.on('json_receive', function (json) {
-    console.log(json);
-    // text = {
-    //     "state": self.state,
-    //     "ubuntu_ssid": wifi_ssid,
-    //     "ubuntu_ip": ipget.ipget().ipaddr("wlp2s0"),
-    //     "esp32_ip": esp32_ip,
-    //     "battery_voltage": reception_json["battery_voltage"],
-    //     "wifi_signal_strength": reception_json["wifi_signal_strength"],
-    //     "motor1_speed": self.motor1_speed,
-    //     "motor2_speed": self.motor2_speed,
-    //     "motor3_speed": self.motor3_speed,
-    //     "distance": reception_json["raw_distance"] + self.distance_adjust,
-    //     "angle": a,
-    //     "raw_angle": 0,
-    //     "start_time": self.start_time
-    // }
+    // console.log(json);
     if ("state" in json) {
         switch (json["state"]) {
             case 0:
@@ -102,64 +76,72 @@ socket.on('json_receive', function (json) {
     if ("wifi_signal_strength" in json) {
         document.getElementById("wifi_signal_strength_value").innerText = json["wifi_signal_strength"];
     }
-    if ("motor1_speed" in json) {
-        document.getElementById("motor1_speed_value").innerText = Math.round(json["motor1_speed"]);
-        document.getElementById("motor1_speed_range").value = json["motor1_speed"] + 256;
-    }
-    if ("motor2_speed" in json) {
-        document.getElementById("motor2_speed_value").innerText = Math.round(json["motor2_speed"]);
-        document.getElementById("motor2_speed_range").value = json["motor2_speed"] + 256;
-    }
-    if ("motor3_speed" in json) {
-        document.getElementById("motor3_speed_value").innerText = Math.round(json["motor3_speed"]);
-        document.getElementById("motor3_speed_range").value = json["motor3_speed"] + 256;
-    }
-    if ("motor4_speed" in json) {
-        document.getElementById("motor4_speed_value").innerText = Math.round(json["motor4_speed"]);
-        document.getElementById("motor4_speed_range").value = json["motor4_speed"] + 256;
-    }
-    if ("motor5_speed" in json) {
-        document.getElementById("motor5_speed_value").innerText = Math.round(json["motor5_speed"]);
-        document.getElementById("motor5_speed_range").value = json["motor5_speed"] + 256;
-    }
-    if ("motor6_speed" in json) {
-        document.getElementById("motor6_speed_value").innerText = Math.round(json["motor6_speed"]);
-        document.getElementById("motor6_speed_range").value = json["motor6_speed"] + 256;
+    for (let i = 1; i < 7; i++) {
+        if ("motor" + i + "_speed" in json) {
+            // document.getElementById("motor" + i + "_speed_char").innerText = Math.round(json["motor" + i + "_speed"]);
+            document.getElementById("motor" + i + "_speed_gauge").style.width = Math.round(json["motor" + i + "_speed"]) / 5.1 + 50 + "%";
+        }
     }
     if ("servo_angle" in json) {
-        document.getElementById("servo_angle_value").innerText = Math.round(json["servo_angle"]);
-        document.getElementById("servo_angle_range").value = json["servo_angle"];
+        // document.getElementById("servo_angle_char").innerText = Math.round(json["servo_angle"]);
+        document.getElementById("servo_angle_gauge").style.width = Math.round(json["servo_angle"]) / 2.7 + 50 + "%";
     }
     if ("angle_value" in json) {
         document.getElementById("angle_value").innerText = Math.round(json["angle_value"]) + "°";
     }
     if ("start_time" in json && json["start_time"] != 0) {
-        start_timer = new Date;
-        console.log(json["start_time"]);
-        console.log(now - json["start_time"]);
+        start_timer = new Date(json["start_time"] * 1000); // Unixエポック時間はミリ秒単位で指定するために1000倍
     }
-
-
-    // if ()
-    // console.log(json_received);
+    if ("joy1_axes" in json) {
+        if (document.getElementById("controller1_axes").childElementCount == json["joy1_axes"].length) {
+            for (let i = 0; i < json["joy1_axes"].length; i++) {
+                document.getElementById("controller1_axes" + i).style.width = Math.floor(json["joy1_axes"][i] * 100) / 2 + 50 + "%";
+            }
+        } else {
+            innerhtml = "";
+            for (let i = 0; i < json["joy1_axes"].length; i++) {
+                innerhtml += "<div class='axes'><div id='controller1_axes" + i + "' class='axes_gauge' style='width:50%'></div><div class='axes_char'>" + i + "</div></div>"
+            }
+            document.getElementById("controller1_axes").innerHTML = innerhtml;
+        }
+    }
+    if ("joy1_buttons" in json) {
+        if (document.getElementById("controller1_buttons").childElementCount == json["joy1_buttons"].length) {
+            for (let i = 0; i < json["joy1_buttons"].length; i++) {
+                document.getElementById("controller1_button" + i).setAttribute("true_false", json["joy1_buttons"][i]);
+            }
+        } else {
+            innerhtml = "";
+            for (let i = 0; i < json["joy1_buttons"].length; i++) {
+                innerhtml += "<div id='controller1_button" + i + "' class='buttons' true_false='0'>" + i + "</div>"
+            }
+            document.getElementById("controller1_buttons").innerHTML = innerhtml;
+        }
+    }
 });
 
 window.setInterval(function () {
     // カウントダウンタイマーの処理
-    // if (start_timer != null) {
-    //     const now = new Date(); // 現在時刻を取得
-    //     const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1); // 明日の0:00を取得
-    //     const diff = tomorrow.getTime() - now.getTime(); // 時間の差を取得（ミリ秒）
+    if (start_timer != null) {
+        const GameTimeSec = 180; // 試合時間(秒)
+        after_time = new Date(start_timer.getTime() + GameTimeSec * 1000);
+        let remainingTimeInSeconds = Math.floor((after_time - new Date()) / 1000);
 
-    //     // ミリ秒から単位を修正
-    //     const calcHour = Math.floor(diff / 1000 / 60 / 60);
-    //     const calcMin = Math.floor(diff / 1000 / 60) % 60;
-    //     const calcSec = Math.floor(diff / 1000) % 60;
+        let formattedMinutes = "00";
+        let formattedSeconds = "00";
 
-    //     // 取得した時間を表示（2桁表示）
-    //     min.innerHTML = calcMin < 10 ? '0' + calcMin : calcMin;
-    //     sec.innerHTML = calcSec < 10 ? '0' + calcSec : calcSec;
-    // }
+        if (remainingTimeInSeconds > 0) {
+            // 分と秒に分割
+            let minutes = Math.floor(remainingTimeInSeconds / 60);
+            let seconds = remainingTimeInSeconds % 60;
+
+            // 1桁の場合に0を頭に付け加える
+            formattedMinutes = (minutes < 10) ? "0" + minutes : minutes;
+            formattedSeconds = (seconds < 10) ? "0" + seconds : seconds;
+        }
+        document.getElementById("countdown_time_char").innerText = formattedMinutes + ":" + formattedSeconds;
+        document.getElementById("countdown_time_gauge").style.width = remainingTimeInSeconds / GameTimeSec * 100 + "%";
+    }
 
     // Ping計測
     start_time_ping_pong = (new Date).getTime();
@@ -173,24 +155,30 @@ socket.on('my pong', function () {
     var sum = 0;
     for (var i = 0; i < ping_pong_times.length; i++)
         sum += ping_pong_times[i];
-    $('#ping').text(Math.round(10 * sum / ping_pong_times.length) / 10 + "ms");
+    $('#ping').text(Math.round(10 * sum / ping_pong_times.length) / 10);
 });
 
-// 現在の値を埋め込む関数
-const setCurrentValue = (val) => {
-    console.log(val);
-    if (document.getElementById("motor1_checkbox").checked) {
-        currentValueElem.value = val;
-        data_send_to_python();
+const fullscreenElement = document.documentElement;
+document.addEventListener("click", toggleFullScreen);
+function toggleFullScreen() {
+    if (!document.fullscreenElement) {
+        fullscreenElement
+            .requestFullscreen()
+            .then(() => {
+                if (screen.orientation && screen.orientation.lock) {
+                    screen.orientation.lock("landscape").catch((err) => {
+                        console.error(
+                            "Error attempting to lock screen orientation:",
+                            err
+                        );
+                    });
+                }
+            })
+            .catch((err) => {
+                console.error(
+                    "Error attempting to enable full-screen mode:",
+                    err
+                );
+            });
     }
-}
-
-// inputイベント時に値をセットする関数
-const rangeOnChange = (e) => {
-    setCurrentValue(e.target.value);
-}
-
-
-function reset() {
-
 }

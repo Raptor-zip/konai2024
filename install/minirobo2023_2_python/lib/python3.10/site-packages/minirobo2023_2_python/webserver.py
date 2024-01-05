@@ -8,7 +8,7 @@ import json
 from flask import Flask, render_template, request  # Flaskを使うため
 import logging  # Flaskのログを削除する
 from engineio.payload import Payload
-Payload.max_decode_packets = 1000
+Payload.max_decode_packets = 10000
 
 from threading import Lock  # これ消していいよね？
 thread_lock = Lock()  # これ消していいよね？
