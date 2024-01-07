@@ -12,7 +12,7 @@ namespace = '/test';
 
 // 接続者数の更新
 socket.on('count_update', function (msg) {
-    $('#user_count').html(msg.user_count);
+    document.getElementById('user_count').innerText = msg.user_count;
 });
 
 socket.on('connect', function () {
@@ -99,7 +99,7 @@ socket.on('json_receive', function (json) {
         document.getElementById("angle_gauge").style.width = json["angle_value"] / 3.6 + "%";
     }
     if ("start_time" in json && json["start_time"] != 0) {
-        start_timer = new Date(json["start_time"] * 1000); // Unixエポック時間はミリ秒単位で指定するために1000倍
+        start_timer = new Date(json["start_time"] * 1000); // Unixエポック時間にするために1000倍する
     }
     if ("joy1_axes" in json) {
         if (document.getElementById("controller1_axes").childElementCount == json["joy1_axes"].length) {
@@ -109,7 +109,7 @@ socket.on('json_receive', function (json) {
         } else {
             innerhtml = "";
             for (let i = 0; i < json["joy1_axes"].length; i++) {
-                innerhtml += "<div class='axes'><div id='controller1_axes" + i + "' class='axes_gauge' style='width:50%'></div><div class='axes_char'>" + i + "</div></div>"
+                innerhtml += "<div class='gauge gauge_mini'><div id='controller1_axes" + i + "' class='gauge_gauge' style='width:50%'></div><div class='gauge_char'>" + i + "</div></div>"
             }
             document.getElementById("controller1_axes").innerHTML = innerhtml;
         }
@@ -148,8 +148,8 @@ window.setInterval(function () {
             formattedMinutes = (minutes < 10) ? "0" + minutes : minutes;
             formattedSeconds = (seconds < 10) ? "0" + seconds : seconds;
         }
-        document.getElementById("countdown_time_char").innerText = formattedMinutes + ":" + formattedSeconds;
-        document.getElementById("countdown_time_gauge").style.width = remainingTimeInSeconds / GameTimeSec * 100 + "%";
+        document.getElementById("timer_char").innerText = formattedMinutes + ":" + formattedSeconds;
+        document.getElementById("timer_gauge").style.width = remainingTimeInSeconds / GameTimeSec * 100 + "%";
     }
 
     // Ping計測
@@ -164,7 +164,7 @@ socket.on('my pong', function () {
     var sum = 0;
     for (var i = 0; i < ping_pong_times.length; i++)
         sum += ping_pong_times[i];
-    $('#ping').text(Math.round(10 * sum / ping_pong_times.length) / 10);
+    document.getElementById("ping").innerText = Math.round(10 * sum / ping_pong_times.length) / 10;
 });
 
 const fullscreenElement = document.documentElement;

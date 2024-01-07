@@ -47,9 +47,9 @@ except subprocess.CalledProcessError:
 
 def main():
     with ThreadPoolExecutor(max_workers=4) as executor:
-        executor.submit(sp_udp_reception)
+        # executor.submit(sp_udp_reception)
         # executor.submit(udp_reception)
-        executor.submit(battery_alert)
+        # executor.submit(battery_alert)
         future = executor.submit(ros)
         future.result()         # 全てのタスクが終了するまで待つ
 

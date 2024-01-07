@@ -47,9 +47,9 @@ except subprocess.CalledProcessError:
 
 def main():
     with ThreadPoolExecutor(max_workers=4) as executor:
-        executor.submit(sp_udp_reception)
+        # executor.submit(sp_udp_reception)
         # executor.submit(udp_reception)
-        executor.submit(battery_alert)
+        # executor.submit(battery_alert)
         future = executor.submit(ros)
         future.result()         # 全てのタスクが終了するまで待つ
 
@@ -139,6 +139,28 @@ class MinimalSubscriber(Node):
     joy1_buttons = {"none": "none"}
     joy2_axes = {"none": "none"}
     joy2_buttons = {"none": "none"}
+
+    joy_now = [
+        {
+            "axes": [None],
+            "buttons": [None],
+        },
+        {
+            "axes": [None],
+            "buttons": [None],
+        }
+    ]
+
+    joy_past = [
+        {
+            "axes": [None],
+            "buttons": [None],
+        },
+        {
+            "axes": [None],
+            "buttons": [None],
+        }
+    ]
 
     axes_0 = 0
     axes_1 = 0

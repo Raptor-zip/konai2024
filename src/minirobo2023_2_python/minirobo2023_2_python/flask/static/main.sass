@@ -1,4 +1,4 @@
-$text-size-main: 1rem
+$sp-1: 767px
 
 html,
 *
@@ -8,6 +8,8 @@ html,
     padding: 0
     box-sizing: border-box
     color: #ffffff
+    @media only screen and (max-width: $sp-1)
+        font-size: 26px
 
 body
     background-color: #111111
@@ -26,32 +28,15 @@ span
     grid-template-columns: 1fr 1fr
     grid-template-rows: 2.6rem 1fr 1fr
     gap: 0px 0px
-    grid-template-areas: "robot Timer" "robot controller" "robot UDP_reception"
+    grid-template-areas: "robot timer" "robot controller" "robot connection"
 
-.parents
-    background-color: #444444
-    width: calc(100% - 1rem)
-    height: calc(100% - 1rem)
-    margin: 0.3rem
-    padding: 0.3rem
-
-.robot
-    grid-area: robot
-
-.controller
-    grid-area: controller
-
-#motor_grid
-    display: grid
-    grid-template-columns: 1fr 1fr
-    gap: 0.1rem
-
-.motor_gauge
+.gauge
     position: relative
     border: 1px solid #fff
     width: 100%
 
     &_gauge
+        width: 0
         height: 1rem
         background: #53aeff
 
@@ -63,55 +48,66 @@ span
         font-size: 0.9rem
         line-height: 1rem
 
-.controller_axes
+.parents
+    background-color: #444444
+    width: calc(100% - 1rem)
+    height: calc(100% - 1rem)
+    margin: 0.3rem
+    padding: 0.3rem
+
+#robot
+    grid-area: robot
+
+#timer
+    grid-area: timer
+    width: calc(50vw - 0.6rem)
+    margin: 0.2rem
+
+    .gauge
+        border: none
+        margin: 0.1rem
+        background-color: #444444
+
+        &_gauge
+            height: 2rem
+            background: #53aeff
+
+        &_char
+            font-size: 1.9rem
+            line-height: 2rem
+
+#controller
+    grid-area: controller
+
+    .grid_2columns
+        padding: 0.1rem
+
+    .buttons
+        display: inline-block
+        margin: 0.1rem
+        width: 1rem
+        height: 1rem
+        text-align: center
+        line-height: 1rem
+        font-size: 0.6rem
+        border: solid #fff 1px
+
+#connection
+    grid-area: connection
+
+.grid_2columns
     display: grid
     grid-template-columns: 1fr 1fr
     gap: 0.1rem
-    padding: 0.1rem
 
-#countdown_time
-    position: relative
-    /* border: 1px solid #fff; */
-    width: 100%
-    margin: 0.1rem
-    background-color: #444444
-
-    &_gauge
-        height: 2rem
-        background: #53aeff
-
-    &_char
-        position: absolute
-        width: 100%
-        top: 0
-        text-align: center
-        font-size: 1.9rem
-        line-height: 2rem
-
-.axes
-    position: relative
-    border: 1px solid #fff
-    width: 100%
-    .axes_gauge
+.gauge_mini
+    .gauge_gauge
         height: 0.7rem
-        background: #53aeff
-    .axes_char
-        position: absolute
-        width: 100%
-        top: 0
-        text-align: center
+
+.gauge_mini
+    .gauge_char
         font-size: 0.6rem
         line-height: 0.7rem
-
-.buttons
-    display: inline-block
-    margin: 0.1rem
-    width: 1rem
-    height: 1rem
-    text-align: center
-    line-height: 1rem
-    font-size: 0.6rem
-    border: solid #fff 1px
 
     &[true_false='1']
         background-color: #53aeff
@@ -120,19 +116,6 @@ span
     &[true_false='0']
         background-color: #444444
         color: #fff
-
-.UDP_reception
-    grid-area: UDP_reception
-    width: calc(100% - 1rem)
-    height: calc(100% - 1rem)
-    margin: 1rem
-    padding: 0.5em
-    background-color: #444444
-
-.Timer
-    grid-area: Timer
-    width: calc(50vw - 0.6rem)
-    margin: 0.2rem
 
 input[type="range"]
     -webkit-appearance: none
@@ -186,8 +169,3 @@ input[type="range"]::-moz-range-thumb
 /* Firefoxで点線が周りに表示されてしまう問題の解消 */
 input[type="range"]::-moz-focus-outer
     border: 0
-
-/* SP用のスタイル */
-@media only screen and (max-width: 767px)
-    html
-        font-size: 26px

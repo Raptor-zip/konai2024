@@ -1,90 +1,87 @@
+<!DOCTYPE html>
 <html>
 
 <head>
     <title>ロボット制御</title>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"
         integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA=="
         crossorigin="anonymous"></script>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"
-        integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
     <link rel=stylesheet type=text/css href="{{ url_for('static', filename='main.css') }}">
     <script type=text/javascript src="{{ url_for('static', filename='main.js') }}"></script>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}">
 </head>
 
 <body>
     <div class="container">
-        <div class="robot parents">
-            <!-- <h1>ロボット</h1> -->
+        <div id="robot" class="parents">
             <div id="esp32_ip_value">192.168.-</div>
-            <div id="motor_grid">
+            <div class="grid_2columns">
                 <div>
                     <!-- <p>左前メカナム</p> -->
-                    <div class='motor_gauge'>
-                        <div id='motor1_speed_gauge' style='width:0' class="motor_gauge_gauge"></div>
-                        <div id='motor1_speed_char' class="motor_gauge_char">左前メカナム</div>
+                    <div class='gauge'>
+                        <div id='motor1_speed_gauge' class="gauge_gauge"></div>
+                        <div id='motor1_speed_char' class="gauge_char">左前メカナム</div>
                     </div>
                 </div>
                 <div>
                     <!-- <p>右前メカナム</p> -->
-                    <div class='motor_gauge'>
-                        <div id='motor2_speed_gauge' style='width:0' class="motor_gauge_gauge"></div>
-                        <div id='motor2_speed_char' class="motor_gauge_char">右前メカナム</div>
+                    <div class='gauge'>
+                        <div id='motor2_speed_gauge' class="gauge_gauge"></div>
+                        <div id='motor2_speed_char' class="gauge_char">右前メカナム</div>
                     </div>
                 </div>
                 <div>
                     <!-- <p>左後メカナム</p> -->
-                    <div class='motor_gauge'>
-                        <div id='motor3_speed_gauge' style='width:0' class="motor_gauge_gauge"></div>
-                        <div id='motor3_speed_char' class="motor_gauge_char">左後メカナム</div>
+                    <div class='gauge'>
+                        <div id='motor3_speed_gauge' class="gauge_gauge"></div>
+                        <div id='motor3_speed_char' class="gauge_char">左後メカナム</div>
                     </div>
                 </div>
                 <div>
                     <!-- <p>右後メカナム</p> -->
-                    <div class='motor_gauge'>
-                        <div id='motor4_speed_gauge' style='width:0' class="motor_gauge_gauge"></div>
-                        <div id='motor4_speed_char' class="motor_gauge_char">右後メカナム</div>
+                    <div class='gauge'>
+                        <div id='motor4_speed_gauge' class="gauge_gauge"></div>
+                        <div id='motor4_speed_char' class="gauge_char">右後メカナム</div>
                     </div>
                 </div>
                 <div>
                     <!-- <p>回収機構1</p> -->
-                    <div class='motor_gauge'>
-                        <div id='motor5_speed_gauge' style='width:0' class="motor_gauge_gauge"></div>
-                        <div id='motor5_speed_char' class="motor_gauge_char">回収機構1</div>
+                    <div class='gauge'>
+                        <div id='motor5_speed_gauge' class="gauge_gauge"></div>
+                        <div id='motor5_speed_char' class="gauge_char">回収機構1</div>
                     </div>
                 </div>
                 <div>
                     <!-- <p>回収機構2</p> -->
-                    <div class='motor_gauge'>
-                        <div id='motor6_speed_gauge' style='width:0' class="motor_gauge_gauge"></div>
-                        <div id='motor6_speed_char' class="motor_gauge_char">回収機構2</div>
+                    <div class='gauge'>
+                        <div id='motor6_speed_gauge' class="gauge_gauge"></div>
+                        <div id='motor6_speed_char' class="gauge_char">回収機構2</div>
                     </div>
                 </div>
                 <div>
                     <!-- <p></p> -->
-                    <div class='motor_gauge'>
-                        <div id='servo_angle_gauge' style='width:0' class="motor_gauge_gauge"></div>
-                        <div id='servo_angle_char' class="motor_gauge_char">排出蓋サーボ</div>
+                    <div class='gauge'>
+                        <div id='servo_angle_gauge' class="gauge_gauge"></div>
+                        <div id='servo_angle_char' class="gauge_char">排出蓋サーボ</div>
                     </div>
                 </div>
             </div>
 
-            <div id="motor_grid">
+            <div class="grid_2columns">
                 <div>
                     <p>角度</p>
-                    <div class='motor_gauge'>
-                        <div id='angle_gauge' style='width:0' class="motor_gauge_gauge"></div>
-                        <div id='angle_char' class="motor_gauge_char">0°</div>
+                    <div class='gauge'>
+                        <div id='angle_gauge' class="gauge_gauge"></div>
+                        <div id='angle_char' class="gauge_char">0°</div>
                     </div>
                 </div>
 
                 <div>
                     <p>バッテリー</p>
-                    <div class='motor_gauge'>
-                        <div id='battery_voltage_gauge' style='width:0' class="motor_gauge_gauge"></div>
-                        <div id='battery_voltage_char' class="motor_gauge_char">0V</div>
+                    <div class='gauge'>
+                        <div id='battery_voltage_gauge' class="gauge_gauge"></div>
+                        <div id='battery_voltage_char' class="gauge_char">0V</div>
                     </div>
-                    <!-- <p><span id="battery_voltage_value">-</span>V</p> -->
                 </div>
             </div>
 
@@ -95,22 +92,24 @@
             </div>
 
         </div>
-        <div class="controller parents">
-            <!-- <h1>コントローラー</h1> -->
-            <div id="ubuntu_ip_value">192.168.-</div>
-            <div id="controller1">
-                <div id="controller1_axes" class="controller_axes"></div>
-                <div id="controller1_buttons" class="controller_buttons"></div>
+
+        <div id="timer">
+            <!-- <h1>タイマー</h1> -->
+            <div class="gauge">
+                <div id='timer_gauge' class="gauge_gauge"></div>
+                <div id='timer_char' class="gauge_char">--:--</div>
             </div>
         </div>
 
-        <div class="timer">
-            <!-- <h1>タイマー</h1> -->
-            <div id='countdown_time'>
-                <div id='countdown_time_gauge' style='width:0'></div>
-                <div id='countdown_time_char'>--:--</div>
+        <div id="controller" class="parents">
+            <!-- <h1>コントローラー</h1> -->
+            <div id="ubuntu_ip_value">192.168.-</div>
+            <div id="controller1">
+                <div id="controller1_axes" class="grid_2columns"></div>
+                <div id="controller1_buttons"></div>
             </div>
         </div>
+
         <div id="connection" class="parents">
             <!-- <h1>接続</h1> -->
             <div>SSID:<span id="ubuntu_ssid_value">-</span></div>
