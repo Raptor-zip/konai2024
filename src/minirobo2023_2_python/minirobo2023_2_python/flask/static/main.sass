@@ -1,0 +1,193 @@
+$text-size-main: 1rem
+
+html,
+*
+    font-size: 36px
+    font-family: Arial, Helvetica, sans-serif
+    margin: 0
+    padding: 0
+    box-sizing: border-box
+    color: #ffffff
+
+body
+    background-color: #111111
+
+h1
+    font-size: 1rem
+
+span
+    font-weight: 900
+    font-size: 1.1rem
+
+.container
+    width: 100vw
+    height: 100vh
+    display: grid
+    grid-template-columns: 1fr 1fr
+    grid-template-rows: 2.6rem 1fr 1fr
+    gap: 0px 0px
+    grid-template-areas: "robot Timer" "robot controller" "robot UDP_reception"
+
+.parents
+    background-color: #444444
+    width: calc(100% - 1rem)
+    height: calc(100% - 1rem)
+    margin: 0.3rem
+    padding: 0.3rem
+
+.robot
+    grid-area: robot
+
+.controller
+    grid-area: controller
+
+#motor_grid
+    display: grid
+    grid-template-columns: 1fr 1fr
+    gap: 0.1rem
+
+.motor_gauge
+    position: relative
+    border: 1px solid #fff
+    width: 100%
+
+    &_gauge
+        height: 1rem
+        background: #53aeff
+
+    &_char
+        position: absolute
+        width: 100%
+        top: 0
+        text-align: center
+        font-size: 0.9rem
+        line-height: 1rem
+
+.controller_axes
+    display: grid
+    grid-template-columns: 1fr 1fr
+    gap: 0.1rem
+    padding: 0.1rem
+
+#countdown_time
+    position: relative
+    /* border: 1px solid #fff; */
+    width: 100%
+    margin: 0.1rem
+    background-color: #444444
+
+    &_gauge
+        height: 2rem
+        background: #53aeff
+
+    &_char
+        position: absolute
+        width: 100%
+        top: 0
+        text-align: center
+        font-size: 1.9rem
+        line-height: 2rem
+
+.axes
+    position: relative
+    border: 1px solid #fff
+    width: 100%
+    .axes_gauge
+        height: 0.7rem
+        background: #53aeff
+    .axes_char
+        position: absolute
+        width: 100%
+        top: 0
+        text-align: center
+        font-size: 0.6rem
+        line-height: 0.7rem
+
+.buttons
+    display: inline-block
+    margin: 0.1rem
+    width: 1rem
+    height: 1rem
+    text-align: center
+    line-height: 1rem
+    font-size: 0.6rem
+    border: solid #fff 1px
+
+    &[true_false='1']
+        background-color: #53aeff
+        color: #000
+
+    &[true_false='0']
+        background-color: #444444
+        color: #fff
+
+.UDP_reception
+    grid-area: UDP_reception
+    width: calc(100% - 1rem)
+    height: calc(100% - 1rem)
+    margin: 1rem
+    padding: 0.5em
+    background-color: #444444
+
+.Timer
+    grid-area: Timer
+    width: calc(50vw - 0.6rem)
+    margin: 0.2rem
+
+input[type="range"]
+    -webkit-appearance: none
+    /* 🚩これ無しだとスタイルがほぼ全く反映されないので注意 */
+    appearance: none
+    cursor: pointer
+    /* カーソルを分かりやすく */
+    outline: none
+    /* スライダーのアウトラインは見た目がキツイので消す */
+    height: 14px
+    /* バーの高さ */
+    width: 100%
+    /* バーの幅 */
+    background: #8acdff
+    /* バーの背景色 */
+    border-radius: 10px
+    /* バーの両端の丸み */
+    border: solid 3px #dff1ff
+    /* バー周囲の線 */
+
+/* WebKit向けのつまみ */
+input[type="range"]::-webkit-slider-thumb
+    -webkit-appearance: none
+    /*  🚩デフォルトのつまみのスタイルを解除 */
+    background: #53aeff
+    /* 背景色 */
+    width: 24px
+    /* 幅 */
+    height: 24px
+    /* 高さ */
+    border-radius: 50%
+    /* 円形に */
+    box-shadow: 0px 3px 6px 0px rgba(0, 0, 0, 0.15)
+    /* 影 */
+
+/* Moz向けのつまみ */
+input[type="range"]::-moz-range-thumb
+    background: #53aeff
+    /* 背景色 */
+    width: 24px
+    /* 幅 */
+    height: 24px
+    /* 高さ */
+    border-radius: 50%
+    /* 円形に */
+    box-shadow: 0px 3px 6px 0px rgba(0, 0, 0, 0.15)
+    /* 影 */
+    border: none
+    /* デフォルトの線を消す */
+
+/* Firefoxで点線が周りに表示されてしまう問題の解消 */
+input[type="range"]::-moz-focus-outer
+    border: 0
+
+/* SP用のスタイル */
+@media only screen and (max-width: 767px)
+    html
+        font-size: 26px

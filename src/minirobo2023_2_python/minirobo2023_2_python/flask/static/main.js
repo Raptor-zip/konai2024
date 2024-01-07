@@ -25,7 +25,7 @@ window.setInterval(function () {
 }, 33);
 
 socket.on('json_receive', function (json) {
-    // console.log(json);
+    console.log(json);
     if ("state" in json) {
         switch (json["state"]) {
             case 0:
@@ -71,7 +71,15 @@ socket.on('json_receive', function (json) {
         document.getElementById("esp32_ip_value").innerText = json["esp32_ip"];
     }
     if ("battery_voltage" in json) {
-        document.getElementById("battery_voltage_value").innerText = json["battery_voltage"];
+        // 最高13V
+        // 最低10V
+        if (json["battery_voltage"] > 1) {
+            document.getElementById("battery_voltage_char").innerText = json["battery_voltage"] + "V";
+            document.getElementById("battery_voltage_gauge").style.width = (json["battery_voltage"] - 10) / 0.03 + "%";
+        } else {
+            document.getElementById("battery_voltage_char").innerText = "-V";
+            document.getElementById("battery_voltage_gauge").style.width = "0";
+        }
     }
     if ("wifi_signal_strength" in json) {
         document.getElementById("wifi_signal_strength_value").innerText = json["wifi_signal_strength"];
@@ -79,15 +87,16 @@ socket.on('json_receive', function (json) {
     for (let i = 1; i < 7; i++) {
         if ("motor" + i + "_speed" in json) {
             // document.getElementById("motor" + i + "_speed_char").innerText = Math.round(json["motor" + i + "_speed"]);
-            document.getElementById("motor" + i + "_speed_gauge").style.width = Math.round(json["motor" + i + "_speed"]) / 5.1 + 50 + "%";
+            document.getElementById("motor" + i + "_speed_gauge").style.width = json["motor" + i + "_speed"] / 5.1 + 50 + "%";
         }
     }
     if ("servo_angle" in json) {
         // document.getElementById("servo_angle_char").innerText = Math.round(json["servo_angle"]);
-        document.getElementById("servo_angle_gauge").style.width = Math.round(json["servo_angle"]) / 2.7 + 50 + "%";
+        document.getElementById("servo_angle_gauge").style.width = json["servo_angle"] / 2.7 + 50 + "%";
     }
     if ("angle_value" in json) {
-        document.getElementById("angle_value").innerText = Math.round(json["angle_value"]) + "°";
+        document.getElementById("angle_char").innerText = json["angle_value"] + "°";
+        document.getElementById("angle_gauge").style.width = json["angle_value"] / 3.6 + "%";
     }
     if ("start_time" in json && json["start_time"] != 0) {
         start_timer = new Date(json["start_time"] * 1000); // Unixエポック時間はミリ秒単位で指定するために1000倍

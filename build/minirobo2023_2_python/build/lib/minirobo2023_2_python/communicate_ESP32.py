@@ -14,7 +14,8 @@ import array
 motor_speed = [0, 0, 0, 0]
 reception_json = {
     "raw_angle": 0,
-    "battery_voltage": 0,
+    "battery_voltage": 11.1,
+    # "battery_voltage": 0, #なおすうううううううううううううううううううううううううううううううううううううううううう
     "wifi_signal_strength": 0
 }
 
@@ -28,7 +29,7 @@ esp32_port = 12345
 udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 sp_udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sp_udp_socket.bind(('127.0.0.1', 5003)) ####################################################################本当は5002
+sp_udp_socket.bind(('127.0.0.1', 5003))  # 本当は5002
 sp_udp_socket.settimeout(1.0)  # タイムアウトを1秒に設定
 
 local_udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -46,9 +47,9 @@ except subprocess.CalledProcessError:
 
 def main():
     with ThreadPoolExecutor(max_workers=4) as executor:
-        # executor.submit(sp_udp_reception)
+        executor.submit(sp_udp_reception)
         # executor.submit(udp_reception)
-        # executor.submit(battery_alert)
+        executor.submit(battery_alert)
         future = executor.submit(ros)
         future.result()         # 全てのタスクが終了するまで待つ
 
@@ -130,14 +131,14 @@ class MinimalSubscriber(Node):
     servo_angle = 0
     normal_max_motor_speed = 230  # 自動運転時の最高速度
 
-    turn_P_gain = 4  # 旋回中に角度センサーにかけられるPゲイン
+    turn_P_gain = 4  # 旋回中に角度センサーにかけられるPゲインあああああああああああああああああああああああああああああああああああああああああああああああああああ
     angle_adjust = 0
     current_angle = 0
 
-    joy1_axes = {"none":"none"}
-    joy1_buttons = {"none":"none"}
-    joy2_axes = {"none":"none"}
-    joy2_buttons = {"none":"none"}
+    joy1_axes = {"none": "none"}
+    joy1_buttons = {"none": "none"}
+    joy2_axes = {"none": "none"}
+    joy2_buttons = {"none": "none"}
 
     axes_0 = 0
     axes_1 = 0
@@ -178,7 +179,6 @@ class MinimalSubscriber(Node):
             10)
         self.subscription  # prevent unused variable warning
 
-        # 0.001でも試す！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
         self.timer_0001 = self.create_timer(0.01, self.timer_callback_001)
         self.timer_0016 = self.create_timer(0.033, self.timer_callback_0033)
 
@@ -199,7 +199,7 @@ class MinimalSubscriber(Node):
             "motor4_speed": int(self.motor4_speed),
             "motor5_speed": int(self.motor5_speed),
             "motor6_speed": int(self.motor6_speed),
-            "servo_angle":int(self.servo_angle),
+            "servo_angle": int(self.servo_angle),
             "angle_value": self.current_angle,
             "start_time": self.start_time,
             "joy1_axes": self.joy1_axes,
@@ -238,7 +238,8 @@ class MinimalSubscriber(Node):
         self.motor3_speed = turn_minus1to1 * 256 * -1
         self.motor4_speed = turn_minus1to1 * 256
 
-        normalized_angle = (1 - (math.atan2(self.axes_2, self.axes_3)) / (2 * math.pi)) % 1
+        normalized_angle = (
+            1 - (math.atan2(self.axes_2, self.axes_3)) / (2 * math.pi)) % 1
         distance = math.sqrt(self.axes_2**2 + self.axes_3**2)
         if distance > 1:
             distance = 1
@@ -255,7 +256,7 @@ class MinimalSubscriber(Node):
 
         # 255を超えた場合、比率を保ったまま255以下にする
         max_motor_speed = max([abs(self.motor1_speed), abs(self.motor2_speed),
-                            abs(self.motor3_speed), abs(self.motor4_speed)])
+                               abs(self.motor3_speed), abs(self.motor4_speed)])
         if max_motor_speed > 255:
             self.motor1_speed = int(self.motor1_speed * 255 / max_motor_speed)
             self.motor2_speed = int(self.motor2_speed * 255 / max_motor_speed)
@@ -304,6 +305,7 @@ class MinimalSubscriber(Node):
             self.motor3_speed = 0
             self.motor4_speed = 0
 
+        # 本当はこういう書き方やめたい 過去のjoyはbutton_Xでそれぞれの変数に保存するんじゃなくて配列にすべてぶちこむaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
         if self.buttons_X == 0 and joy.buttons[2] == 1:
             # 0°に旋回
             self.state = 1
@@ -399,7 +401,7 @@ class MinimalSubscriber(Node):
             else:
                 angle_difference = angle_difference*-1
 
-        if abs(angle_difference) < 2:  # この判定ゆるくする！！！！！！！！！！！！！！！！
+        if abs(angle_difference) < 3:
             # 止まる
             temp = 0
             self.state = 0

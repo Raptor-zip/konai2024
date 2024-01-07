@@ -69,15 +69,25 @@
                 </div>
             </div>
 
-            <div id="angle">
-                <p>角度</p>
-                <p id="angle_value">0</p>
+            <div id="motor_grid">
+                <div>
+                    <p>角度</p>
+                    <div class='motor_gauge'>
+                        <div id='angle_gauge' style='width:0' class="motor_gauge_gauge"></div>
+                        <div id='angle_char' class="motor_gauge_char">0°</div>
+                    </div>
+                </div>
+
+                <div>
+                    <p>バッテリー</p>
+                    <div class='motor_gauge'>
+                        <div id='battery_voltage_gauge' style='width:0' class="motor_gauge_gauge"></div>
+                        <div id='battery_voltage_char' class="motor_gauge_char">0V</div>
+                    </div>
+                    <!-- <p><span id="battery_voltage_value">-</span>V</p> -->
+                </div>
             </div>
 
-            <div id="battery_voltage">
-                <p>バッテリー電圧</p>
-                <p><span id="battery_voltage_value">-</span>V</p>
-            </div>
 
             <div id="wifi_signal_strength">
                 <p>WiFi電波強度</p>
