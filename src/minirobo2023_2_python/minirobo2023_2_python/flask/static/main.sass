@@ -1,4 +1,20 @@
+$theme_blue: #1c71bd
+$theme_red: #df2121
+$background_color: #33373a
+$background_color_red: #850000
 $sp-1: 767px
+
+// 基準にする画面幅（デザインデータの幅）
+$defaultWidth: 375
+
+// px → vw
+@function vw($size, $width: $defaultWidth)
+    @return (100 / $width) * $size * 1vw
+
+// fontsize px → vw
+@mixin fontSize($size: 10, $width: $defaultWidth)
+    font-size: $size * 1px // vw非対応用
+    font-size: vw($size, $width)
 
 html,
 *
@@ -13,6 +29,8 @@ html,
 
 body
     background-color: #111111
+    &[emergency='1']
+        background-color: $background_color_red !important
 
 h1
     font-size: 1rem
@@ -38,7 +56,7 @@ span
     &_gauge
         width: 0
         height: 1rem
-        background: #53aeff
+        background: $theme_blue
 
     &_char
         position: absolute
@@ -49,11 +67,13 @@ span
         line-height: 1rem
 
 .parents
-    background-color: #444444
-    width: calc(100% - 1rem)
-    height: calc(100% - 1rem)
-    margin: 0.3rem
-    padding: 0.3rem
+    background-color: $background_color
+    width: calc(100% - 0.4rem)
+    height: calc(100% - 0.4rem)
+    margin: 0.2rem
+    padding: 0.2rem
+    &[emergency='1']
+        background-color: $theme_red
 
 #robot
     grid-area: robot
@@ -66,11 +86,11 @@ span
     .gauge
         border: none
         margin: 0.1rem
-        background-color: #444444
+        background-color: $background_color
 
         &_gauge
             height: 2rem
-            background: #53aeff
+            background: $theme_blue
 
         &_char
             font-size: 1.9rem
@@ -82,6 +102,9 @@ span
     .grid_2columns
         padding: 0.1rem
 
+        p
+            text-align: center
+
     .buttons
         display: inline-block
         margin: 0.1rem
@@ -91,6 +114,11 @@ span
         line-height: 1rem
         font-size: 0.6rem
         border: solid #fff 1px
+
+        &[true_false='1']
+            background-color: $theme-blue
+        &[true_false='0']
+            background-color: $background_color
 
 #connection
     grid-area: connection
@@ -108,14 +136,6 @@ span
     .gauge_char
         font-size: 0.6rem
         line-height: 0.7rem
-
-    &[true_false='1']
-        background-color: #53aeff
-        color: #000
-
-    &[true_false='0']
-        background-color: #444444
-        color: #fff
 
 input[type="range"]
     -webkit-appearance: none
@@ -140,7 +160,7 @@ input[type="range"]
 input[type="range"]::-webkit-slider-thumb
     -webkit-appearance: none
     /*  🚩デフォルトのつまみのスタイルを解除 */
-    background: #53aeff
+    background: $theme_blue
     /* 背景色 */
     width: 24px
     /* 幅 */
@@ -153,7 +173,7 @@ input[type="range"]::-webkit-slider-thumb
 
 /* Moz向けのつまみ */
 input[type="range"]::-moz-range-thumb
-    background: #53aeff
+    background: $theme_blue
     /* 背景色 */
     width: 24px
     /* 幅 */

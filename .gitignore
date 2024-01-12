@@ -1,0 +1,6 @@
+build
+log
+.vscode
+.sass-cache
+cert.pem
+key.pem

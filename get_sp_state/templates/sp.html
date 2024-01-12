@@ -1,105 +1,107 @@
 <!DOCTYPE html>
 <html lang="ja">
-  <head>
+
+<head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta http-equiv="X-UA-Compatible" content="ie=edge" />
     <title>Device Orientation and Battery Level</title>
     <style>
-      * {
-        font-size: 2rem;
-      }
-      html,
-      body {
-        width: 100%;
-        height: 100%;
-        background-color: #000;
-        color: #fff;
-        font-weight: 900;
-        text-align: center;
-      }
+        * {
+            font-size: 2rem;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            color: #fff;
+            font-weight: 900;
+            text-align: center;
+        }
     </style>
-  </head>
-  <body>
+</head>
+
+<body>
     <p id="orientationOutput">Orientation:</p>
     <p id="batteryOutput">Battery Level:</p>
     <p id="last">time</p>
     <p id="user_count">0人接続</p>
 
-    <script
-      src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"
-      integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA=="
-      crossorigin="anonymous"
-    ></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.3/socket.io.js"
+        integrity="sha512-jDUVpk2awjMnyrpY2xZguylQVRDeS9kRBImn0M3NJaZzowzUpKr6i62ynwPG0vNS1+NsTk4ji+iznbc5m0ZCKQ=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
     <script type="text/javascript">
-      let state = {
-        raw_angle: 0,
-        sp_battery_level: 0,
-      };
-      function handleOrientation(event) {
-        state.raw_angle = Number(Math.abs(event.alpha - 360).toFixed(1));
-        document.getElementById(
-          "orientationOutput"
-        ).innerText = `角度: ${state.raw_angle}`;
-      }
-
-      function handleBattery(battery) {
-        state.sp_battery_level = Number(Math.floor(battery.level * 100));
-        document.getElementById(
-          "batteryOutput"
-        ).innerText = `バッテリー: ${state.sp_battery_level.toFixed()}%`;
-      }
-
-      window.addEventListener("deviceorientation", handleOrientation);
-
-      if ("getBattery" in navigator) {
-        navigator.getBattery().then(handleBattery);
-      } else {
-        document.getElementById("batteryOutput").innerText =
-          "Battery API not supported";
-      }
-
-      var socket = io();
-
-      // 接続者数の更新
-      socket.on("count_update", function (msg) {
-        document.getElementById("user_count").innerText = msg.user_count;
-      });
-      temp = 0;
-      window.setInterval(send_state, 30);
-      function send_state() {
-        // state.raw_angle = temp;
-        socket.emit("state", state);
-        // temp++;
-
-        document.getElementById("last").innerHTML = temp;
-      }
-
-      const fullscreenElement = document.documentElement;
-      document.addEventListener("click", toggleFullScreen);
-      function toggleFullScreen() {
-        if (!document.fullscreenElement) {
-          fullscreenElement
-            .requestFullscreen()
-            .then(() => {
-              if (screen.orientation && screen.orientation.lock) {
-                screen.orientation.lock("landscape").catch((err) => {
-                  console.error(
-                    "Error attempting to lock screen orientation:",
-                    err
-                  );
-                });
-              }
-            })
-            .catch((err) => {
-              console.error(
-                "Error attempting to enable full-screen mode:",
-                err
-              );
-            });
+        let state = {
+            raw_angle: 0,
+            sp_battery_level: 0,
+        };
+        function handleOrientation(event) {
+            state.raw_angle = Number(Math.abs(event.alpha - 360).toFixed(1));
+            document.getElementById(
+                "orientationOutput"
+            ).innerText = `角度: ${state.raw_angle}`;
         }
-      }
+
+        function handleBattery(battery) {
+            state.sp_battery_level = Number(Math.floor(battery.level * 100));
+            document.getElementById(
+                "batteryOutput"
+            ).innerText = `バッテリー: ${state.sp_battery_level.toFixed()}%`;
+        }
+
+        window.addEventListener("deviceorientation", handleOrientation);
+
+        if ("getBattery" in navigator) {
+            navigator.getBattery().then(handleBattery);
+        } else {
+            document.getElementById("batteryOutput").innerText =
+                "Battery API not supported";
+        }
+
+        var socket = io();
+
+        // 接続者数の更新
+        socket.on("count_update", function (msg) {
+            document.getElementById("user_count").innerText = msg.user_count;
+        });
+        temp = 0;
+        window.setInterval(send_state, 30);
+        function send_state() {
+            // state.raw_angle = temp;
+            socket.emit("state", state);
+            // temp++;
+
+            document.getElementById("last").innerHTML = temp;
+        }
+
+        const fullscreenElement = document.documentElement;
+        document.addEventListener("click", toggleFullScreen);
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                fullscreenElement
+                    .requestFullscreen()
+                    .then(() => {
+                        if (screen.orientation && screen.orientation.lock) {
+                            screen.orientation.lock("landscape").catch((err) => {
+                                console.error(
+                                    "Error attempting to lock screen orientation:",
+                                    err
+                                );
+                            });
+                        }
+                    })
+                    .catch((err) => {
+                        console.error(
+                            "Error attempting to enable full-screen mode:",
+                            err
+                        );
+                    });
+            }
+        }
     </script>
-  </body>
+</body>
+
 </html>

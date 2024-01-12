@@ -3,9 +3,9 @@
 
 <head>
     <title>ロボット制御</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"
-        integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA=="
-        crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.3/socket.io.js"
+        integrity="sha512-jDUVpk2awjMnyrpY2xZguylQVRDeS9kRBImn0M3NJaZzowzUpKr6i62ynwPG0vNS1+NsTk4ji+iznbc5m0ZCKQ=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <link rel=stylesheet type=text/css href="{{ url_for('static', filename='main.css') }}">
     <script type=text/javascript src="{{ url_for('static', filename='main.js') }}"></script>
     <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}">
@@ -19,43 +19,36 @@
                 <div>
                     <!-- <p>左前メカナム</p> -->
                     <div class='gauge'>
-                        <div id='motor1_speed_gauge' class="gauge_gauge"></div>
-                        <div id='motor1_speed_char' class="gauge_char">左前メカナム</div>
+                        <div id='motor0_speed_gauge' class="gauge_gauge"></div>
+                        <div id='motor0_speed_char' class="gauge_char">左前メカナム</div>
                     </div>
                 </div>
                 <div>
                     <!-- <p>右前メカナム</p> -->
                     <div class='gauge'>
-                        <div id='motor2_speed_gauge' class="gauge_gauge"></div>
-                        <div id='motor2_speed_char' class="gauge_char">右前メカナム</div>
+                        <div id='motor1_speed_gauge' class="gauge_gauge"></div>
+                        <div id='motor1_speed_char' class="gauge_char">右前メカナム</div>
                     </div>
                 </div>
                 <div>
                     <!-- <p>左後メカナム</p> -->
                     <div class='gauge'>
-                        <div id='motor3_speed_gauge' class="gauge_gauge"></div>
-                        <div id='motor3_speed_char' class="gauge_char">左後メカナム</div>
+                        <div id='motor2_speed_gauge' class="gauge_gauge"></div>
+                        <div id='motor2_speed_char' class="gauge_char">左後メカナム</div>
                     </div>
                 </div>
                 <div>
                     <!-- <p>右後メカナム</p> -->
                     <div class='gauge'>
+                        <div id='motor3_speed_gauge' class="gauge_gauge"></div>
+                        <div id='motor3_speed_char' class="gauge_char">右後メカナム</div>
+                    </div>
+                </div>
+                <div>
+                    <!-- <p>回収機構</p> -->
+                    <div class='gauge'>
                         <div id='motor4_speed_gauge' class="gauge_gauge"></div>
-                        <div id='motor4_speed_char' class="gauge_char">右後メカナム</div>
-                    </div>
-                </div>
-                <div>
-                    <!-- <p>回収機構1</p> -->
-                    <div class='gauge'>
-                        <div id='motor5_speed_gauge' class="gauge_gauge"></div>
-                        <div id='motor5_speed_char' class="gauge_char">回収機構1</div>
-                    </div>
-                </div>
-                <div>
-                    <!-- <p>回収機構2</p> -->
-                    <div class='gauge'>
-                        <div id='motor6_speed_gauge' class="gauge_gauge"></div>
-                        <div id='motor6_speed_char' class="gauge_char">回収機構2</div>
+                        <div id='motor4_speed_char' class="gauge_char">回収機構</div>
                     </div>
                 </div>
                 <div>
@@ -69,12 +62,33 @@
 
             <div class="grid_2columns">
                 <div>
+                    <p>サーボ温度</p>
+                    <div class='gauge'>
+                        <div id='servo_tmp_gauge' class="gauge_gauge"></div>
+                        <div id='servo_tmp_char' class="gauge_char">0°</div>
+                    </div>
+                </div>
+                <div>
+                    <p>サーボ電流</p>
+                    <div class='gauge'>
+                        <div id='servo_cur_gauge' class="gauge_gauge"></div>
+                        <div id='servo_cur_char' class="gauge_char">0°</div>
+                    </div>
+                </div>
+                <div>
+                    <p>サーボ角度</p>
+                    <div class='gauge'>
+                        <div id='servo_deg_gauge' class="gauge_gauge"></div>
+                        <div id='servo_deg_char' class="gauge_char">0°</div>
+                    </div>
+                </div>
+                <!-- <div>
                     <p>角度</p>
                     <div class='gauge'>
                         <div id='angle_gauge' class="gauge_gauge"></div>
                         <div id='angle_char' class="gauge_char">0°</div>
                     </div>
-                </div>
+                </div> -->
 
                 <div>
                     <p>バッテリー</p>
@@ -104,9 +118,11 @@
         <div id="controller" class="parents">
             <!-- <h1>コントローラー</h1> -->
             <div id="ubuntu_ip_value">192.168.-</div>
-            <div id="controller1">
-                <div id="controller1_axes" class="grid_2columns"></div>
-                <div id="controller1_buttons"></div>
+            <div id="controllers">
+                <!-- <div id="controller1">
+                    <div id="controller1_axes" class="grid_2columns"></div>
+                    <div id="controller1_buttons"></div>
+                </div> -->
             </div>
         </div>
 

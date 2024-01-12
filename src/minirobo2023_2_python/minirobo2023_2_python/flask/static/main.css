@@ -18,6 +18,9 @@ html,
 body {
   background-color: #111111;
 }
+body[emergency="1"] {
+  background-color: #850000 !important;
+}
 
 h1 {
   font-size: 1rem;
@@ -46,7 +49,7 @@ span {
 .gauge_gauge {
   width: 0;
   height: 1rem;
-  background: #53aeff;
+  background: #1c71bd;
 }
 .gauge_char {
   position: absolute;
@@ -58,11 +61,14 @@ span {
 }
 
 .parents {
-  background-color: #444444;
-  width: calc(100% - 1rem);
-  height: calc(100% - 1rem);
-  margin: 0.3rem;
-  padding: 0.3rem;
+  background-color: #33373a;
+  width: calc(100% - 0.4rem);
+  height: calc(100% - 0.4rem);
+  margin: 0.2rem;
+  padding: 0.2rem;
+}
+.parents[emergency="1"] {
+  background-color: #df2121;
 }
 
 #robot {
@@ -77,11 +83,11 @@ span {
 #timer .gauge {
   border: none;
   margin: 0.1rem;
-  background-color: #444444;
+  background-color: #33373a;
 }
 #timer .gauge_gauge {
   height: 2rem;
-  background: #53aeff;
+  background: #1c71bd;
 }
 #timer .gauge_char {
   font-size: 1.9rem;
@@ -94,6 +100,9 @@ span {
 #controller .grid_2columns {
   padding: 0.1rem;
 }
+#controller .grid_2columns p {
+  text-align: center;
+}
 #controller .buttons {
   display: inline-block;
   margin: 0.1rem;
@@ -103,6 +112,12 @@ span {
   line-height: 1rem;
   font-size: 0.6rem;
   border: solid #fff 1px;
+}
+#controller .buttons[true_false="1"] {
+  background-color: #1c71bd;
+}
+#controller .buttons[true_false="0"] {
+  background-color: #33373a;
 }
 
 #connection {
@@ -122,14 +137,6 @@ span {
 .gauge_mini .gauge_char {
   font-size: 0.6rem;
   line-height: 0.7rem;
-}
-.gauge_mini[true_false="1"] {
-  background-color: #53aeff;
-  color: #000;
-}
-.gauge_mini[true_false="0"] {
-  background-color: #444444;
-  color: #fff;
 }
 
 input[type=range] {
@@ -157,7 +164,7 @@ input[type=range] {
 input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none;
   /*  🚩デフォルトのつまみのスタイルを解除 */
-  background: #53aeff;
+  background: #1c71bd;
   /* 背景色 */
   width: 24px;
   /* 幅 */
@@ -171,7 +178,7 @@ input[type=range]::-webkit-slider-thumb {
 
 /* Moz向けのつまみ */
 input[type=range]::-moz-range-thumb {
-  background: #53aeff;
+  background: #1c71bd;
   /* 背景色 */
   width: 24px;
   /* 幅 */
