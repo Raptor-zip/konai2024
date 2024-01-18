@@ -10,14 +10,14 @@ unsigned long last_receive_time;              // 最後にパソコンから受�
 unsigned long startTime, stopTime;            // プログラムの遅延を確認するためにmicros
 unsigned int performInfrequentTask_count = 0; // 500回に1回実行するためのカウント
 unsigned char low_battery_voltage_count = 0;  // 6回以上1〜9Vの間だったらモーター強制停止するためのカウント
-float battery_voltage = 0;                    // バッテリー電圧
 int battery_voltage_PIN = 35;                 // バッテリー電圧を測定するためのピンの番号
 bool low_battery_voltage = false;             // バッテリー低電圧時にモーターを強制停止させるときにtrueになる
 const char *ssid = "明志-2g";                 // WiFiのSSID
 const char *password = "nitttttc";            // WiFiのパスワード
 //////////////////////////////////////////////////////////////////////////////////////
 // const char *python_ip = "192.168.28.68";
-const char *python_ip = "192.168.107.68";
+// const char *python_ip = "192.168.107.68";
+const char *python_ip = "192.168.35.68";
 //////////////////////////////////////////////////////////////////////////////////////
 const int python_port = 12346; // UDP通信で送信時に使うポート
 
@@ -147,23 +147,23 @@ void loop()
     // Serial.println("us");
   }
 
-  // Arduinoからサーボの情報を読み取る
-  String received_strings = Serial2.readStringUntil('\n');
-  if (received_strings.length() > 2)
-  { // 5文字以上あるなら = 空でないなら
-    Serial.print("I received: " + String(received_strings));
-    udp.beginPacket(python_ip, python_port);
-    udp.print(received_strings);
-    udp.endPacket();
-  }
+  // // Arduinoからサーボの情報を読み取る
+  // String received_strings = Serial2.readStringUntil('\n');
+  // if (received_strings.length() > 2)
+  // { // 5文字以上あるなら = 空でないなら
+  //   Serial.print("I received: " + String(received_strings));
+  //   udp.beginPacket(python_ip, python_port);
+  //   udp.print(received_strings);
+  //   udp.endPacket();
+  // }
 
   performInfrequentTask_count++;
   if (performInfrequentTask_count > 500)
   {
     performInfrequentTask_count = 0;
     // 電圧監視
-    battery_voltage = analogRead(battery_voltage_PIN) * 4.034 * 3.3 / 4096;
-    if (1 < battery_voltage && battery_voltage < 9)
+    float battery_voltage = analogRead(battery_voltage_PIN) * 4.034 * 3.3 / 4096;
+    if (1 < battery_voltage && battery_voltage < 9) // センサー9Vのとき電源装置9.5V
     {
       if (low_battery_voltage_count > 4)
       { // 6であってるのか検証！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！１
@@ -215,7 +215,7 @@ void loop()
 
 void PWM(int motor_id, int duty)
 {
-  if (abs(duty) < 12)
+  if (duty == 0)
   {
     // VCCブレーキ
     digitalWrite(PIN_array[motor_id - 1].INA, HIGH);

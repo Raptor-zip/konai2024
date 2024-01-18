@@ -1,15 +1,4 @@
-#include <IcsSoftSerialClass.h>
-// 1/11 ピン配置
-// D0 ESPTX
-// D1 ESPRX
-// D6 Motor5 PWM
-// D8 Motor5 AIN
-// D7 Motor5 BIN
-// D10 STX//S=Servo
-// D11 SRX
-// D12 SIO
-// A4 SDA
-// A5 SCL
+// #include <IcsSoftSerialClass.h>
 const int LED_PIN = 13;
 const int S_RX_PIN = 12;
 const int S_TX_PIN = 11;
@@ -24,7 +13,7 @@ int temp = 0;
 String cmds[2] = { "\0" };  // 分割された文字列を格納する配列
 // char cmds[2][10] = { "" };
 
-IcsSoftSerialClass krs(S_RX_PIN, S_TX_PIN, EN_PIN, BAUDRATE, TIMEOUT);  // インスタンス＋ENピン(2番ピン)およびUARTの設定、softSerial版
+// IcsSoftSerialClass krs(S_RX_PIN, S_TX_PIN, EN_PIN, BAUDRATE, TIMEOUT);  // インスタンス＋ENピン(2番ピン)およびUARTの設定、softSerial版
 
 typedef struct
 {
@@ -34,13 +23,14 @@ typedef struct
 } dataDictionary;
 
 const dataDictionary PIN_array[]{
-  { 6, 8, 7 }
+  { 5, 4, 3 }
+  // { 6, 8, 7 }
 };
 
 void setup() {
-  krs.begin();  // サーボモータの通信初期設定
-  krs.setStrc(0, 60);
-  krs.setSpd(0, 127);  // MAX127
+  // krs.begin();  // サーボモータの通信初期設定
+  // krs.setStrc(0, 60);
+  // krs.setSpd(0, 127);  // MAX127
 
   pinMode(LED_PIN, OUTPUT);
 
@@ -76,7 +66,7 @@ void loop() {
         if (cmds[1].toInt() == 999) {
           // フリーにする バッテリーの低電圧を検知したときに送られる
           digitalWrite(LED_PIN, HIGH);
-          krs.setFree(0);  ////ID:0 をフリー状態に
+          // krs.setFree(0);  ////ID:0 をフリー状態に
         } else {
           // バッテリー電圧が問題ないとき
           if (cmds[1].toInt() == 135) {
@@ -85,23 +75,23 @@ void loop() {
             digitalWrite(LED_PIN, LOW);
           }
 
-          krs.setPos(0, krs.degPos(cmds[1].toInt()));
+          // krs.setPos(0, krs.degPos(cmds[1].toInt()));
         }
     }
   }
 
-  // サーボの状態を取得する timeout:約200ms
-  int cur = krs.getCur(0);  //ID0 の電流値を読み取ります
-  if (cur != -1) {
-    int tmp = krs.getTmp(0);          //ID0 の温度値を読み取ります
-    int pos = krs.getPos(0);          //ID0 の現在のポジションデータを読み取ります
-    float got_deg = krs.posDeg(pos);  //度数法に変換
-    // サーボの状態を送信する
-    Serial.println("{\"servo_tmp\":" + String(tmp) + ",\"servo_cur\":" + String(cur) + ",\"servo_deg\":" + String(got_deg) + "}");
-  }else{
-    // サーボの状態を送信する
-    Serial.println("{\"servo_tmp\":999,\"servo_cur\":999,\"servo_deg\":999}");
-  }
+  // // サーボの状態を取得する timeout:約200ms
+  // int cur = krs.getCur(0);  //ID0 の電流値を読み取ります
+  // if (cur != -1) {
+  //   int tmp = krs.getTmp(0);          //ID0 の温度値を読み取ります
+  //   int pos = krs.getPos(0);          //ID0 の現在のポジションデータを読み取ります
+  //   float got_deg = krs.posDeg(pos);  //度数法に変換
+  //   // サーボの状態を送信する
+  //   Serial.println("{\"servo_tmp\":" + String(tmp) + ",\"servo_cur\":" + String(cur) + ",\"servo_deg\":" + String(got_deg) + "}");
+  // }else{
+  //   // サーボの状態を送信する
+  //   Serial.println("{\"servo_tmp\":999,\"servo_cur\":999,\"servo_deg\":999}");
+  // }
 }
 
 void PWM(int motor_id, int duty) {

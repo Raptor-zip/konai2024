@@ -16,6 +16,9 @@ $defaultWidth: 375
     font-size: $size * 1px // vw非対応用
     font-size: vw($size, $width)
 
+#sadou
+    display: none
+
 html,
 *
     font-size: 36px
@@ -80,8 +83,8 @@ span
 
 #timer
     grid-area: timer
-    width: calc(50vw - 0.6rem)
-    margin: 0.2rem
+    width: calc(50vw - 0.4rem)
+    margin: 0.1rem
 
     .gauge
         border: none
@@ -105,7 +108,7 @@ span
         p
             text-align: center
 
-    .buttons
+    .controller_buttons
         display: inline-block
         margin: 0.1rem
         width: 1rem
@@ -136,6 +139,28 @@ span
     .gauge_char
         font-size: 0.6rem
         line-height: 0.7rem
+
+/* ボタンの基本スタイル */
+.button
+    display: inline-block
+    padding: 0 0.1rem
+    font-size: 0.6rem
+    font-weight: bold
+    text-align: center
+    text-decoration: none
+    cursor: pointer
+    border: solid 1px #fff
+    background: none
+    // color: #fff
+    // background-color: #1c71bd
+
+/* ホバー時のスタイル */
+    &:hover
+        background-color: #145492
+
+/* アクティブ時のスタイル */
+    &:active
+        background-color: #0e3a64
 
 input[type="range"]
     -webkit-appearance: none

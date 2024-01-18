@@ -25,7 +25,9 @@ reception_json = {
 # esp32_ip = "192.168.211.241"
 # esp32_ip = "192.168.28.241"
 # esp32_ip = "192.168.107.241"
-esp32_ip = "192.168.107.78"
+# esp32_ip = "192.168.107.78"
+esp32_ip = "192.168.35.78"
+# esp32_ip = "192.168.35.241"
 esp32_port = 12345
 
 # UDPソケットの作成
@@ -196,10 +198,10 @@ class MinimalSubscriber(Node):
             turn_minus1to1 += self.joy_now["joy0"]["axes"][0]
 
             self.motor_speed[:4] = [
-                turn_minus1to1 * 256 * -1,
-                turn_minus1to1 * 256,
-                turn_minus1to1 * 256 * -1,
-                turn_minus1to1 * 256]
+                turn_minus1to1 * 255 * -1,
+                turn_minus1to1 * 255,
+                turn_minus1to1 * 255 * -1,
+                turn_minus1to1 * 255]
 
             normalized_angle = (
                 1 - (math.atan2(self.joy_now["joy0"]["axes"][2], self.joy_now["joy0"]["axes"][3])) / (2 * math.pi)) % 1
@@ -214,13 +216,17 @@ class MinimalSubscriber(Node):
 
             # 旋回と合わせる
             self.motor_speed[:4] = [speed + value for speed, value in zip(
-                self.motor_speed, [front_left, front_right, rear_left, rear_right])]
+                self.motor_speed[:4], [front_left, front_right, rear_left, rear_right])]
 
             # 255を超えた場合、比率を保ったまま255以下にする
             max_motor_speed = max(map(abs, self.motor_speed[:4]))
             if max_motor_speed > 255:
-                self.motor_speed = [int(speed * 255 / max_motor_speed)
-                                    for speed in self.motor_speed[:4]]
+                self.motor_speed[:4] = [int(speed * 255 / max_motor_speed)
+                                        for speed in self.motor_speed[:4]]
+
+            # モータースピードが絶対値16未満の値を削除 (ジョイコンの戻りが悪いときでもブレーキを利かすため)
+            self.motor_speed = [
+                0 if abs(i) < 16 else i for i in self.motor_speed]
 
             print(self.state,
                   *[int(speed) for speed in self.motor_speed],
@@ -258,7 +264,7 @@ class MinimalSubscriber(Node):
             {"axes": [0] * len(joy.axes), "buttons": [0] * len(joy.buttons)}
         )
 
-        # self.motor5_speed = int(self.joy_now["joy0"]["axes"][1]*256)
+        # self.motor5_speed = int(self.joy_now["joy0"]["axes"][1]*255)
 
         if self.joy_past["joy0"]["buttons"][2] == 0 and self.joy_now["joy0"]["buttons"][2] == 1:  # Xボタン
             # 0°に旋回
@@ -311,7 +317,7 @@ class MinimalSubscriber(Node):
         )
 
         # 回収機構のモーター
-        self.motor_speed[4] = int(self.joy_now["joy1"]["axes"][1] * 256)
+        self.motor_speed[4] = int(self.joy_now["joy1"]["axes"][1] * 255)
 
         if self.joy_now["joy1"]["buttons"][6] == 1 or self.joy_now["joy1"]["buttons"][7]:
             # 走行補助強制停止
