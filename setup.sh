@@ -1,3 +1,4 @@
+pip install -r pip_install.txt
 colcon build
 source install/setup.bash
 sleep 0.1s

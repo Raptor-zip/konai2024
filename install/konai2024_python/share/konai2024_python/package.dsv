@@ -1,0 +1,6 @@
+source;share/konai2024_python/hook/pythonpath.ps1
+source;share/konai2024_python/hook/pythonpath.dsv
+source;share/konai2024_python/hook/pythonpath.sh
+source;share/konai2024_python/hook/ament_prefix_path.ps1
+source;share/konai2024_python/hook/ament_prefix_path.dsv
+source;share/konai2024_python/hook/ament_prefix_path.sh

@@ -11,7 +11,7 @@ def generate_launch_description():
     return LaunchDescription(
         [
             Node(
-                package="minirobo2023_2_python",
+                package="konai2024_python",
                 executable="communicate_ESP32",
                 output="screen",
                 # prefix="xterm -e",
@@ -19,7 +19,7 @@ def generate_launch_description():
             Node(
                 package="joy",
                 executable="joy_node",
-                parameters=[{"device_id": 1}],
+                parameters=[{"device_id": 0}],
                 remappings=[("/joy", "/joy0")],
             ),
             Node(
@@ -29,7 +29,7 @@ def generate_launch_description():
                 remappings=[("/joy", "/joy1")],
             ),
             Node(
-                package="minirobo2023_2_python",
+                package="konai2024_python",
                 executable="webserver",
                 output="screen",
                 prefix="xterm -e",
