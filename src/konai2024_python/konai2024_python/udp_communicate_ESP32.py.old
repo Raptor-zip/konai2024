@@ -9,7 +9,6 @@ from concurrent.futures import ThreadPoolExecutor  # threadPoolExecutor
 import playsound  # バッテリー低電圧保護ブザー用
 import subprocess  # SSID取得用
 import time
-import serial
 import ipget  # IPアドレス取得用
 import socket  # UDP通信用
 import math
@@ -26,7 +25,12 @@ reception_json = {
     "wifi_signal_strength": 0
 }
 
-ser = None
+accuracy_angle = 0  # 本当は使いたくないけど
+
+# ESP32のIPアドレスとポート番号
+# esp32_ip = "192.168.107.241"
+esp32_ip = "192.168.102.78"
+esp32_port = 12345
 
 # UDPソケットの作成
 udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -54,10 +58,9 @@ except subprocess.CalledProcessError:
 
 def main():
     with ThreadPoolExecutor(max_workers=4) as executor:
-        # executor.submit(sp_udp_reception)
-        # executor.submit(esp32_udp_reception)
+        executor.submit(sp_udp_reception)
+        executor.submit(esp32_udp_reception)
         # executor.submit(battery_alert)
-        executor.submit(serial_reception)
         # executor.submit(odometry)
         # executor.submit(graph)
         future = executor.submit(ros)
@@ -119,47 +122,6 @@ def odometry():
                 f"\n\n\n\n\n\n\n    マウス の読み取りに失敗: {e}\n\n\n\n\n\n\n", flush=True)
 
 
-def serial_connection():
-    global ser
-    global serial_reception_text
-    print("253kitaaaaaa",flush=True)
-    # while True:
-    i = 0
-    while i > -1:
-        try:
-            ser = serial.Serial(f'/dev/ttyUSB{i}', 921600, timeout=3)
-            print(f"{i}マイコンとSerial接続成功", flush=True)
-            i = -1  # Serialが正常に開かれた場合はループを抜ける
-        except Exception as e:
-            print(f"{i}マイコンとSerial接続失敗: {e}", flush=True)
-            time.sleep(0.2)  # 0.2秒待って再試行
-            if i<5:
-                i += 1  # 例外が発生した場合もiをインクリメントして次のポートを試す
-            else:
-                i=0
-
-def serial_reception():
-    global ser
-    global serial_reception_text
-    while True:
-        try:
-            line = ser.readline()
-            # line = ser.readline().decode('utf-8')
-            print(line, flush=True)
-            # \n消したほうがいい気が
-        except UnicodeDecodeError as e:
-            # print("エンコードエラー")
-            # print(line)
-            print(f"デコードエラー:{e}", flush=True)
-        except Exception as e:
-            print("マイコンと接続失敗",flush=True)
-            serial_connection()
-        # serial_reception_text.insert(0, line)
-        # if len(serial_reception_text) > 100:
-        #     del serial_reception_text[-1]
-        time.sleep(0.002) # これないとCPU使用率が増える
-
-
 def sp_udp_reception():
     global sp_udp_socket
     global reception_json
@@ -175,20 +137,19 @@ def sp_udp_reception():
 
 
 def esp32_udp_reception():
-    # けしていいよねこれーーーーーーーーーーーーーーーーーーーーーーーーー
     global local_udp_socket
     global reception_json
-    # while True:
-    #     try:
-    #         # データを受信
-    #         data, addr = local_udp_socket.recvfrom(1024)
-    #         print(f"                    {data.decode('utf-8')}", flush=True)
-    #         reception_json_temp = json.loads(data.decode('utf-8'))
-    #         reception_json.update(reception_json_temp)
-    #     except Exception as e:
-    #         print(
-    #             f"\n\n\n\n\n\n\n    ESP32 からの受信に失敗: {e}\n\n\n\n\n\n\n", flush=True)
-    #         reception_json["battery_voltage"] = 0
+    while True:
+        try:
+            # データを受信
+            data, addr = local_udp_socket.recvfrom(1024)
+            print(f"                    {data.decode('utf-8')}", flush=True)
+            reception_json_temp = json.loads(data.decode('utf-8'))
+            reception_json.update(reception_json_temp)
+        except Exception as e:
+            print(
+                f"\n\n\n\n\n\n\n    ESP32 からの受信に失敗: {e}\n\n\n\n\n\n\n", flush=True)
+            reception_json["battery_voltage"] = 0
 
 
 def battery_alert():
@@ -278,14 +239,14 @@ class MinimalSubscriber(Node):
             self.kd = float(_json["d"])
 
     def timer_callback_0033(self):
-        global wifi_ssid
+        global wifi_ssid, esp32_ip
 
         msg = String()
         send_json = {
             "state": self.state,
             "ubuntu_ssid": wifi_ssid,
             "ubuntu_ip": ipget.ipget().ipaddr("wlp2s0"),
-            "esp32_ip": "/dev/ttyUSB0",
+            "esp32_ip": esp32_ip,
             "battery_voltage": reception_json["battery_voltage"],
             # "battery_voltage": 6,
             "wifi_signal_strength": reception_json["wifi_signal_strength"],
@@ -304,13 +265,11 @@ class MinimalSubscriber(Node):
     def timer_callback_001(self):
         global reception_json
         global accuracy_angle
-        global ser
         try:
             self.current_angle = reception_json["raw_angle"] + \
                 self.angle_adjust
             if self.current_angle < 0:
                 self.current_angle = 360 + self.current_angle
-
             # print(reception_json["raw_angle"],self.angle_adjust,self.current_angle,flush=True)
 
             accuracy_angle = self.current_angle
@@ -365,24 +324,21 @@ class MinimalSubscriber(Node):
             #       int(self.servo_angle),
             #       flush=True)
 
-            send_ESP32_data = [
-                int(self.motor_speed[0]),
-                int(self.motor_speed[1]),
-                int(self.motor_speed[2]),
-                int(self.motor_speed[3]),
-                int(self.motor_speed[4]),
-                int(self.servo_angle),
-                ]
-            # send_ESP32_data = [1,2,3,4]
-            # json_str = ','.join(send_ESP32_data) + "\n"
-            json_str = ','.join(map(str, send_ESP32_data)) + "\n"
-            print(json_str,flush=True)
+            send_ESP32_data = {
+                "motor1": int(self.motor_speed[0]),
+                "motor2": int(self.motor_speed[1]),
+                "motor3": int(self.motor_speed[2]),
+                "motor4": int(self.motor_speed[3]),
+                "motor5": int(self.motor_speed[4]),
+                "servo": int(self.servo_angle),
+            }
+            json_str = json.dumps(send_ESP32_data) + "\n"
+            # print(f"Sent {esp32_ip}:{esp32_port} {json_str}",flush=True)
             try:
-                ser.write(json_str.encode()) # 書き込む
+                udp_socket.sendto(json_str.encode(), (esp32_ip, esp32_port))
             except Exception as e:
                 print(
                     f"\n\n\n\n\n\n\n    ESP32 への送信に失敗: {e}\n\n\n\n\n\n\n", flush=True)
-                serial_connection()
         except KeyError as e:
             print(f"コントローラー の読み取りに失敗: {e}", flush=True)
 

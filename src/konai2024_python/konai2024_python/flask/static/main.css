@@ -155,13 +155,18 @@ span {
   border: solid 1px #fff;
   background: none;
 }
+.button:hover {
+  background-color: #145492;
+}
+.button:active {
+  background-color: #0e3a64;
+}
 
-/* ホバー時のスタイル */
- *  &:hover
- *      background-color: #145492 */
-/* アクティブ時のスタイル */
- *  &:active
- *      background-color: #0e3a64 */
+input[type=number] {
+  background-color: black;
+  color: white;
+}
+
 input[type=range] {
   -webkit-appearance: none;
   /* 🚩これ無しだとスタイルがほぼ全く反映されないので注意 */

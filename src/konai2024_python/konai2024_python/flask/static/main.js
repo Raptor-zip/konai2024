@@ -31,7 +31,7 @@ window.setInterval(function () {
 }, 33);
 
 socket.on('json_receive', function (json) {
-    // console.log(json);
+    console.log(json);
     if ("state" in json) {
         // switch (json["state"]) {
         // case 0:
@@ -288,6 +288,13 @@ socket.on('json_receive', function (json) {
     }
 });
 
+function send_ros2() {
+    p = document.getElementById("gain_p").value;
+    i = document.getElementById("gain_i").value;
+    d = document.getElementById("gain_d").value;
+    socket.emit('send_web_data', { "p": p, "i": i, "d": d });
+}
+
 window.setInterval(function () {
     // カウントダウンタイマーの処理
     if (start_timer != null) {
@@ -325,7 +332,7 @@ window.onload = function () {
 
     // ボタンにクリックイベントを追加
     document.getElementById("exit_full_screen_button").addEventListener('click', function () {
-        // 再読込解除
+        // フルスクリーン解除
         if (document.exitFullscreen) {
             document.exitFullscreen();
         } else if (document.webkitExitFullscreen) { // Safari
@@ -334,6 +341,32 @@ window.onload = function () {
             document.mozCancelFullScreen();
         } else if (document.msExitFullscreen) { // IE/Edge
             document.msExitFullscreen();
+        }
+    });
+
+    // ボタンにクリックイベントを追加
+    document.getElementById("full_screen_button").addEventListener('click', function () {
+        // const fullscreenElement = document.documentElement;
+
+        if (!document.fullscreenElement) {
+            document.documentElement
+                .requestFullscreen()
+                .then(() => {
+                    if (screen.orientation && screen.orientation.lock) {
+                        screen.orientation.lock("landscape").catch((err) => {
+                            console.error(
+                                "Error attempting to lock screen orientation:",
+                                err
+                            );
+                        });
+                    }
+                })
+                .catch((err) => {
+                    console.error(
+                        "Error attempting to enable full-screen mode:",
+                        err
+                    );
+                });
         }
     });
 }
@@ -347,28 +380,3 @@ socket.on('my pong', function () {
         sum += ping_pong_times[i];
     document.getElementById("ping").innerText = Math.round(10 * sum / ping_pong_times.length) / 10;
 });
-
-const fullscreenElement = document.documentElement;
-document.addEventListener("click", toggleFullScreen);
-function toggleFullScreen() {
-    if (!document.fullscreenElement) {
-        fullscreenElement
-            .requestFullscreen()
-            .then(() => {
-                if (screen.orientation && screen.orientation.lock) {
-                    screen.orientation.lock("landscape").catch((err) => {
-                        console.error(
-                            "Error attempting to lock screen orientation:",
-                            err
-                        );
-                    });
-                }
-            })
-            .catch((err) => {
-                console.error(
-                    "Error attempting to enable full-screen mode:",
-                    err
-                );
-            });
-    }
-}

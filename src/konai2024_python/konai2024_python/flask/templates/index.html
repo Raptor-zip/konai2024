@@ -118,6 +118,12 @@
         <div id="controller" class="parents">
             <div id="ubuntu_ip_value">192.168.-</div>
             <div id="controllers"></div>
+            <div id="gain_controll">
+                <input type="number" id="gain_p" step="0.01" value="4">
+                <input type="number" id="gain_i" step="0.01" value="0.1">
+                <input type="number" id="gain_d" step="0.01" value="20">
+                <button class="button" onclick="send_ros2()">更新</button>
+            </div>
             <div id="sadou">
                 <svg style="width: 100%; height: 100%; position: absolute; z-index: 1;">
                     <g transform="translate(78.5 78.5) scale(0.95, 0.95)">
@@ -137,6 +143,7 @@
             <div>Ping:<span id="ping">-</span>ms</div>
             <div>接続端末数:<span id="user_count">-</span>台</div>
             <button id="reload_button" class="button">リロード</button>
+            <button id="full_screen_button" class="button">全画面</button>
             <button id="exit_full_screen_button" class="button">全画面解除</button>
         </div>
     </div>

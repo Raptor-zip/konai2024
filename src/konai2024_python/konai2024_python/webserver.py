@@ -1,3 +1,4 @@
+from threading import Lock  # これ消していいよね？
 from flask_socketio import SocketIO, emit, join_room, leave_room, close_room, rooms, disconnect
 import rclpy
 from rclpy.node import Node
@@ -10,9 +11,10 @@ import logging  # Flaskのログを削除する
 from engineio.payload import Payload
 Payload.max_decode_packets = 10000
 
-from threading import Lock  # これ消していいよね？
 thread_lock = Lock()  # これ消していいよね？
 
+# うけとったデータ
+received_json = {"test": -1}
 
 # ユーザー数
 user_count = 0
@@ -56,6 +58,10 @@ class MinimalSubscriber(Node):
     def __init__(self):
         print("Subscriber", flush=True)
         super().__init__('command_subscriber')
+        self.publisher_Web_to_Main = self.create_publisher(
+            String, 'Web_to_Main', 10)
+        self.timer_0001 = self.create_timer(0.01, self.timer_callback_001)
+
         self.subscription = self.create_subscription(
             String,
             "ESP32_to_Webserver",
@@ -81,6 +87,12 @@ class MinimalSubscriber(Node):
             # print(reception_json, flush=True)
         except Exception as e:
             print(f'エラー: {e}', flush=True)
+
+    def timer_callback_001(self):
+        global received_json
+        msg = String()
+        msg.data = json.dumps(received_json)
+        self.publisher_Web_to_Main.publish(msg)
 
     # def joy1_listener_callback(self, msg):
     #     print("女医北", flush=True)
@@ -128,8 +140,15 @@ def disconnect():
 
 @socketio.on('json_request')
 def json_request():
+    global reception_json  # しなくていいの?
     # print("json_receive", flush=True)
     emit('json_receive', reception_json)
+
+
+@socketio.on("send_web_data")
+def send_web_data(json):
+    global received_json
+    received_json = json
 
 
 @socketio.on("my ping")
