@@ -6,16 +6,4 @@ socketIO-client
 json5
 playsound
 ipget
-
-
-# Flask==2.0.1
-# json==0.10.5
-# playsound==1.2.2
-# ipget==0.0.1
-# socketIO-client==0.7.2
-
-# ROS 2 dependencies
-# rclpy==1.2.1
-# rosdep==0.20.0
-# ament-index==2.5.4
-# rosidl-defaults==0.11.3
+pyserial

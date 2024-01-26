@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Device Orientation and Battery Level</title>
+    <style>
+        * {
+            font-size: 2rem;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            color: #fff;
+            font-weight: 900;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <p id="orientationOutput">Orientation:</p>
+    <p id="batteryOutput">Battery Level:</p>
+    <p id="last">time</p>
+    <p id="user_count">0人接続</p>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.3/socket.io.js"
+        integrity="sha512-jDUVpk2awjMnyrpY2xZguylQVRDeS9kRBImn0M3NJaZzowzUpKr6i62ynwPG0vNS1+NsTk4ji+iznbc5m0ZCKQ=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+    <script type="text/javascript">
+        let state = {
+            raw_angle: 0,
+            sp_battery_level: 0,
+        };
+
+        function handleOrientation(event) {
+            state.raw_angle = Number(Math.abs(event.alpha - 360).toFixed(1));
+            play();
+            document.getElementById("orientationOutput").innerText = `角度: ${state.raw_angle}`;
+        }
+
+        function handleBattery(battery) {
+            state.sp_battery_level = Number(Math.floor(battery.level * 100));
+            document.getElementById("batteryOutput").innerText = `バッテリー: ${state.sp_battery_level.toFixed()}%`;
+        }
+
+        window.addEventListener("deviceorientation", handleOrientation);
+
+        if ("getBattery" in navigator) {
+            navigator.getBattery().then(handleBattery);
+        } else {
+            document.getElementById("batteryOutput").innerText = "Battery API not supported";
+        }
+
+        var socket = io();
+
+        // 接続者数の更新
+        socket.on("count_update", function (msg) {
+            document.getElementById("user_count").innerText = msg.user_count;
+        });
+
+        var osc;
+        var audioCtx;
+        var playing = false;
+        var time;
+        var number_played_by_now = 0;
+
+        function play() {
+            var number_playing_now = number_played_by_now + 1;
+            number_played_by_now++;
+
+            window.AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
+
+            var hz = state.raw_angle * 10; // Multiply angle by 10 to get frequency
+            time = 100;
+            osc = audioCtx.createOscillator();
+            osc.frequency.value = hz;
+            var audDes = audioCtx.destination;
+            osc.connect(audDes);
+
+            const intervalId = setInterval(() => {
+                console.log(time);
+                if (time <= 0) {
+                    clearInterval(intervalId);
+                    document.getElementById("count_down_timer").remove();
+                }
+                if (playing == false) {
+                    clearInterval(intervalId);
+                    document.getElementById("count_down_timer").remove();
+                }
+            }, 10);
+
+            playing = true;
+            osc.start = osc.start || osc.noteOn;
+            osc.start();
+            setTimeout(() => {
+                if (playing == true && number_played_by_now == number_playing_now) {
+                    stop();
+                }
+            }, time);
+        }
+
+        function stop() {
+            osc.stop(0);
+            playing = false;
+        }
+
+        window.onbeforeunload = function (e) {
+            if (playing == true) {
+                e.preventDefault();
+                return '';
+            }
+        };
+    </script>
+</body>
+
+</html>
