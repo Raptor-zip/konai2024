@@ -28,6 +28,8 @@ reception_json = {
 
 ser = None
 
+accuracy_angle = 0
+
 # UDPソケットの作成
 udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
@@ -53,30 +55,32 @@ except subprocess.CalledProcessError:
 
 
 def main():
-    with ThreadPoolExecutor(max_workers=4) as executor:
-        # executor.submit(sp_udp_reception)
-        # executor.submit(esp32_udp_reception)
-        # executor.submit(battery_alert)
+    with ThreadPoolExecutor(max_workers=6) as executor:
+        executor.submit(sp_udp_reception)
+        executor.submit(battery_alert)
         executor.submit(serial_reception)
-        # executor.submit(odometry)
-        # executor.submit(graph)
+        executor.submit(odometry)
+        executor.submit(graph)
         future = executor.submit(ros)
         future.result()         # 全てのタスクが終了するまで待つ
 
 
 DEVICE_PATH = "/dev/input/event6"  # Specify your device path here
-MAX_ARRAY_LENGTH = 1000  # Maximum length for x_coords and y_coords arrays
+# MAX_ARRAY_LENGTH = 1000  # Maximum length for x_coords and y_coords arrays
+MAX_ARRAY_LENGTH = 2  # Maximum length for x_coords and y_coords arrays
 
-coordinates = [[1], [1]]
-
+coordinates = [[1,1],[2,2]]
 
 def graph():
     global coordinates
     while True:
+        print(coordinates[0],coordinates[1],flush=True)
         plt.clf()
-        plt.plot(coordinates[0], coordinates[1], color='red', linewidth=2)
-        plt.axhline(0, color='black', linewidth=1)
-        plt.axvline(0, color='black', linewidth=1)
+        plt.plot(coordinates[0], coordinates[1], color='red', linewidth=3)
+        # plt.axhline(0, color='black', linewidth=1)
+        # plt.axvline(0, color='black', linewidth=1)
+        plt.xlim(-10000,10000)
+        plt.ylim(-10000,10000)
         plt.title(f"mouse odometry")
         plt.grid(True)
         plt.gca().set_aspect('equal', adjustable='box')
@@ -95,8 +99,8 @@ def odometry():
             # print(mouse_displacement, flush=True)
             # angle = MinimalSubscriber.current_angle  # 角度（度）
             angle = accuracy_angle
-            print(
-                f"           角度{angle}", flush=True)
+            # print(
+            #     f"           角度{angle}", flush=True)
             # 角度をラジアンに変換
             angle = math.radians(angle) * -1
 
@@ -145,7 +149,7 @@ def serial_reception():
         try:
             line = ser.readline()
             # line = ser.readline().decode('utf-8')
-            print(line, flush=True)
+            # print(line, flush=True)
             # \n消したほうがいい気が
         except UnicodeDecodeError as e:
             # print("エンコードエラー")
@@ -172,24 +176,6 @@ def sp_udp_reception():
         except Exception as e:
             print(
                 f"\n\n\n\n\n\n\n    スマホ からの受信に失敗: {e}\n\n\n\n\n\n\n", flush=True)
-
-
-def esp32_udp_reception():
-    # けしていいよねこれーーーーーーーーーーーーーーーーーーーーーーーーー
-    global local_udp_socket
-    global reception_json
-    # while True:
-    #     try:
-    #         # データを受信
-    #         data, addr = local_udp_socket.recvfrom(1024)
-    #         print(f"                    {data.decode('utf-8')}", flush=True)
-    #         reception_json_temp = json.loads(data.decode('utf-8'))
-    #         reception_json.update(reception_json_temp)
-    #     except Exception as e:
-    #         print(
-    #             f"\n\n\n\n\n\n\n    ESP32 からの受信に失敗: {e}\n\n\n\n\n\n\n", flush=True)
-    #         reception_json["battery_voltage"] = 0
-
 
 def battery_alert():
     global reception_json
@@ -284,7 +270,8 @@ class MinimalSubscriber(Node):
         send_json = {
             "state": self.state,
             "ubuntu_ssid": wifi_ssid,
-            "ubuntu_ip": ipget.ipget().ipaddr("wlp2s0"),
+            # "ubuntu_ip": ipget.ipget().ipaddr("wlp2s0"),
+            "ubuntu_ip": "aiueo",
             "esp32_ip": "/dev/ttyUSB0",
             "battery_voltage": reception_json["battery_voltage"],
             # "battery_voltage": 6,
@@ -360,10 +347,10 @@ class MinimalSubscriber(Node):
             self.motor_speed = [
                 0 if abs(i) < 16 else i for i in self.motor_speed]
 
-            # print(self.state,
-            #       *[int(speed) for speed in self.motor_speed],
-            #       int(self.servo_angle),
-            #       flush=True)
+            print(self.state,
+                  *[int(speed) for speed in self.motor_speed],
+                  int(self.servo_angle),
+                  flush=True)
 
             send_ESP32_data = [
                 int(self.motor_speed[0]),
@@ -388,6 +375,7 @@ class MinimalSubscriber(Node):
 
     def joy0_listener_callback(self, joy):
         global reception_json
+        global coordinates
 
         self.joy_now.update({
             "joy0":
@@ -444,6 +432,8 @@ class MinimalSubscriber(Node):
                 self.angle_adjust = - 180 - reception_json["raw_angle"]
             else:
                 self.angle_adjust = -1 * reception_json["raw_angle"]
+            # 座標リセット
+                coordinates = [[1,1],[2,2]]
 
         if self.joy_past["joy0"]["buttons"][10] == 0 and self.joy_now["joy0"]["buttons"][10] == 1:  # homeボタン
             # タイマースタート

@@ -58,7 +58,7 @@ void setup()
     Serial.setTimeout(1000);     // milliseconds for Serial.readString
     Serial.println("ESP32起動"); // 最初に1回だけメッセージを表示する
 
-    for (int i = 0; i < amount_motor - 1; i++)
+    for (int i = 0; i < amount_motor; i++)
     {
         // INA,INBの設定
         pinMode(PIN_array[i].INA, OUTPUT);
