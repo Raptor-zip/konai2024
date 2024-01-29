@@ -66,21 +66,21 @@ def main():
 
 
 DEVICE_PATH = "/dev/input/event6"  # Specify your device path here
-# MAX_ARRAY_LENGTH = 1000  # Maximum length for x_coords and y_coords arrays
-MAX_ARRAY_LENGTH = 2  # Maximum length for x_coords and y_coords arrays
+MAX_ARRAY_LENGTH = 1000  # Maximum length for x_coords and y_coords arrays
+# MAX_ARRAY_LENGTH = 2  # Maximum length for x_coords and y_coords arrays
 
 coordinates = [[1,1],[2,2]]
 
 def graph():
     global coordinates
     while True:
-        print(coordinates[0],coordinates[1],flush=True)
+        # print(coordinates[0],coordinates[1],flush=True)
         plt.clf()
         plt.plot(coordinates[0], coordinates[1], color='red', linewidth=3)
         # plt.axhline(0, color='black', linewidth=1)
         # plt.axvline(0, color='black', linewidth=1)
-        plt.xlim(-10000,10000)
-        plt.ylim(-10000,10000)
+        plt.xlim(-50000,50000)
+        plt.ylim(-50000,50000)
         plt.title(f"mouse odometry")
         plt.grid(True)
         plt.gca().set_aspect('equal', adjustable='box')
