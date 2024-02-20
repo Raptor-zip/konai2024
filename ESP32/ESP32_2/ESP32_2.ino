@@ -1,6 +1,11 @@
-// モーター制御用ESP32
-
+// メインマイコンでパソコンに繋いでシリアル通信する
 #include <Wire.h>
+#include <ESP32Servo.h>
+
+Servo esc;
+
+String incomingStrings; // for incoming serial data
+
 // #include "SSD1306.h" //ディスプレイ用ライブラリを読み込み
 
 #define LED_BUILTIN 2
@@ -23,26 +28,40 @@ typedef struct
 
 const dataDictionary PIN_array[]{
     {0, 25, 32, 33},
-    {1, 26, 14, 27},
-    {2, 12, 23, 19},
-    {3, 13, 4, 18}};
+    {1, 26, 14, 27}};
+
+size_t amount_motor = sizeof(PIN_array) / sizeof(PIN_array[0]);
 
 void setup()
 {
   pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(battery_voltage_PIN, INPUT);
 
   Serial.begin(921600);
   Serial2.setTimeout(1); // 1msでシリアル通信タイムアウト 本当はもう少し小さくしたいかも もしかしたらserial2だと意味ないかも
-  Serial2.begin(115200);
+  Serial2.begin(921600);
 
-  // display.init();                    // ディスプレイを初期化
-  // display.setFont(ArialMT_Plain_16); // フォントを設定
+  // ダクテッドファンの設定
+  esc.attach(12);
+  Serial.println("ダクテッドファン キャリブレーション 最大");
+  esc.writeMicroseconds(2000);
+  delay(2000);
+  Serial.println("ダクテッドファン キャリブレーション 最小");
+  esc.writeMicroseconds(1000);
+  delay(2000);
 
-  delay(1000);
+  pinMode(LED_BUILTIN, OUTPUT);
+  // Serial.setRxBufferSize(512); // 送受信バッファサイズを変更。デフォルト:256バイト
+  // Serial.setRxBufferSize(64); // これ変更しても影響ない？気がする
+  while (!Serial)
+  {
+    ; // シリアル通信ポートが正常に接続されるまで抜け出さない
+  }
+  // Serial.setTimeout(10); // milliseconds for Serial.readString
+  Serial.setTimeout(1000);     // milliseconds for Serial.readString
+  Serial.println("ESP32起動"); // 最初に1回だけメッセージを表示する
 
-  connectToWiFi();
-
-  for (int i = 0; i < 4; i++)
+  for (int i = 0; i < amount_motor; i++)
   {
     // INA,INBの設定
     pinMode(PIN_array[i].INA, OUTPUT);
@@ -55,90 +74,49 @@ void setup()
 
 void loop()
 {
-  char packetData[255];
-  udp.read(packetData, sizeof(packetData));
-  packetData[packetSize] = '\0'; // 文字列の終端を追加
 
-  // 受信したデータを変数に保存
-  String json = String(packetData);
-
-  // Serial.print("Received data: ");
-  // Serial.print(json);
-
-  // udp.beginPacket(python_ip, python_port);
-  // udp.print(json);
-  // udp.endPacket();
+  stopTime = micros();
+  // Serial.println(stopTime - startTime);
+  // Serial.println("us");
 
   startTime = micros();
 
-  // json = "{'motor1':{'speed':-128},'motor2':{'speed':-128},'motor3':{'speed':-128}";
-
-  // JSON用の固定バッファを確保。
-  StaticJsonDocument<300> doc; // deserializeJson() failed: NoMemory とSerialで流れたらここの値を大きくする
-
-  // Deserialize the JSON document
-  DeserializationError error = deserializeJson(doc, json);
-
-  if (error)
+  // analogWrite(0, motor1_speed);
+  if (Serial.available() > 0)
   {
-    Serial.print(F("deserializeJson() failed: "));
-    Serial.println(error.f_str());
-    return;
-  }
-  last_receive_time = millis();
+    // read the incoming byte:
+    startTime = micros();
+    incomingStrings = Serial.readStringUntil('\n');
+    Serial.print("I received: ");
+    Serial.println(incomingStrings);
+    if (incomingStrings.length() > 5)
+    {
+      last_receive_time = millis();
+      const int maxElements = 10; // 配列の最大要素数
+      int intArray[maxElements];  // 整数の配列
+      int count = parseStringToArray(incomingStrings, intArray, maxElements);
 
-  if (low_battery_voltage == false)
-  { // バッテリーが低電圧でないなら
-    if (doc.containsKey("motor1"))
-    {
-      // Serial.println(String(doc["motor1"].as<float>()));
-      PWM(1, doc["motor1"]);
-      // analogWrite(LED_BUILTIN, abs(int(doc["motor1"])));
+      if (low_battery_voltage == false)
+      { // バッテリーが低電圧でないなら
+        PWM(0, intArray[0]);
+        PWM(1, intArray[1]);
+        PWM(2, intArray[2]);
+        PWM(3, intArray[3]);
+        analogWrite(LED_BUILTIN, abs(intArray[0]));
+      }
     }
-    if (doc.containsKey("motor2"))
+    else
     {
-      // Serial.println(String(doc["motor2"].as<float>()));
-      PWM(2, doc["motor2"]);
-      analogWrite(LED_BUILTIN, abs(int(doc["motor2"])));
+      Serial.println("シリアル通信エラー105");
     }
-    if (doc.containsKey("motor3"))
-    {
-      // Serial.println(String(doc["motor3"].as<float>()));
-      PWM(3, doc["motor3"]);
-    }
-    if (doc.containsKey("motor4"))
-    {
-      // Serial.println(String(doc["motor3"].as<float>()));
-      PWM(4, doc["motor4"]);
-    }
-    if (doc.containsKey("motor5"))
-    {
-      Serial2.println("5," + String(doc["motor5"].as<int>()));
-      Serial.println("5," + String(doc["motor5"].as<int>()));
-    }
-    if (doc.containsKey("servo"))
-    {
-      Serial2.println("6," + String(doc["servo"].as<int>()));
-      Serial.println("6," + String(doc["servo"].as<int>()));
-      // analogWrite(LED_BUILTIN, abs(int(doc["servo"])));
-    }
-
-    // const char* motor1 = doc["motor1"];
-
-    stopTime = micros();
-    // Serial.print(stopTime - startTime);
-    // Serial.println("us");
   }
 
-  // // Arduinoからサーボの情報を読み取る
-  // String received_strings = Serial2.readStringUntil('\n');
-  // if (received_strings.length() > 2)
-  // { // 5文字以上あるなら = 空でないなら
-  //   Serial.print("I received: " + String(received_strings));
-  //   udp.beginPacket(python_ip, python_port);
-  //   udp.print(received_strings);
-  //   udp.endPacket();
-  // }
+  // ESP32_2からサーボの情報を読み取る
+  String received_strings = Serial2.readStringUntil('\n');
+  if (received_strings.length() > 2)
+  { // 5文字以上あるなら = 空でないなら
+    Serial.println(received_strings);
+  }
 
   performInfrequentTask_count++;
   if (performInfrequentTask_count > 500)
@@ -158,9 +136,7 @@ void loop()
           digitalWrite(PIN_array[i].INB, HIGH);
         }
         Serial2.println("5,0");
-        Serial.println("5,0");
         Serial2.println("6,999");
-        Serial.println("6,999");
       }
       low_battery_voltage_count++;
     }
@@ -171,26 +147,23 @@ void loop()
     }
 
     // 500ms以上パソコンからデータを受信できなかったら全てのモーターを強制停止
-    if (millis() - last_receive_time > 500)
+    if (millis() - last_receive_time > 100)
     {
-      for (int i = 0; i < 3; i++)
+      for (int i = 0; i < amount_motor - 1; i++)
       {
         digitalWrite(PIN_array[i].INA, HIGH);
         digitalWrite(PIN_array[i].INB, HIGH);
       }
+
+      digitalWrite(LED_BUILTIN, HIGH);
+      delay(100);
+      digitalWrite(LED_BUILTIN, LOW);
+      delay(100);
     }
 
     // バッテリー電圧をパソコンに送信
-    udp.beginPacket(python_ip, python_port);
     String jsonString = "{\"battery_voltage\":" + String(battery_voltage, 2) + "}";
-    udp.print(jsonString);
-    udp.endPacket();
-
-    // WiFiが途切れたら再接続する
-    if (WiFi.status() != WL_CONNECTED)
-    {
-      connectToWiFi();
-    }
+    Serial.println(jsonString);
   }
 
   delay(1);
@@ -201,48 +174,35 @@ void PWM(int motor_id, int duty)
   if (duty == 0)
   {
     // VCCブレーキ
-    digitalWrite(PIN_array[motor_id - 1].INA, HIGH);
-    digitalWrite(PIN_array[motor_id - 1].INB, HIGH);
+    digitalWrite(PIN_array[motor_id].INA, HIGH);
+    digitalWrite(PIN_array[motor_id].INB, HIGH);
   }
   else if (duty > 0)
   {
     // 正転
-    digitalWrite(PIN_array[motor_id - 1].INA, HIGH);
-    digitalWrite(PIN_array[motor_id - 1].INB, LOW);
+    digitalWrite(PIN_array[motor_id].INA, HIGH);
+    digitalWrite(PIN_array[motor_id].INB, LOW);
   }
   else if (duty < 0)
   {
     // 逆転
-    digitalWrite(PIN_array[motor_id - 1].INA, LOW);
-    digitalWrite(PIN_array[motor_id - 1].INB, HIGH);
+    digitalWrite(PIN_array[motor_id].INA, LOW);
+    digitalWrite(PIN_array[motor_id].INB, HIGH);
   }
-  ledcWrite(PIN_array[motor_id - 1].PWM_channels, abs(duty));
+  ledcWrite(PIN_array[motor_id].PWM_channels, abs(duty));
 }
 
-void connectToWiFi()
+int parseStringToArray(String input, int array[], int maxSize)
 {
-  Serial.println("Connecting to WiFi");
-  // display.drawString(15, 0, "Connect WiFi");
-  // display.display(); // 指定された情報を描画
-  WiFi.begin(ssid, password);
-  byte i = 0;
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    Serial.print(".");
-    i++;
-    if (i > 10 * 10)
-    {                // 10秒経ったら
-      ESP.restart(); // 再起動する
-    }
+  int count = 0;
+  char *token = strtok(const_cast<char *>(input.c_str()), ",");
 
-    delay(100);
+  while (token != NULL && count < maxSize)
+  {
+    array[count] = atoi(token);
+    count++;
+    token = strtok(NULL, ",");
   }
-  Serial.println("\nConnected to WiFi");
-  Serial.print("IP address:");
-  Serial.println(WiFi.localIP());
-  delay(1000);
-  udp.begin(12345); // Choose any available local port
-  // display.setFont(ArialMT_Plain_24);
-  // display.drawString(25, 40, String(WiFi.localIP()[2]) + "." + String(WiFi.localIP()[3]));
-  // display.display(); // 指定された情報を描画
+
+  return count;
 }

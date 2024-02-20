@@ -7,3 +7,4 @@ json5
 playsound
 ipget
 pyserial
+evdev

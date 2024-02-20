@@ -41,10 +41,6 @@ mouse_udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 mouse_udp_socket.bind(('127.0.0.1', 5020))  # 本当は5002
 mouse_udp_socket.settimeout(1.0)  # タイムアウトを1秒に設定
 
-local_udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-local_udp_socket.bind(('0.0.0.0', 12346))
-local_udp_socket.settimeout(1.0)  # タイムアウトを1秒に設定
-
 try:
     result = subprocess.check_output(
         ['iwgetid', '-r'], universal_newlines=True)
@@ -65,23 +61,20 @@ def main():
         future.result()         # 全てのタスクが終了するまで待つ
 
 
-DEVICE_PATH = "/dev/input/event6"  # Specify your device path here
 MAX_ARRAY_LENGTH = 1000  # Maximum length for x_coords and y_coords arrays
-# MAX_ARRAY_LENGTH = 2  # Maximum length for x_coords and y_coords arrays
 
-coordinates = [[1,1],[2,2]]
+coordinates = [[0,1],[0,1]]
 
 def graph():
     global coordinates
     while True:
         # print(coordinates[0],coordinates[1],flush=True)
         plt.clf()
-        plt.plot(coordinates[0], coordinates[1], color='red', linewidth=3)
-        # plt.axhline(0, color='black', linewidth=1)
-        # plt.axvline(0, color='black', linewidth=1)
+        plt.plot(coordinates[0], coordinates[1], color='red', linewidth=2)
+        plt.plot(coordinates[0][-1], coordinates[1][-1], marker='x', markersize=15)
         plt.xlim(-50000,50000)
         plt.ylim(-50000,50000)
-        plt.title(f"mouse odometry")
+        plt.title(f"mouse odometry ( {coordinates[0][-1]} , {coordinates[1][-1]} )")
         plt.grid(True)
         plt.gca().set_aspect('equal', adjustable='box')
         plt.pause(0.01)
@@ -109,15 +102,25 @@ def odometry():
             y_new = math.sin(
                 angle)*mouse_displacement[0] + math.cos(angle)*mouse_displacement[1]
 
+            x_lateset = coordinates[0][-1] - x_new
+            y_lateset = coordinates[1][-1] - y_new
+
             # 本当はintにしてから代入したい！！！！！！！！！！！！！！！！!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             coordinates[0].append(coordinates[0][-1] - x_new)
             coordinates[1].append(coordinates[1][-1] - y_new)
             # print(coordinates, flush=True)
 
             if len(coordinates[0]) > MAX_ARRAY_LENGTH:
-                coordinates[0].pop(0)
-            if len(coordinates[1]) > MAX_ARRAY_LENGTH:
-                coordinates[1].pop(0)
+                # coordinates[0].pop(0)
+                # coordinates[1].pop(0)
+
+                coordinates[0].append(coordinates[0][-1])
+                coordinates[1].append(coordinates[1][-1])
+                coordinates[0] = coordinates[0][:-1][::2]
+                coordinates[1] = coordinates[1][:-1][::2]
+
+            coordinates[0].append(x_lateset)
+            coordinates[1].append(y_lateset)
         except Exception as e:
             print(
                 f"\n\n\n\n\n\n\n    マウス の読み取りに失敗: {e}\n\n\n\n\n\n\n", flush=True)
@@ -203,14 +206,15 @@ def ros(args=None):
 
 class MinimalSubscriber(Node):
     state = 0
-    motor_speed = [0, 0, 0, 0, 0]
+    motor_speed = [0, 0, 0, 0, 0,0,0]
     servo_angle = 0
+    is_stop_ducted_fan = False
 
     turn_P_gain = 5  # 旋回中に角度センサーにかけられるPゲインーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
     # Initialize PID parameters
-    kp = 4  # Proportional gain
-    ki = 0.1  # Integral gain
-    kd = 20  # Derivative gain
+    kp = 2  # Proportional gain
+    ki = 0  # Integral gain
+    kd = 0  # Derivative gain
     # Pの項：基本要素として必須。これをベースに、必要に応じて他の項を追加する
     # Iの項：出力が目標値に留まるのを邪魔する、何らかの作用がシステムに働く場合に追加する
     # Dの項：システムに振動を抑制する要素が十分にない場合に追加する
@@ -275,7 +279,7 @@ class MinimalSubscriber(Node):
             "esp32_ip": "/dev/ttyUSB0",
             "battery_voltage": reception_json["battery_voltage"],
             # "battery_voltage": 6,
-            "wifi_signal_strength": reception_json["wifi_signal_strength"],
+            "wifi_signal_strength": 0, # wifiのウブンツの強度を読み取る
             "motor_speed": [int(speed) for speed in self.motor_speed],
             "servo_angle": int(self.servo_angle),
             "servo_tmp": reception_json["servo_tmp"],
@@ -352,13 +356,20 @@ class MinimalSubscriber(Node):
                   int(self.servo_angle),
                   flush=True)
 
+            # self.motor_speed[0] = int(self.motor_speed[0] * 0.63)
+            # self.motor_speed[1] = int(self.motor_speed[1] * 0.63)
+
             send_ESP32_data = [
+                int(self.state),
                 int(self.motor_speed[0]),
                 int(self.motor_speed[1]),
                 int(self.motor_speed[2]),
                 int(self.motor_speed[3]),
                 int(self.motor_speed[4]),
+                int(self.motor_speed[5]),
+                int(self.motor_speed[6]),
                 int(self.servo_angle),
+                int(convert_to_binary(self.is_stop_ducted_fan)),
                 ]
             # send_ESP32_data = [1,2,3,4]
             # json_str = ','.join(send_ESP32_data) + "\n"
@@ -417,12 +428,10 @@ class MinimalSubscriber(Node):
             self.angle_when_turn = []
             self.time_when_turn = []
             self.angle_control_count = 0
-        if self.joy_past["joy0"]["buttons"][13] == 0 and self.joy_now["joy0"]["buttons"][13] == 1:  # upボタン
-            # 排出蓋を閉じる
-            self.servo_angle = -135
-        if self.joy_past["joy0"]["buttons"][14] == 0 and self.joy_now["joy0"]["buttons"][14] == 1:  # downボタン
-            # 排出蓋を開く
-            self.servo_angle = 135
+        if self.joy_now["joy0"]["buttons"][8] == 1:  # マイナスボタン
+            self.is_stop_ducted_fan = True
+        if self.joy_now["joy0"]["buttons"][9] == 1:  # プラスボタン
+            self.is_stop_ducted_fan = False
 
         # LボタンとRボタン同時押し
         if self.joy_past["joy0"]["buttons"][4] == 0 and self.joy_now["joy0"]["buttons"][5] == 1:
@@ -550,6 +559,11 @@ class MinimalSubscriber(Node):
 
         return temp
 
+def convert_to_binary(boolean_value):
+    if boolean_value:
+        return 1
+    else:
+        return 0
 
 if __name__ == '__main__':
     main()

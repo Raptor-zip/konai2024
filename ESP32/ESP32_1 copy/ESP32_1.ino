@@ -2,6 +2,9 @@
 #include <Wire.h>
 String incomingStrings; // for incoming serial data
 
+double motor1_speed = 0;
+double motor2_speed = 0;
+
 // #include "SSD1306.h" //ディスプレイ用ライブラリを読み込み
 
 #define LED_BUILTIN 2
@@ -38,6 +41,8 @@ void setup()
     pinMode(battery_voltage_PIN, INPUT);
 
     Serial.begin(921600);
+    Serial2.setTimeout(1); // 1msでシリアル通信タイムアウト 本当はもう少し小さくしたいかも もしかしたらserial2だと意味ないかも
+    Serial2.begin(115200);
 
     // display.init();                    // ディスプレイを初期化
     // display.setFont(ArialMT_Plain_16); // フォントを設定
@@ -103,6 +108,13 @@ void loop()
         }
     }
 
+    // ESP32_2からサーボの情報を読み取る
+    String received_strings = Serial2.readStringUntil('\n');
+    if (received_strings.length() > 2)
+    { // 5文字以上あるなら = 空でないなら
+        Serial.println(received_strings);
+    }
+
     performInfrequentTask_count++;
     if (performInfrequentTask_count > 500)
     {
@@ -120,6 +132,8 @@ void loop()
                     digitalWrite(PIN_array[i].INA, HIGH); // 両方ともLOWのほうがインじゃなかったっけ？バッテリーすくないときは！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
                     digitalWrite(PIN_array[i].INB, HIGH);
                 }
+                Serial2.println("5,0");
+                Serial2.println("6,999");
             }
             low_battery_voltage_count++;
         }

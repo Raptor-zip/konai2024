@@ -77,4 +77,4 @@ def publish():
 
 if __name__ == '__main__':
     threading.Thread(target=flask_socketio_run).start()
-    threading.Thread(target=publish).start()
+    # threading.Thread(target=publish).start()
