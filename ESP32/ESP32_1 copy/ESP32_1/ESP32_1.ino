@@ -95,10 +95,10 @@ void loop()
 
             if (low_battery_voltage == false)
             { // バッテリーが低電圧でないなら
-                PWM(0, intArray[0]);
-                PWM(1, intArray[1]);
-                PWM(2, intArray[2]);
-                PWM(3, intArray[3]);
+                PWM(0, intArray[1]);
+                PWM(1, intArray[2]);
+                PWM(2, intArray[3]);
+                PWM(3, intArray[4]);
                 analogWrite(LED_BUILTIN, abs(intArray[0]));
             }
         }

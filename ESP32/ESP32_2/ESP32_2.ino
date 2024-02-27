@@ -1,22 +1,22 @@
-// メインマイコンでパソコンに繋いでシリアル通信する
+// パソコンとシリアル通信して、センサー情報を送信したり、回収装填用モーターを制御する。
+/*
+制御するもの
+ダクテッドファン1個
+回収・装填用モーター2個
+*/
 #include <Wire.h>
-#include <ESP32Servo.h>
+#include <ESP32Servo.h> //サーボではなく、ダクテッドファンのESCを制御する
 
 Servo esc;
 
 String incomingStrings; // for incoming serial data
-
-// #include "SSD1306.h" //ディスプレイ用ライブラリを読み込み
 
 #define LED_BUILTIN 2
 
 unsigned long last_receive_time;              // 最後にパソコンから受信したmillis
 unsigned long startTime, stopTime;            // プログラムの遅延を確認するためにmicros
 unsigned int performInfrequentTask_count = 0; // 500回に1回実行するためのカウント
-bool low_battery_voltage = false;             // バッテリー低電圧時にモーターを強制停止させるときにtrueになる
-
-// 本体裏側0x78に接続→0x3C 0x7A→0x3A
-// SSD1306 display(0x3c, 21, 22); // SSD1306インスタンスの作成（I2Cアドレス,SDA,SCL）
+// bool low_battery_voltage = false;             // バッテリー低電圧時にモーターを強制停止させるときにtrueになる
 
 typedef struct
 {
@@ -35,7 +35,6 @@ size_t amount_motor = sizeof(PIN_array) / sizeof(PIN_array[0]);
 void setup()
 {
   pinMode(LED_BUILTIN, OUTPUT);
-  pinMode(battery_voltage_PIN, INPUT);
 
   Serial.begin(921600);
   Serial2.setTimeout(1); // 1msでシリアル通信タイムアウト 本当はもう少し小さくしたいかも もしかしたらserial2だと意味ないかも
@@ -58,8 +57,8 @@ void setup()
     ; // シリアル通信ポートが正常に接続されるまで抜け出さない
   }
   // Serial.setTimeout(10); // milliseconds for Serial.readString
-  Serial.setTimeout(1000);     // milliseconds for Serial.readString
-  Serial.println("ESP32起動"); // 最初に1回だけメッセージを表示する
+  Serial.setTimeout(1000); // milliseconds for Serial.readString
+  Serial.println("ESP32_2起動");
 
   for (int i = 0; i < amount_motor; i++)
   {
@@ -87,8 +86,8 @@ void loop()
     // read the incoming byte:
     startTime = micros();
     incomingStrings = Serial.readStringUntil('\n');
-    Serial.print("I received: ");
-    Serial.println(incomingStrings);
+    // Serial.print("I received: ");
+    // Serial.println(incomingStrings);
     if (incomingStrings.length() > 5)
     {
       last_receive_time = millis();
@@ -96,14 +95,10 @@ void loop()
       int intArray[maxElements];  // 整数の配列
       int count = parseStringToArray(incomingStrings, intArray, maxElements);
 
-      if (low_battery_voltage == false)
-      { // バッテリーが低電圧でないなら
-        PWM(0, intArray[0]);
-        PWM(1, intArray[1]);
-        PWM(2, intArray[2]);
-        PWM(3, intArray[3]);
-        analogWrite(LED_BUILTIN, abs(intArray[0]));
-      }
+      PWM(0, intArray[4]);
+      PWM(1, intArray[5]);
+      esc.writeMicroseconds(intArray[6] + 1000);
+      analogWrite(LED_BUILTIN, abs(intArray[0]));
     }
     else
     {
@@ -122,30 +117,6 @@ void loop()
   if (performInfrequentTask_count > 500)
   {
     performInfrequentTask_count = 0;
-    // 電圧監視
-    float battery_voltage = analogRead(battery_voltage_PIN) * 4.034 * 3.3 / 4096;
-    if (1 < battery_voltage && battery_voltage < 9) // センサー9Vのとき電源装置9.5V
-    {
-      if (low_battery_voltage_count > 4)
-      { // 6であってるのか検証！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！１
-        low_battery_voltage = true;
-        // 全てのDCモーターにブレーキをかける and 全てのサーボモーターをフリーにする
-        for (int i = 0; i < 4; i++)
-        {
-          digitalWrite(PIN_array[i].INA, HIGH); // 両方ともLOWのほうがインじゃなかったっけ？バッテリーすくないときは！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
-          digitalWrite(PIN_array[i].INB, HIGH);
-        }
-        Serial2.println("5,0");
-        Serial2.println("6,999");
-      }
-      low_battery_voltage_count++;
-    }
-    else
-    {
-      low_battery_voltage_count = 0;
-      low_battery_voltage = false;
-    }
-
     // 500ms以上パソコンからデータを受信できなかったら全てのモーターを強制停止
     if (millis() - last_receive_time > 100)
     {
@@ -160,10 +131,6 @@ void loop()
       digitalWrite(LED_BUILTIN, LOW);
       delay(100);
     }
-
-    // バッテリー電圧をパソコンに送信
-    String jsonString = "{\"battery_voltage\":" + String(battery_voltage, 2) + "}";
-    Serial.println(jsonString);
   }
 
   delay(1);

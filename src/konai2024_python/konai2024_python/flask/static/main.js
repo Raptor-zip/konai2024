@@ -111,10 +111,10 @@ socket.on('json_receive', function (json) {
     if ("wifi_signal_strength" in json) {
         document.getElementById("wifi_signal_strength_value").innerText = json["wifi_signal_strength"];
     }
-    if ("motor_speed" in json) {
-        for (let i = 0; i < json["motor_speed"].length; i++) {
+    if ("DCmotor_speed" in json) {
+        for (let i = 0; i < json["DCmotor_speed"].length; i++) {
             // document.getElementById("motor" + i + "_speed_char").innerText = Math.round(json["motor" + i + "_speed"]);
-            document.getElementById("motor" + i + "_speed_gauge").style.width = json["motor_speed"][i] / 5.1 + 50 + "%";
+            document.getElementById("motor" + i + "_speed_gauge").style.width = json["DCmotor_speed"][i] / 5.1 + 50 + "%";
         }
     }
     if ("servo_angle" in json) {
