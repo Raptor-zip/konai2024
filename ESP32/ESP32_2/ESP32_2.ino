@@ -4,17 +4,24 @@
 ダクテッドファン1個
 回収・装填用モーター2個
 */
+TaskHandle_t thp[3]; // マルチスレッドのタスクハンドル格納用
+
 #include <Wire.h>
 #include <ESP32Servo.h> //サーボではなく、ダクテッドファンのESCを制御する
 
-Servo esc;
+String incomingStrings = ""; // for incoming serial data
 
-String incomingStrings; // for incoming serial data
+Servo ducted_fan;
+Servo GM6020;
+
+boolean calibrate_ducted_fan_enabled_now = false;
+boolean calibrate_ducted_fan_enabled_old = false;
+boolean is_calibrating_ducted_fan = false;
 
 #define LED_BUILTIN 2
 
-unsigned long last_receive_time;              // 最後にパソコンから受信したmillis
-unsigned long startTime, stopTime;            // プログラムの遅延を確認するためにmicros
+unsigned long last_receive_time = 0;          // 最後にパソコンから受信したmillis
+unsigned long startTime, stopTime = 0;        // プログラムの遅延を確認するためにmicros
 unsigned int performInfrequentTask_count = 0; // 500回に1回実行するためのカウント
 // bool low_battery_voltage = false;             // バッテリー低電圧時にモーターを強制停止させるときにtrueになる
 
@@ -34,22 +41,19 @@ size_t amount_motor = sizeof(PIN_array) / sizeof(PIN_array[0]);
 
 void setup()
 {
+  xTaskCreatePinnedToCore(Core0a_calibrate_ducted_fan, "Core0a_calibrate_ducted_fan", 4096, NULL, 1, &thp[0], 0);
+  // xTaskCreatePinnedToCore(Core0b_calibrate_GM6020, "Core0b_calibrate_GM6020", 4096, NULL, 2, &thp[1], 0);
   pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(12, OUTPUT);
+  pinMode(13, OUTPUT);
+  pinMode(23, OUTPUT);
 
   Serial.begin(921600);
-  Serial2.setTimeout(1); // 1msでシリアル通信タイムアウト 本当はもう少し小さくしたいかも もしかしたらserial2だと意味ないかも
-  Serial2.begin(921600);
+  // Serial2.setTimeout(1); // 1msでシリアル通信タイムアウト 本当はもう少し小さくしたいかも もしかしたらserial2だと意味ないかも
+  // Serial2.begin(921600);
 
-  // ダクテッドファンの設定
-  esc.attach(12);
-  Serial.println("ダクテッドファン キャリブレーション 最大");
-  esc.writeMicroseconds(2000);
-  delay(2000);
-  Serial.println("ダクテッドファン キャリブレーション 最小");
-  esc.writeMicroseconds(1000);
-  delay(2000);
-
-  pinMode(LED_BUILTIN, OUTPUT);
+  ducted_fan.attach(12);
+  GM6020.attach(13);
   // Serial.setRxBufferSize(512); // 送受信バッファサイズを変更。デフォルト:256バイト
   // Serial.setRxBufferSize(64); // これ変更しても影響ない？気がする
   while (!Serial)
@@ -58,6 +62,7 @@ void setup()
   }
   // Serial.setTimeout(10); // milliseconds for Serial.readString
   Serial.setTimeout(1000); // milliseconds for Serial.readString
+  Serial.println("");
   Serial.println("ESP32_2起動");
 
   for (int i = 0; i < amount_motor; i++)
@@ -68,6 +73,41 @@ void setup()
     // PWM初期化
     ledcSetup(PIN_array[i].PWM_channels, 10000, 8); // PWM 周波数: 10kHz 8bit
     ledcAttachPin(PIN_array[i].PWM, PIN_array[i].PWM_channels);
+  }
+
+  Serial.println("GM6020 キャリブレーション 最大");
+  GM6020.writeMicroseconds(2000);
+  delay(2000);
+  Serial.println("GM6020 キャリブレーション 最小");
+  GM6020.writeMicroseconds(1000);
+  delay(2000);
+  Serial.println("GM6020 キャリブレーション 完了");
+}
+
+void Core0a_calibrate_ducted_fan(void *args)
+{ // スレッド
+  delay(500);
+  while (1)
+  {
+    // Serial.println("76行目来たよ");
+    digitalWrite(LED_BUILTIN, HIGH);
+    // Serial.println(calibrate_ducted_fan_enabled_now);
+    // Serial.print(calibrate_ducted_fan_enabled_old);
+    if (calibrate_ducted_fan_enabled_now == true && calibrate_ducted_fan_enabled_old == false)
+    {
+      digitalWrite(LED_BUILTIN, LOW);
+      is_calibrating_ducted_fan = true;
+      Serial.println("ダクテッドファン キャリブレーション 最大");
+      ducted_fan.writeMicroseconds(2000);
+      delay(2000);
+      Serial.println("ダクテッドファン キャリブレーション 最小");
+      ducted_fan.writeMicroseconds(1000);
+      delay(2000);
+      Serial.println("ダクテッドファン キャリブレーション 完了");
+      is_calibrating_ducted_fan = false;
+    }
+    calibrate_ducted_fan_enabled_old = calibrate_ducted_fan_enabled_now;
+    delay(1);
   }
 }
 
@@ -91,14 +131,31 @@ void loop()
     if (incomingStrings.length() > 5)
     {
       last_receive_time = millis();
-      const int maxElements = 10; // 配列の最大要素数
+      const int maxElements = 15; // 配列の最大要素数 多分ぴったりだとうまく行かない気がする
       int intArray[maxElements];  // 整数の配列
       int count = parseStringToArray(incomingStrings, intArray, maxElements);
 
-      PWM(0, intArray[4]);
-      PWM(1, intArray[5]);
-      esc.writeMicroseconds(intArray[6] + 1000);
-      analogWrite(LED_BUILTIN, abs(intArray[0]));
+      PWM(0, intArray[5]);
+      PWM(1, intArray[6]);
+      // キャリブレーション中でないなら 若しくは キャリブレーション後なら
+      if (is_calibrating_ducted_fan == false)
+      {
+        ducted_fan.writeMicroseconds(intArray[7]);
+      }
+      GM6020.writeMicroseconds(intArray[8]);
+      if (intArray[10] == 1)
+      {
+        // digitalWrite(LED_BUILTIN, LOW);
+        digitalWrite(23, HIGH);
+        calibrate_ducted_fan_enabled_now = true;
+      }
+      else
+      {
+        // digitalWrite(LED_BUILTIN, HIGH);
+        digitalWrite(23, LOW);
+        calibrate_ducted_fan_enabled_now = false;
+      }
+      // analogWrite(LED_BUILTIN, abs(intArray[4]));
     }
     else
     {
@@ -107,11 +164,11 @@ void loop()
   }
 
   // ESP32_2からサーボの情報を読み取る
-  String received_strings = Serial2.readStringUntil('\n');
-  if (received_strings.length() > 2)
-  { // 5文字以上あるなら = 空でないなら
-    Serial.println(received_strings);
-  }
+  // String received_strings = Serial2.readStringUntil('\n');
+  // if (received_strings.length() > 2)
+  // { // 5文字以上あるなら = 空でないなら
+  //   Serial.println(received_strings);
+  // }
 
   performInfrequentTask_count++;
   if (performInfrequentTask_count > 500)
@@ -126,10 +183,7 @@ void loop()
         digitalWrite(PIN_array[i].INB, HIGH);
       }
 
-      digitalWrite(LED_BUILTIN, HIGH);
-      delay(100);
-      digitalWrite(LED_BUILTIN, LOW);
-      delay(100);
+      // digitalWrite(LED_BUILTIN, HIGH);
     }
   }
 

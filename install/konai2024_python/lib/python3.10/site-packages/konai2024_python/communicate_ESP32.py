@@ -27,8 +27,7 @@ reception_json = {
     "wifi_signal_strength": 0
 }
 
-serial_1 = None
-serial_2 = None
+serial_list:list = [None,None]
 
 accuracy_angle = 0
 
@@ -54,11 +53,11 @@ except subprocess.CalledProcessError:
 
 def main():
     with ThreadPoolExecutor(max_workers=6) as executor:
-        executor.submit(sp_udp_reception)
+        # executor.submit(sp_udp_reception)
         executor.submit(battery_alert)
         executor.submit(serial_reception)
-        executor.submit(odometry)
-        executor.submit(graph)
+        # executor.submit(odometry)
+        # executor.submit(graph)
         future = executor.submit(ros)
         future.result()         # 全てのタスクが終了するまで待つ
 
@@ -127,50 +126,51 @@ def odometry():
                 f"\n\n\n\n\n\n\n    マウス の読み取りに失敗: {e}\n\n\n\n\n\n\n", flush=True)
 
 
-def serial_connection():
-    global serial_1, serial_2
-    i = 0
-    while i > -1:
-        try:
-            serial_1 = serial.Serial(f'/dev/ttyUSB{i}', 921600, timeout=3)
-            print(f"ESP32_1とSerial接続成功 /dev/ttyUSB{i}", flush=True)
-            i = -1  # Serialが正常に開かれた場合はループを抜ける
-        except Exception as e:
-            print(f"ESP32_1とSerial接続失敗: {e}", flush=True)
-            time.sleep(0.2)  # 0.2秒待って再試行
-            if i<5:
-                i += 1  # 例外が発生した場合もiをインクリメントして次のポートを試す
-            else:
-                i=0
 
+def serial_connection(micon_number:int):
+    global serial_list
     i = 0
     while i > -1:
         try:
-            serial_2 = serial.Serial(f'/dev/ttyUSB{i}', 921600, timeout=3)
-            print(f"ESP32_2とSerial接続成功 /dev/ttyUSB{i}", flush=True)
-            i = -1  # Serialが正常に開かれた場合はループを抜ける
+            subprocess.run(f"sudo chmod 777 /dev/ttyUSB{i}".split(), input="robocon471\n".encode())
+            try:
+                serial_list[micon_number-1] = serial.Serial(f'/dev/ttyUSB{i}', 921600, timeout=3)
+                print(f"ESP32_{micon_number}とSerial接続成功 /dev/ttyUSB{i}", flush=True)
+                i = -1  # Serialが正常に開かれた場合はループを抜ける
+            except Exception as e:
+                print(f"ESP32_{micon_number}とSerial接続失敗: {e}", flush=True)
+                if i<7:
+                    i += 1  # 例外が発生した場合もiをインクリメントして次のポートを試す
+                else:
+                    i=0
         except Exception as e:
-            print(f"ESP32_2とSerial接続失敗: {e}", flush=True)
-            time.sleep(0.2)  # 0.2秒待って再試行
-            if i<5:
-                i += 1  # 例外が発生した場合もiをインクリメントして次のポートを試す
-            else:
-                i=0
+            print(f"ESP32_{micon_number}接続試行時 /dev/ttyUSB{i} の権限追加に失敗 {e}", flush=True)
+
+        time.sleep(0.2)  # 0.2秒待って再試行
+
+
 
 def serial_reception():
-    global serial_1,serial_2, serial_reception_text
+    global serial_list, serial_reception_text
     while True:
         try:
-            line = serial_1.readline()
-            # line = ser.readline().decode('utf-8')
-            # print(line, flush=True)
+            received_message_1 = serial_list[0].readline().decode('utf-8')
+            print(f"\n\n\n {received_message_1} \n\n\n", flush=True)
             # \n消したほうがいい気が
         except UnicodeDecodeError as e:
-            # print("エンコードエラー")
-            # print(line)
-            print(f"デコードエラー:{e}", flush=True)
+            print(f"ESP32_1のデコードエラー:{e}", flush=True)
         except Exception as e:
-            print("ESP32_1マイコンと接続失敗",flush=True)
+            print("ESP32_1と接続失敗",flush=True)
+            serial_connection()
+
+        try:
+            received_message_2 = serial_list[1].readline().decode('utf-8')
+            print(f"\n\n\n {received_message_2} \n\n\n", flush=True)
+            # \n消したほうがいい気が
+        except UnicodeDecodeError as e:
+            print(f"ESP32_2のデコードエラー:{e}", flush=True)
+        except Exception as e:
+            print("ESP32_2と接続失敗",flush=True)
             serial_connection()
         # serial_reception_text.insert(0, line)
         # if len(serial_reception_text) > 100:
@@ -218,9 +218,9 @@ def ros(args=None):
 class MinimalSubscriber(Node):
     state: int = 0
     DCmotor_speed: list[int] = [0, 0, 0, 0,0,0] # 原則% 符号あり
-    BLmotor_speed : list[int] = [0] # ダクテッドファン
+    BLmotor_speed : list[int] = [0,0] # 射出用ダクテッドファンと仰角調整用GM6020
     servo_angle: int = 0
-    is_stop_ducted_fan: bool = False
+    is_run_ducted_fan: bool = False
 
     turn_P_gain: float = 5  # 旋回中に角度センサーにかけられるPゲインーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
     # Initialize PID parameters
@@ -306,10 +306,7 @@ class MinimalSubscriber(Node):
         self.publisher_ESP32_to_Webserver.publish(msg)
 
     def timer_callback_001(self):
-        global reception_json
-        global accuracy_angle
-        global serial_1
-        global serial_2
+        global reception_json, accuracy_angle,serial_list
         try:
             self.current_angle = reception_json["raw_angle"] + \
                 self.angle_adjust
@@ -371,29 +368,35 @@ class MinimalSubscriber(Node):
             #       flush=True)
 
             send_ESP32_data = [
-                int(self.state),
-                int(self.DCmotor_speed[0]), # メカナム
-                int(self.DCmotor_speed[1]), # メカナム
-                int(self.DCmotor_speed[2]), # メカナム
-                int(self.DCmotor_speed[3]), # メカナム
-                int(self.DCmotor_speed[4]), # 回収装填
-                int(self.DCmotor_speed[5]), # 回収装填
-                int(self.BLmotor_speed[0]), # ダクテッドファン
-                int(self.servo_angle), # サーボ
-                int(convert_to_binary(self.is_stop_ducted_fan)),
+                int(self.state), # 0
+                int(self.DCmotor_speed[0]), # 1 メカナム
+                int(self.DCmotor_speed[1]), # 2 メカナム
+                int(self.DCmotor_speed[2]), # 3 メカナム
+                int(self.DCmotor_speed[3]), # 4 メカナム
+                int(self.DCmotor_speed[4]), # 5 回収装填
+                int(self.DCmotor_speed[5]), # 6 回収装填
+                int(self.BLmotor_speed[0]), # 7 ダクテッドファン
+                int(self.BLmotor_speed[1]), # 8 GM6020
+                int(self.servo_angle), # 9 サーボ
+                int(convert_to_binary(self.is_run_ducted_fan)), # 10 ダクテッドファンのリレー 0 or 1
                 ]
 
             # send_ESP32_data = [1,2,3,4]
             # json_str = ','.join(send_ESP32_data) + "\n"
             json_str = ','.join(map(str, send_ESP32_data)) + "\n"
-            print(json_str,flush=True)
+            # print(json_str,flush=True)
             try:
-                serial_1.write(json_str.encode()) # ESP32_1に書き込む
-                serial_2.write(json_str.encode()) # ESP32_2に書き込む
+                serial_list[0].write(json_str.encode()) # ESP32_1に書き込む
             except Exception as e:
                 print(
-                    f"\n\n\n\n\n\n\n    ESP32 への送信に失敗: {e}\n\n\n\n\n\n\n", flush=True)
-                serial_connection()
+                    f"\n\n\n\n\n\n\n    ESP32_1 への送信に失敗: {e}\n\n\n\n\n\n\n", flush=True)
+                serial_connection(1)
+            try:
+                serial_list[1].write(json_str.encode()) # ESP32_2に書き込む
+            except Exception as e:
+                print(
+                    f"\n\n\n\n\n\n\n    ESP32_2 への送信に失敗: {e}\n\n\n\n\n\n\n", flush=True)
+                serial_connection(2)
         except KeyError as e:
             print(f"コントローラー の読み取りに失敗: {e}", flush=True)
 
@@ -411,6 +414,8 @@ class MinimalSubscriber(Node):
         )
 
         # self.motor5_speed = int(self.joy_now["joy0"]["axes"][1]*255)
+
+        self.BLmotor_speed[0] = abs(int(self.joy_now["joy0"]["axes"][0]*2000))
 
         if self.joy_now["joy0"]["buttons"][2] == 1:  # Xボタン
             # 0°に旋回
@@ -441,9 +446,9 @@ class MinimalSubscriber(Node):
             self.time_when_turn = []
             self.angle_control_count = 0
         if self.joy_now["joy0"]["buttons"][8] == 1:  # マイナスボタン
-            self.is_stop_ducted_fan = True
+            self.is_run_ducted_fan = False
         if self.joy_now["joy0"]["buttons"][9] == 1:  # プラスボタン
-            self.is_stop_ducted_fan = False
+            self.is_run_ducted_fan = True
 
         # LボタンとRボタン同時押し
         if self.joy_past["joy0"]["buttons"][4] == 0 and self.joy_now["joy0"]["buttons"][5] == 1:

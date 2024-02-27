@@ -14,7 +14,7 @@ void setup() {
   esc.writeMicroseconds(1000);
   delay(2000);
 
-  for(int i=1000; i < 1250; i++){
+  for(int i=1000; i < 1100; i++){
     esc.writeMicroseconds(i);
     delay(4);
   }
