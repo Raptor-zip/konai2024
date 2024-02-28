@@ -6,17 +6,19 @@
 サーボ 射出筒の仰角調整
 ステータススピーカー
 */
-#include <Wire.h>
-String incomingStrings; // for incoming serial data
+#include <Wire.h> // 現状I2C使ってないけどw
+
+TaskHandle_t thp[3]; // マルチスレッドのタスクハンドル格納用
+
+String incomingStrings = ""; // for incoming serial data
 
 #define LED_BUILTIN 2
 
-unsigned long last_receive_time;              // 最後にESP32_2から受信したmillis
-unsigned long startTime, stopTime;            // プログラムの遅延を確認するためにmicros
-unsigned int performInfrequentTask_count = 0; // 500回に1回実行するためのカウント
-unsigned char low_battery_voltage_count = 0;  // 6回以上1〜9Vの間だったらモーター強制停止するためのカウント
-int battery_voltage_PIN = 35;                 // バッテリー電圧を測定するためのピンの番号
-bool low_battery_voltage = false;             // バッテリー低電圧時にモーターを強制停止させるときにtrueになる
+unsigned long last_receive_time = 0;          // 最後にESP32_2から受信したmillis
+unsigned long startTime, stopTime = 0;        // プログラムの遅延を確認するためにmicros
+unsigned int performInfrequentTask_count = 0; // 500回に1回実行するためのカウんと
+
+bool low_battery_voltage = false; // バッテリー低電圧時にモーターを強制停止させるときにtrueになる
 
 typedef struct
 {
@@ -36,11 +38,12 @@ size_t amount_motor = sizeof(PIN_array) / sizeof(PIN_array[0]);
 
 void setup()
 {
+    xTaskCreatePinnedToCore(Core0a_speaker,
+                            "Core0a_speaker", 4096, NULL, 1, &thp[0], 0);
+    pinMode(LED_BUILTIN, OUTPUT);
+    pinMode(35, INPUT);
+    // pinMode(8, OUTPUT);
     Serial.begin(921600); // PCとUSB接続
-
-    pinMode(LED_BUILTIN, OUTPUT);
-    pinMode(battery_voltage_PIN, INPUT);
-    pinMode(LED_BUILTIN, OUTPUT);
     // Serial.setRxBufferSize(512); // 送受信バッファサイズを変更。デフォルト:256バイト
     // Serial.setRxBufferSize(64); // これ変更しても影響ない？気がする
     while (!Serial)
@@ -48,7 +51,8 @@ void setup()
         ; // シリアル通信ポートが正常に接続されるまで抜け出さない
     }
     Serial.setTimeout(1000); // milliseconds for Serial.readString
-    Serial.println("ESP3_12起動");
+    Serial.println(" ");
+    Serial.println("ESP32_1起動");
 
     for (int i = 0; i < amount_motor; i++)
     {
@@ -63,20 +67,37 @@ void setup()
     // ステータススピーカーのピン設定
     ledcSetup(4, 12000, 8);
     ledcAttachPin(15, 1);
-    // ステータススピーカーを鳴らす
-    ledcWriteTone(1, 523);
+}
+
+void Core0a_speaker(void *args)
+{
+    delay(100);
+    // 起動音
+    ledcWriteTone(1, 700);
+    delay(100);
+    ledcWriteTone(1, 900);
+    delay(100);
+    ledcWriteTone(1, 1000);
+    delay(200);
+    ledcWriteTone(1, 0);
+    delay(1000);
+    while (1)
+    {
+        ledcWriteTone(1, 440);
+        delay(100);
+        ledcWriteTone(1, 550);
+        delay(300);
+    }
 }
 
 void loop()
 {
-
     stopTime = micros();
     // Serial.println(stopTime - startTime);
     // Serial.println("us");
 
     startTime = micros();
 
-    // analogWrite(0, motor1_speed);
     if (Serial.available() > 0)
     {
         // read the incoming byte:
@@ -104,12 +125,9 @@ void loop()
     }
 
     performInfrequentTask_count++;
-    if (performInfrequentTask_count > 500)
+    if (performInfrequentTask_count > 200)
     {
         performInfrequentTask_count = 0;
-        // 電圧監視
-        float battery_voltage = analogRead(battery_voltage_PIN) * 4.034 * 3.3 / 4096;
-
         // 500ms以上パソコンからデータを受信できなかったら全てのモーターを強制停止
         if (millis() - last_receive_time > 100)
         {
@@ -118,15 +136,12 @@ void loop()
                 digitalWrite(PIN_array[i].INA, HIGH);
                 digitalWrite(PIN_array[i].INB, HIGH);
             }
-
-            digitalWrite(LED_BUILTIN, HIGH);
-            delay(100);
-            digitalWrite(LED_BUILTIN, LOW);
-            delay(100);
+            // ステータススピーカーの処理をするーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
         }
 
-        // バッテリー電圧をパソコンに送信
-        String strings = String(battery_voltage, 2) + "";
+        // 4セルバッテリー電圧をパソコンに送信
+        float battery_voltage = analogRead(35) * 7.0609 * 3.3 / 4096;
+        String strings = "1," + String(battery_voltage, 2) + "";
         Serial.println(strings);
     }
 

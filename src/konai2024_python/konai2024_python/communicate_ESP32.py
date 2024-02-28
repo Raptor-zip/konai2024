@@ -1,5 +1,4 @@
-import os # どのESP32を識別するためにls使うよう
-import copy  # 辞書型をコピーする用
+import os  # どのESP32を識別するためにls使うよう
 import matplotlib.pyplot as plt
 import rclpy
 from rclpy.node import Node
@@ -18,20 +17,16 @@ import evdev
 from matplotlib import pyplot as plt  # 描画用ライブラリ
 # import matplotlib
 # matplotlib.use('agg')
-reception_json = {
-    "raw_angle": 0,
-    "servo_tmp": 999,
-    "servo_cur": 999,
-    "servo_deg": 999,
-    "battery_voltage": 0,
-    "wifi_signal_strength": 0
-}
 
-serial_list:list = [None,None]
+reception_json: dict = {}
 
-serial_dict:dict = {}
+serial_list: list = [None, None]  # dictに統合するのだめなん？？？？？？？？？？？？？？？？？？？？
 
-accuracy_angle = 0
+serial_dict: dict = {}
+
+battery_dict: dict[str,dict] = {}  # これ、クラスの中のほうが良くない？！！！！！！！！！！！！！！！！！！！！！！！！
+
+accuracy_angle: int = 0
 
 # UDPソケットの作成
 udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -57,7 +52,7 @@ def main():
     with ThreadPoolExecutor(max_workers=6) as executor:
         # executor.submit(sp_udp_reception)
         executor.submit(battery_alert)
-        executor.submit(serial_reception)
+        executor.submit(recept_serial)
         # executor.submit(odometry)
         # executor.submit(graph)
         future = executor.submit(ros)
@@ -66,7 +61,8 @@ def main():
 
 MAX_ARRAY_LENGTH = 1000  # Maximum length for x_coords and y_coords arrays
 
-coordinates = [[0,1],[0,1]]
+coordinates: list[list[float]] = [[0, 1], [0, 1]]
+
 
 def graph():
     global coordinates
@@ -74,10 +70,12 @@ def graph():
         # print(coordinates[0],coordinates[1],flush=True)
         plt.clf()
         plt.plot(coordinates[0], coordinates[1], color='red', linewidth=2)
-        plt.plot(coordinates[0][-1], coordinates[1][-1], marker='x', markersize=15)
-        plt.xlim(-50000,50000)
-        plt.ylim(-50000,50000)
-        plt.title(f"mouse odometry ( {coordinates[0][-1]} , {coordinates[1][-1]} )")
+        plt.plot(coordinates[0][-1], coordinates[1]
+                 [-1], marker='x', markersize=15)
+        plt.xlim(-50000, 50000)
+        plt.ylim(-50000, 50000)
+        plt.title(
+            f"mouse odometry ( {coordinates[0][-1]} , {coordinates[1][-1]} )")
         plt.grid(True)
         plt.gca().set_aspect('equal', adjustable='box')
         plt.pause(0.01)
@@ -128,84 +126,134 @@ def odometry():
                 f"\n\n\n\n\n\n\n    マウス の読み取りに失敗: {e}\n\n\n\n\n\n\n", flush=True)
 
 
-
-def serial_connection(micon_number:int):
-    global serial_list,serial_dict
+def connect_serial(micon_number: int):
+    global serial_list, serial_dict
     i = 0
-    print("きてるよ",flush=True)
+    print("きてるよ", flush=True)
     while i > -1:
         if micon_number in serial_dict:
             serial_dict.pop(micon_number)
-        exclude_list:list = []
-        print("以下、serial_dict",flush=True)
+        exclude_list: list = []
+        print("以下、serial_dict", flush=True)
         print(serial_dict, flush=True)
-        print("以上、serial_dict",flush=True)
+        print("以上、serial_dict", flush=True)
 
         for j in range(2):
-        # for i in range(len(serial_list)):
+            # for i in range(len(serial_list)):
             try:
-                print("136",flush=True)
-                print(serial_list[j].readline(), flush=True) # ポートがnoneじゃないか確認
-                print("138",flush=True)
+                print("136", flush=True)
+                print(serial_list[j].readline(), flush=True)  # ポートがnoneじゃないか確認
+                print("138", flush=True)
                 exclude_list.append(serial_dict[j])
-                print("140",flush=True)
+                print("140", flush=True)
             except Exception as e:
                 print(e)
-                print("142",flush=True)
+                print("142", flush=True)
                 pass
-            print("144",flush=True)
+            print("144", flush=True)
 
-        print(exclude_list,flush=True)
-        print("以上、exclude_list",flush=True)
+        print(exclude_list, flush=True)
+        print("以上、exclude_list", flush=True)
 
         if i in exclude_list:
             i += 1  # iが除外リストに含まれている場合、iをインクリメントする
         try:
-            subprocess.run(f"sudo -S chmod 777 /dev/ttyUSB{i}".split(), input=("robocon471" + '\n').encode())
+            subprocess.run(
+                f"sudo -S chmod 777 /dev/ttyUSB{i}".split(), input=("robocon471" + '\n').encode())
             try:
-                serial_list[micon_number-1] = serial.Serial(f'/dev/ttyUSB{i}', 921600, timeout=1)
+                serial_list[micon_number -
+                            1] = serial.Serial(f'/dev/ttyUSB{i}', 921600, timeout=1)
                 serial_dict.setdefault(micon_number, i)
-                print(f"ESP32_{micon_number}とSerial接続成功 /dev/ttyUSB{i}", flush=True)
+                print(
+                    f"ESP32_{micon_number}とSerial接続成功 /dev/ttyUSB{i}", flush=True)
                 i = -1  # Serialが正常に開かれた場合はループを抜ける
             except Exception as e:
-                print(f"\n\n\n\n\n ESP32_{micon_number}とSerial接続失敗: {e} \n\n\n\n\n", flush=True)
-                if i<7:
+                print(
+                    f"\n\n\n\n\n ESP32_{micon_number}とSerial接続失敗: {e} \n\n\n\n\n", flush=True)
+                if i < 7:
                     i += 1  # 例外が発生した場合もiをインクリメントして次のポートを試す
                 else:
-                    i=0
+                    i = 0
         except Exception as e:
-            print(f"\n\n\n\n\n ESP32_{micon_number}接続試行時 /dev/ttyUSB{i} の権限追加に失敗 {e} \n\n\n\n\n", flush=True)
+            print(
+                f"\n\n\n\n\n ESP32_{micon_number}接続試行時 /dev/ttyUSB{i} の権限追加に失敗 {e} \n\n\n\n\n", flush=True)
 
         time.sleep(0.2)  # 0.2秒待って再試行
 
 
+def recept_serial():
+    global serial_list, serial_reception_text, battery_dict
 
-def serial_reception():
-    global serial_list, serial_reception_text
+    def add_battery_info(battery_name: str, cell_number: int, voltage: float):
+        battery_dict.setdefault(battery_name, {
+            "cell_number": cell_number,
+            "voltage_history": [],
+            "average_voltage": None,
+            "state": None})  # normal or low or much_low or not_exit or abnormality
+        battery_dict[battery_name]["voltage_history"].insert(
+            0, voltage)  # listの先頭にボルト追加
+        # 先頭から7個以降を削除 だいたい2秒の平均
+        battery_dict[battery_name]["voltage_history"] = battery_dict[battery_name]["voltage_history"][:6]
+
     while True:
+        # 2つやるんじゃなくてforでやりたいよね！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
         try:
-            received_message_1 = serial_list[0].readline().decode('utf-8')
+            received_message_1: str = serial_list[0].readline().decode('utf-8')
             print(f"\n\n\n {received_message_1} \n\n\n", flush=True)
-            # \n消したほうがいい気が
+            received_message_array_1: list[int] = [
+                int(x) for x in received_message_1.split(",")]  # 文字列を,で区切って配列化して数値化
+            if received_message_1[0] == 1:  # 4セルバッテリー
+                add_battery_info("battery_4cell", 4,
+                                 received_message_array_1[1])
+            elif received_message_1[0] == 2:  # 3セルバッテリー
+                add_battery_info("battery_3cell", 3,
+                                 received_message_array_1[1])
         except UnicodeDecodeError as e:
             print(f"ESP32_1のデコードエラー:{e}", flush=True)
         except Exception as e:
-            print("ESP32_1と接続失敗",flush=True)
-            serial_connection(1)
+            print("ESP32_1と接続失敗", flush=True)
+            connect_serial(1)
 
         try:
             received_message_2 = serial_list[1].readline().decode('utf-8')
             print(f"\n\n\n {received_message_2} \n\n\n", flush=True)
-            # \n消したほうがいい気が
+            received_message_array_2: list[int] = [
+                int(x) for x in received_message_2.split(",")]  # 文字列を,で区切って配列化して数値化
+            if received_message_2[0] == 1:  # 4セルバッテリー
+                add_battery_info("battery_4cell", 4,
+                                 received_message_array_2[1])
+            elif received_message_2[0] == 2:  # 3セルバッテリー
+                add_battery_info("battery_3cell", 3,
+                                 received_message_array_2[1])
         except UnicodeDecodeError as e:
             print(f"ESP32_2のデコードエラー:{e}", flush=True)
         except Exception as e:
-            print("ESP32_2と接続失敗",flush=True)
-            serial_connection(2)
+            print("ESP32_2と接続失敗", flush=True)
+            connect_serial(2)
+
+        # バッテリー保護
+        # どこでこれを動作させるべきか考える！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
+        if battery_dict != {}:
+            for each_battery in battery_dict.values():
+                each_battery["average_voltage"] = round(
+                    sum(each_battery["voltage_history"]) / len(each_battery["voltage_history"]), 2)
+                cell_voltage: float = round(
+                    each_battery["average_voltage"] / each_battery["cell_number"], 2)
+                if cell_voltage < 1:
+                    each_battery["state"] = "not_exit"
+                elif cell_voltage < 3:
+                    each_battery["state"] = "much_low"
+                elif cell_voltage < 3.5:
+                    each_battery["state"] = "low"
+                elif cell_voltage < 4.3:
+                    each_battery["state"] = "normal"
+                else:
+                    each_battery["state"] = "abnormality"
+
         # serial_reception_text.insert(0, line)
         # if len(serial_reception_text) > 100:
         #     del serial_reception_text[-1]
-        time.sleep(0.002) # これないとCPU使用率が増える
+        time.sleep(0.002)  # これないとCPU使用率が増える
 
 
 def sp_udp_reception():
@@ -221,6 +269,7 @@ def sp_udp_reception():
             print(
                 f"\n\n\n\n\n\n\n    スマホ からの受信に失敗: {e}\n\n\n\n\n\n\n", flush=True)
 
+
 def battery_alert():
     global reception_json
     temp = 0
@@ -233,11 +282,14 @@ def battery_alert():
             temp = 0
         time.sleep(0.2)  # 無駄にCPUを使わないようにする
 
-def convert_PS3_to_WiiU(joy_before:dict):
-    joy_after:dict={}
-    joy_after.setdefault("buttons",joy_before["buttons"])
-    joy_after.setdefault("axes",[joy_before["axes"][0],joy_before["axes"][1],joy_before["axes"][3],joy_before["axes"][4]])
+
+def convert_PS3_to_WiiU(joy_before: dict):
+    joy_after: dict = {}
+    joy_after.setdefault("buttons", joy_before["buttons"])
+    joy_after.setdefault("axes", [joy_before["axes"][0], joy_before["axes"]
+                         [1], joy_before["axes"][3], joy_before["axes"][4]])
     return joy_after
+
 
 def ros(args=None):
     rclpy.init(args=args)
@@ -252,12 +304,13 @@ def ros(args=None):
 
 class MinimalSubscriber(Node):
     state: int = 0
-    DCmotor_speed: list[int] = [0, 0, 0, 0,0,0] # 原則% 符号あり
-    BLmotor_speed : list[int] = [0,0] # 射出用ダクテッドファンと仰角調整用GM6020
+    DCmotor_speed: list[int] = [0, 0, 0, 0, 0, 0]  # 原則% 符号あり
+    BLmotor_speed: list[int] = [0, 0]  # 射出用ダクテッドファンと仰角調整用GM6020
     servo_angle: int = 0
     is_run_ducted_fan: bool = False
 
-    turn_P_gain: float = 5  # 旋回中に角度センサーにかけられるPゲインーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
+    # 旋回中に角度センサーにかけられるPゲインーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
+    turn_P_gain: float = 5
     # Initialize PID parameters
     kp: float = 2  # Proportional gain
     ki: float = 0  # Integral gain
@@ -266,24 +319,29 @@ class MinimalSubscriber(Node):
     # Iの項：出力が目標値に留まるのを邪魔する、何らかの作用がシステムに働く場合に追加する
     # Dの項：システムに振動を抑制する要素が十分にない場合に追加する
     prev_error = 0  # Initialize previous error for derivative term
-    integral = 0  # Initialize integral term
+    integral: float = 0  # Initialize integral term
 
-    angle_adjust:int = 0
-    current_angle:int = 0
-    angle_control_count:int = 0
+    angle_adjust: int = 0
+    current_angle: int = 0
+    angle_control_count: int = 0
 
-    angle_when_turn = []
-    time_when_turn = []
+    low_3cell_battery_voltage: bool = False
+    much_low_3cell_voltage: bool = False
+    low_4cell_battery_voltage: bool = False
+    much_low_4cell_voltage: bool = False
 
-    joy_now = {}
-    joy_past = {}
+    angle_when_turn: list = []
+    time_when_turn: list = []
 
-    start_time:int = 0 # 試合開始時刻(ホームボタン押下時の時刻)
-    turn_start_time = 0
+    joy_now: dict = {}
+    joy_past: dict = {}
 
-    count_print:int = 0
+    start_time: float = 0  # 試合開始時刻(ホームボタン押下時の時刻)
+    turn_start_time: float = 0
 
-    controller:list[str] = ["DualShock3","DualShock4", "WiiUProController"]
+    count_print: int = 0
+
+    controller: list[str] = ["DualShock3", "DualShock4", "WiiUProController"]
 
     def __init__(self):
         global reception_json
@@ -328,7 +386,7 @@ class MinimalSubscriber(Node):
             "esp32_ip": "/dev/ttyUSB0",
             "battery_voltage": reception_json["battery_voltage"],
             # "battery_voltage": 6,
-            "wifi_signal_strength": 0, # wifiのウブンツの強度を読み取る
+            "wifi_signal_strength": 0,  # wifiのウブンツの強度を読み取る
             "DCmotor_speed": [int(speed) for speed in self.DCmotor_speed],
             "BLmotor_speed": [int(speed) for speed in self.BLmotor_speed],
             "servo_angle": int(self.servo_angle),
@@ -343,7 +401,7 @@ class MinimalSubscriber(Node):
         self.publisher_ESP32_to_Webserver.publish(msg)
 
     def timer_callback_001(self):
-        global reception_json, accuracy_angle,serial_list
+        global reception_json, accuracy_angle, serial_list, battery_dict
         try:
             self.current_angle = reception_json["raw_angle"] + \
                 self.angle_adjust
@@ -393,70 +451,78 @@ class MinimalSubscriber(Node):
             max_motor_speed = max(map(abs, self.DCmotor_speed[:4]))
             if max_motor_speed > 255:
                 self.DCmotor_speed[:4] = [int(speed * 255 / max_motor_speed)
-                                        for speed in self.DCmotor_speed[:4]]
+                                          for speed in self.DCmotor_speed[:4]]
 
             # モータースピードが絶対値16未満の値を削除 (ジョイコンの戻りが悪いときでもブレーキを利かすため)
             self.DCmotor_speed = [
                 0 if abs(i) < 16 else i for i in self.DCmotor_speed]
 
-            # print(self.state,
-            #       *[int(speed) for speed in self.DCmotor_speed],
-            #       int(self.servo_angle),
-            #       flush=True)
+            # バッテリー保護
+            if battery_dict["battery_4cell"]["state"] == "much_low" or battery_dict["battery_4cell"]["state"] == "abnormality":
+                # 4セルで動かすものは メカナムと回収機構
+                self.DCmotor_speed = [0] * len(self.DCmotor_speed)
+            if battery_dict["battery_3cell"]["state"] == "much_low" or battery_dict["battery_3cell"]["state"] == "abnormality":
+                # 3セルで動かすものは ブラシレスモーター
+                self.BLmotor_speed = [0] * len(self.BLmotor_speed)
+                self.is_run_ducted_fan = False
 
             send_ESP32_data = [
-                int(self.state), # 0
-                int(self.DCmotor_speed[0]), # 1 メカナム
-                int(self.DCmotor_speed[1]), # 2 メカナム
-                int(self.DCmotor_speed[2]), # 3 メカナム
-                int(self.DCmotor_speed[3]), # 4 メカナム
-                int(self.DCmotor_speed[4]), # 5 回収装填
-                int(self.DCmotor_speed[5]), # 6 回収装填
-                int(self.BLmotor_speed[0]), # 7 ダクテッドファン
-                int(self.BLmotor_speed[1]), # 8 GM6020
-                int(self.servo_angle), # 9 サーボ
-                int(convert_to_binary(self.is_run_ducted_fan)), # 10 ダクテッドファンのリレー 0 or 1
-                ]
+                int(self.state),  # 0
+                int(self.DCmotor_speed[0]),  # 1 メカナム
+                int(self.DCmotor_speed[1]),  # 2 メカナム
+                int(self.DCmotor_speed[2]),  # 3 メカナム
+                int(self.DCmotor_speed[3]),  # 4 メカナム
+                int(self.DCmotor_speed[4]),  # 5 回収装填
+                int(self.DCmotor_speed[5]),  # 6 回収装填
+                int(self.BLmotor_speed[0]),  # 7 ダクテッドファン
+                int(self.BLmotor_speed[1]),  # 8 GM6020
+                int(self.servo_angle),  # 9 サーボ
+                # 10 ダクテッドファンのリレー 0 or 1
+                int(convert_to_binary(self.is_run_ducted_fan)),
+                # バッテリーとESP32再起動も送る！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
+            ]
 
             # send_ESP32_data = [1,2,3,4]
             json_str = ','.join(map(str, send_ESP32_data)) + "\n"
             if self.count_print % 10 == 0:  # 10回に1回実行
-                print(send_ESP32_data,flush=True)
+                print(send_ESP32_data, flush=True)
             self.count_print += 1
             try:
-                serial_list[0].write(json_str.encode()) # ESP32_1に書き込む
+                serial_list[0].write(json_str.encode())  # ESP32_1に書き込む
             except Exception as e:
                 print(
                     f"\n\n\n\n\n\n\n    ESP32_1 への送信に失敗: {e}\n\n\n\n\n\n\n", flush=True)
-                serial_connection(1)
+                connect_serial(1)
             try:
-                serial_list[1].write(json_str.encode()) # ESP32_2に書き込む
+                serial_list[1].write(json_str.encode())  # ESP32_2に書き込む
             except Exception as e:
                 print(
                     f"\n\n\n\n\n\n\n    ESP32_2 への送信に失敗: {e}\n\n\n\n\n\n\n", flush=True)
-                serial_connection(2)
+                connect_serial(2)
         except KeyError as e:
             print(f"コントローラー の読み取りに失敗: {e}", flush=True)
 
     def joy0_listener_callback(self, joy):
         global reception_json, coordinates, exclude_list
 
-        self.joy_now.update({ # 上書きOK
+        self.joy_now.update({  # 上書きOK
             "joy0":
             {"axes": list(joy.axes),
              "buttons": list(joy.buttons)}
         })
         if len(self.joy_now["joy0"]["axes"]) == 6:
             self.joy_now["joy0"] = convert_PS3_to_WiiU(self.joy_now["joy0"])
-        self.joy_past.setdefault( # 初回のみ実行 上書き不可
+        self.joy_past.setdefault(  # 初回のみ実行 上書き不可
             "joy0",
             {"axes": [0] * len(joy.axes), "buttons": [0] * len(joy.buttons)}
         )
 
         # self.motor5_speed = int(self.joy_now["joy0"]["axes"][1]*255)
 
-        self.BLmotor_speed[0] = abs(int(self.joy_now["joy0"]["axes"][0]*1000))+1000
-        self.BLmotor_speed[1] = abs(int(self.joy_now["joy0"]["axes"][0]*1000))+1000
+        self.BLmotor_speed[0] = abs(
+            int(self.joy_now["joy0"]["axes"][0]*1000))+1000
+        self.BLmotor_speed[1] = abs(
+            int(self.joy_now["joy0"]["axes"][0]*1000))+1000
 
         if self.joy_now["joy0"]["buttons"][2] == 1:  # Xボタン
             # 0°に旋回
@@ -500,7 +566,7 @@ class MinimalSubscriber(Node):
             else:
                 self.angle_adjust = -1 * reception_json["raw_angle"]
             # 座標リセット
-                coordinates = [[1,1],[2,2]]
+                coordinates = [[1, 1], [2, 2]]
 
         if self.joy_past["joy0"]["buttons"][10] == 0 and self.joy_now["joy0"]["buttons"][10] == 1:  # homeボタン
             # タイマースタート
@@ -515,14 +581,14 @@ class MinimalSubscriber(Node):
         self.joy_past["joy0"] = self.joy_now["joy0"]
 
     def joy1_listener_callback(self, joy):
-        self.joy_now.update({ # 上書きOK
+        self.joy_now.update({  # 上書きOK
             "joy1":
             {"axes": list(joy.axes),
              "buttons": list(joy.buttons)}
         })
         if len(self.joy_now["joy1"]["axes"]) == 6:
             self.joy_now["joy1"] = convert_PS3_to_WiiU(self.joy_now["joy1"])
-        self.joy_past.setdefault( # 初回のみ実行 上書き不可
+        self.joy_past.setdefault(  # 初回のみ実行 上書き不可
             "joy1",
             {"axes": [0] * len(joy.axes), "buttons": [0] * len(joy.buttons)}
         )
@@ -621,11 +687,13 @@ class MinimalSubscriber(Node):
 
         return temp
 
+
 def convert_to_binary(boolean_value):
     if boolean_value:
         return 1
     else:
         return 0
+
 
 if __name__ == '__main__':
     main()
