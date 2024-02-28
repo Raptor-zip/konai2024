@@ -95,6 +95,7 @@ void Core0a_calibrate_ducted_fan(void *args)
     // Serial.print(calibrate_ducted_fan_enabled_old);
     if (calibrate_ducted_fan_enabled_now == true && calibrate_ducted_fan_enabled_old == false)
     {
+      ducted_fan.attach(12);
       digitalWrite(LED_BUILTIN, LOW);
       is_calibrating_ducted_fan = true;
       Serial.println("ダクテッドファン キャリブレーション 最大");
@@ -135,25 +136,41 @@ void loop()
       int intArray[maxElements];  // 整数の配列
       int count = parseStringToArray(incomingStrings, intArray, maxElements);
 
-      PWM(0, intArray[5]);
-      PWM(1, intArray[6]);
-      // キャリブレーション中でないなら 若しくは キャリブレーション後なら
-      if (is_calibrating_ducted_fan == false)
-      {
-        ducted_fan.writeMicroseconds(intArray[7]);
-      }
+      // PWM(0, intArray[5]);
+      // PWM(1, intArray[6]);
+
       GM6020.writeMicroseconds(intArray[8]);
+      Serial.println("これは着てるよね？");
       if (intArray[10] == 1)
       {
         // digitalWrite(LED_BUILTIN, LOW);
         digitalWrite(23, HIGH);
         calibrate_ducted_fan_enabled_now = true;
+
+        // キャリブレーション中でないなら 若しくは キャリブレーション後なら
+        if (is_calibrating_ducted_fan == false)
+        {
+          Serial.println("false");
+          ducted_fan.writeMicroseconds(intArray[7]);
+        }
+        else
+        {
+          Serial.println("true");
+        }
       }
       else
       {
         // digitalWrite(LED_BUILTIN, HIGH);
         digitalWrite(23, LOW);
         calibrate_ducted_fan_enabled_now = false;
+
+        // キャリブレーション中でないなら 若しくは キャリブレーション後なら
+        // if (is_calibrating_ducted_fan == false)
+        // {
+        digitalWrite(12, LOW);
+        ducted_fan.detach(); // 接続解除
+        // ducted_fan.writeMicroseconds(0);
+        // }
       }
       // analogWrite(LED_BUILTIN, abs(intArray[4]));
     }
@@ -177,6 +194,7 @@ void loop()
     // 500ms以上パソコンからデータを受信できなかったら全てのモーターを強制停止
     if (millis() - last_receive_time > 100)
     {
+      digitalWrite(23, LOW); // リレーにつながってるブラシレス2個停止
       for (int i = 0; i < amount_motor - 1; i++)
       {
         digitalWrite(PIN_array[i].INA, HIGH);
