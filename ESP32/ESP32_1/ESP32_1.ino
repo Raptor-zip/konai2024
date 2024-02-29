@@ -29,10 +29,10 @@ typedef struct
 } dataDictionary;
 
 const dataDictionary PIN_array[]{
-    {0, 25, 32, 33},
-    {1, 26, 14, 27},
-    {2, 12, 23, 19},
-    {3, 13, 4, 18}};
+    {1, 25, 32, 33},
+    {2, 26, 14, 27},
+    {3, 12, 23, 19},
+    {4, 13, 4, 18}};
 
 size_t amount_motor = sizeof(PIN_array) / sizeof(PIN_array[0]);
 
@@ -53,6 +53,7 @@ void setup()
     Serial.setTimeout(1000); // milliseconds for Serial.readString
     Serial.println(" ");
     Serial.println("ESP32_1起動");
+    Serial.println("$1,0,1");
 
     for (int i = 0; i < amount_motor; i++)
     {
@@ -65,28 +66,28 @@ void setup()
     }
 
     // ステータススピーカーのピン設定
-    ledcSetup(4, 12000, 8);
-    ledcAttachPin(15, 1);
+    ledcSetup(0, 12000, 8);
+    ledcAttachPin(15, 0);
 }
 
 void Core0a_speaker(void *args)
 {
     delay(100);
     // 起動音
-    ledcWriteTone(1, 700);
+    ledcWriteTone(0, 700);
     delay(100);
-    ledcWriteTone(1, 900);
+    ledcWriteTone(0, 900);
     delay(100);
-    ledcWriteTone(1, 1000);
-    delay(200);
-    ledcWriteTone(1, 0);
+    ledcWriteTone(0, 2000);
+    delay(400);
+    ledcWriteTone(0, 0);
     delay(1000);
     while (1)
     {
-        ledcWriteTone(1, 440);
+        ledcWriteTone(0, 800);
         delay(100);
-        ledcWriteTone(1, 550);
-        delay(300);
+        ledcWriteTone(0, 0);
+        delay(900);
     }
 }
 
@@ -141,7 +142,7 @@ void loop()
 
         // 4セルバッテリー電圧をパソコンに送信
         float battery_voltage = analogRead(35) * 7.0609 * 3.3 / 4096;
-        String strings = "1," + String(battery_voltage, 2) + "";
+        String strings = "$1," + String(battery_voltage, 2) + ",0";
         Serial.println(strings);
     }
 

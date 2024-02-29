@@ -18,8 +18,9 @@ Servo GM6020;
 
 // 距離センサー
 const uint8_t sensor_count = 3;
-const uint8_t xshutPins[sensor_count] = {4, 5, 6};
+const uint8_t xshutPins[sensor_count] = {19, 18, 5};
 VL53L1X sensors[sensor_count];
+boolean is_run_distance_sensor = false;
 
 // ブラシレスモーターのキャリブレーション
 boolean calibrate_ducted_fan_enabled_now = false;
@@ -43,8 +44,8 @@ typedef struct
 } dataDictionary;
 
 const dataDictionary PIN_array[]{
-    {0, 25, 32, 33},
-    {1, 26, 14, 27}};
+    {4, 25, 32, 33},
+    {3, 26, 14, 27}};
 
 size_t amount_motor = sizeof(PIN_array) / sizeof(PIN_array[0]);
 
@@ -58,6 +59,9 @@ void setup()
     pinMode(23, OUTPUT);
 
     Serial.begin(921600);
+    Serial.println(" ");
+    Serial.println("ESP32_2起動");
+    Serial.println("$2,0,1");
     // Serial2.setTimeout(1); // 1msでシリアル通信タイムアウト 本当はもう少し小さくしたいかも もしかしたらserial2だと意味ないかも
     // Serial2.begin(921600);
 
@@ -85,16 +89,19 @@ void setup()
         {
             Serial.print("Failed to detect and initialize sensor ");
             Serial.println(i);
-            while (1) ///////////////////////////////////////////////////////////////While1ってなってるけど、これだと抜け出せないよね？緊急時に抜け出せるようにする
-                ;
+            // while (1) ///////////////////////////////////////////////////////////////While1ってなってるけど、これだと抜け出せないよね？緊急時に抜け出せるようにする
+            // ;
         }
-
-        sensors[i].setAddress(0x2A + i); // 各センサーのアドレスを、0x2Aから順にカウントアップする
-        sensors[i].setDistanceMode(VL53L1X::Short);
-        sensors[i].setMeasurementTimingBudget(30000); // マイクロ秒 最小20000
-        sensors[i].setROISize(4, 4);
-        sensors[i].setROICenter(199);
-        sensors[i].startContinuous(50); // 測定間隔30msで連続読み取り開始。これはタイミングバジェット以上に長くする必要がある
+        else
+        {
+            sensors[i].setAddress(0x2A + i); // 各センサーのアドレスを、0x2Aから順にカウントアップする
+            sensors[i].setDistanceMode(VL53L1X::Short);
+            sensors[i].setMeasurementTimingBudget(30000); // マイクロ秒 最小20000
+            sensors[i].setROISize(4, 4);
+            sensors[i].setROICenter(199);
+            sensors[i].startContinuous(50); // 測定間隔30msで連続読み取り開始。これはタイミングバジェット以上に長くする必要がある
+            is_run_distance_sensor = true;
+        }
     }
 
     ducted_fan.attach(12);
@@ -107,8 +114,6 @@ void setup()
     }
     // Serial.setTimeout(10); // milliseconds for Serial.readString
     Serial.setTimeout(1000); // milliseconds for Serial.readString
-    Serial.println(" ");
-    Serial.println("ESP32_2起動");
 
     for (int i = 0; i < amount_motor; i++)
     {
@@ -178,11 +183,10 @@ void loop()
             int intArray[maxElements];  // 整数の配列
             int count = parseStringToArray(incomingStrings, intArray, maxElements);
 
-            // PWM(0, intArray[5]);
-            // PWM(1, intArray[6]);
+            PWM(0, intArray[5]);
+            PWM(1, intArray[6]);
 
             GM6020.writeMicroseconds(intArray[8]);
-            Serial.println("これは着てるよね？");
             if (intArray[10] == 1)
             {
                 // digitalWrite(LED_BUILTIN, LOW);
@@ -230,14 +234,18 @@ void loop()
     // }
 
     //  距離センサーを読む
-    for (uint8_t i = 0; i < sensor_count; i++)
+    if (is_run_distance_sensor)
     {
-        Serial.print(sensors[i].read());
-        if (sensors[i].timeoutOccurred())
+        for (uint8_t i = 0; i < sensor_count; i++)
         {
-            Serial.print(" TIMEOUT");
+            Serial.print(sensors[i].read());
+            if (sensors[i].timeoutOccurred())
+            {
+                Serial.print("距離センサー");
+                Serial.print(i);
+                Serial.println(" の読み取りに失敗");
+            }
         }
-        Serial.print('\t');
     }
 
     performInfrequentTask_count++;
@@ -259,7 +267,7 @@ void loop()
 
         // 3セルバッテリー電圧をパソコンに送信
         float battery_voltage = analogRead(34) * 4.034 * 3.3 / 4096;
-        String strings = "2," + String(battery_voltage, 2) + "";
+        String strings = "$2," + String(battery_voltage, 2) + ",0";
         Serial.println(strings);
     }
 
