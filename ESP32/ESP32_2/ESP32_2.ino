@@ -14,11 +14,11 @@ TaskHandle_t thp[3]; // マルチスレッドのタスクハンドル格納用
 String incomingStrings = ""; // for incoming serial data
 
 Servo ducted_fan;
-Servo GM6020;
+// Servo GM6020;
 
 // 距離センサー
-const uint8_t sensor_count = 3;
-const uint8_t xshutPins[sensor_count] = {19, 18, 5};
+const uint8_t sensor_count = 4;
+const uint8_t xshutPins[sensor_count] = {19, 18, 5, 4};
 VL53L1X sensors[sensor_count];
 boolean is_run_distance_sensor = false;
 
@@ -53,12 +53,18 @@ void setup()
 {
     xTaskCreatePinnedToCore(Core0a_calibrate_ducted_fan, "Core0a_calibrate_ducted_fan", 4096, NULL, 1, &thp[0], 0);
     // xTaskCreatePinnedToCore(Core0b_calibrate_GM6020, "Core0b_calibrate_GM6020", 4096, NULL, 2, &thp[1], 0);
-    pinMode(LED_BUILTIN, OUTPUT);
-    pinMode(12, OUTPUT);
-    pinMode(13, OUTPUT);
-    pinMode(23, OUTPUT);
+    pinMode(LED_BUILTIN, OUTPUT); // ESP32内蔵LED
+    pinMode(23, OUTPUT);          // ブラシレスのリレー
+    digitalWrite(23, LOW);        // ブラシレスのリレーをOFF
 
     Serial.begin(921600);
+    // Serial.setRxBufferSize(512); // 送受信バッファサイズを変更。デフォルト:256バイト
+    // Serial.setRxBufferSize(64); // これ変更しても影響ない？気がする
+    while (!Serial)
+    {
+        ; // シリアル通信ポートが正常に接続されるまで抜け出さない
+    }
+    Serial.setTimeout(1000); // milliseconds for Serial.readString
     Serial.println(" ");
     Serial.println("ESP32_2起動");
     Serial.println("$2,0,1");
@@ -104,17 +110,7 @@ void setup()
         }
     }
 
-    ducted_fan.attach(12);
-    GM6020.attach(13);
-    // Serial.setRxBufferSize(512); // 送受信バッファサイズを変更。デフォルト:256バイト
-    // Serial.setRxBufferSize(64); // これ変更しても影響ない？気がする
-    while (!Serial)
-    {
-        ; // シリアル通信ポートが正常に接続されるまで抜け出さない
-    }
-    // Serial.setTimeout(10); // milliseconds for Serial.readString
-    Serial.setTimeout(1000); // milliseconds for Serial.readString
-
+    // DCモーターの設定
     for (int i = 0; i < amount_motor; i++)
     {
         // INA,INBの設定
@@ -125,13 +121,20 @@ void setup()
         ledcAttachPin(PIN_array[i].PWM, PIN_array[i].PWM_channels);
     }
 
-    Serial.println("GM6020 キャリブレーション 最大");
-    GM6020.writeMicroseconds(2000);
-    delay(2000);
-    Serial.println("GM6020 キャリブレーション 最小");
-    GM6020.writeMicroseconds(1000);
-    delay(2000);
-    Serial.println("GM6020 キャリブレーション 完了");
+    // ダクテッドファンの設定
+    pinMode(12, OUTPUT);
+    ducted_fan.attach(12);
+
+    // GM6020の設定
+    // pinMode(13, OUTPUT);
+    // GM6020.attach(13);
+    // Serial.println("GM6020 キャリブレーション 最大");
+    // GM6020.writeMicroseconds(2000);
+    // delay(2000);
+    // Serial.println("GM6020 キャリブレーション 最小");
+    // GM6020.writeMicroseconds(1000);
+    // delay(2000);
+    // Serial.println("GM6020 キャリブレーション 完了");
 }
 
 void Core0a_calibrate_ducted_fan(void *args)
@@ -186,7 +189,6 @@ void loop()
             PWM(0, intArray[5]);
             PWM(1, intArray[6]);
 
-            GM6020.writeMicroseconds(intArray[8]);
             if (intArray[10] == 1)
             {
                 // digitalWrite(LED_BUILTIN, LOW);
@@ -197,26 +199,24 @@ void loop()
                 if (is_calibrating_ducted_fan == false)
                 {
                     Serial.println("false");
+                    // analogWrite(LED_BUILTIN, int(intArray[7]* (255/2000)));
                     ducted_fan.writeMicroseconds(intArray[7]);
                 }
                 else
                 {
                     Serial.println("true");
                 }
+
+                // GM6020.writeMicroseconds(intArray[8]);
             }
             else
             {
                 // digitalWrite(LED_BUILTIN, HIGH);
-                digitalWrite(23, LOW);
+                digitalWrite(23, LOW); // リレーオフ
                 calibrate_ducted_fan_enabled_now = false;
 
-                // キャリブレーション中でないなら 若しくは キャリブレーション後なら
-                // if (is_calibrating_ducted_fan == false)
-                // {
                 digitalWrite(12, LOW);
                 ducted_fan.detach(); // 接続解除
-                                     // ducted_fan.writeMicroseconds(0);
-                                     // }
             }
             // analogWrite(LED_BUILTIN, abs(intArray[4]));
         }
@@ -234,19 +234,20 @@ void loop()
     // }
 
     //  距離センサーを読む
-    if (is_run_distance_sensor)
+    // if (is_run_distance_sensor)
+    // {
+    for (uint8_t i = 0; i < sensor_count; i++)
     {
-        for (uint8_t i = 0; i < sensor_count; i++)
+        Serial.print("距離センサー");
+        Serial.println(sensors[i].read());
+        if (sensors[i].timeoutOccurred())
         {
-            Serial.print(sensors[i].read());
-            if (sensors[i].timeoutOccurred())
-            {
-                Serial.print("距離センサー");
-                Serial.print(i);
-                Serial.println(" の読み取りに失敗");
-            }
+            Serial.print("距離センサー");
+            Serial.print(i);
+            Serial.println(" の読み取りに失敗");
         }
     }
+    // }
 
     performInfrequentTask_count++;
     if (performInfrequentTask_count > 200)

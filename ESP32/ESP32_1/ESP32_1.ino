@@ -117,11 +117,12 @@ void loop()
             PWM(1, intArray[2]);
             PWM(2, intArray[3]);
             PWM(3, intArray[4]);
-            analogWrite(LED_BUILTIN, abs(intArray[0]));
+            analogWrite(LED_BUILTIN, abs(intArray[1]));
         }
         else
         {
             Serial.println("シリアル通信エラー105");
+            // これも$1つけて送る これは、状態じゃなくて瞬間的なものだからボルトとかは送らずに！！！！！！！！！！！！！！！！
         }
     }
 

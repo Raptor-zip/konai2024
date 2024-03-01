@@ -23,11 +23,16 @@ reception_json: dict = {
     "raw_angle": 0
 }
 
-serial_list: list = [None, None]  # dictに統合するのだめなん？？？？？？？？？？？？？？？？？？？？
+micon_dict: dict[str, dict] = {
+    "ESP32_1": {"number": 1,  # マイコンからデータ来るときに
+                "serial_id": None,
+                "serial_obj": None},
+    "ESP32_2": {"number": 2,  # マイコンからデータ来るときに やっぱ消す！！！！！！！！！！！！！！！！！！！！！！！！！！
+                "serial_id": None,
+                "serial_obj": None}}
 
-serial_dict: dict = {}
-
-battery_dict: dict[str, dict] = {}  # これ、クラスの中のほうが良くない？！！！！！！！！！！！！！！！！！！！！！！！！
+# これ、クラスの中のほうが良くない？！！！！！！！！！！！！！！！！！！！！！！！！これ先に中身の枠組み入れたほうが良くない？
+battery_dict: dict[str, dict] = {}
 
 accuracy_angle: int = 0
 
@@ -129,39 +134,23 @@ def odometry():
                 f"\n\n\n\n\n\n\n    マウス の読み取りに失敗: {e}\n\n\n\n\n\n\n", flush=True)
 
 
-def connect_serial(micon_number: int):
-    global serial_list, serial_dict
+def connect_serial(micon_name: str):
+    global micon_dict
     i = 0
-    print("きてるよ", flush=True)
+    print(f"{micon_name}とシリアル接続を試行", flush=True)
     while i > -1:
-        if micon_number in serial_dict:
-            serial_dict.pop(micon_number)
-        exclude_list: list = []
+        if micon_dict[micon_name]["serial_id"] != None:
+            micon_dict[micon_name]["serial_id"] = None
+        exclude_list: list[int] = []
 
-        for j in range(2):
-            # for i in range(len(serial_list)):
+        for each_micon_dict in micon_dict.values():  # micon_dictの各値に対して
             try:
-                print("136", flush=True)
-                print(serial_list[j].readline(), flush=True)  # ポートがnoneじゃないか確認
-                print("138", flush=True)
-                print("以下、serial_dict", flush=True)
-                print(serial_dict, flush=True)
-                print("以上、serial_dict", flush=True)
-                print(serial_dict[1], flush=True)
-                # print(serial_dict[j], flush=True)
-                print("異常 serial_dict j", flush=True)
-                # exclude_list.append(serial_dict[j])
-                exclude_list.append(0)
-                print("140", flush=True)
+                # ポートがnoneじゃないか確認 絶対もっといい書き方ある！！
+                temp: str = each_micon_dict["serial_obj"].readline()
+                exclude_list.append(each_micon_dict["serial_id"])
             except Exception as e:
-                print("ラー", flush=True)
-                print(e, flush=True)
-                print("142", flush=True)
+                # print(f"ポートがnoneのときに出るエラー。無視して次のポートを試行する:{e}", flush=True)
                 pass
-            print("144", flush=True)
-
-        print(exclude_list, flush=True)
-        print("以上、exclude_list", flush=True)
 
         if i in exclude_list:
             i += 1  # iが除外リストに含まれている場合、iをインクリメントする
@@ -169,28 +158,28 @@ def connect_serial(micon_number: int):
             subprocess.run(
                 f"sudo -S chmod 777 /dev/ttyUSB{i}".split(), input=("robocon471" + '\n').encode())
             try:
-                serial_list[micon_number -
-                            1] = serial.Serial(f'/dev/ttyUSB{i}', 921600, timeout=1)
-                serial_dict.setdefault(micon_number, i)
+                micon_dict[micon_name]["serial_obj"] = serial.Serial(
+                    f'/dev/ttyUSB{i}', 921600, timeout=1)
+                micon_dict[micon_name]["serial_id"] = i
                 print(
-                    f"ESP32_{micon_number}とSerial接続成功 /dev/ttyUSB{i}", flush=True)
+                    f"{micon_name}とSerial接続成功 /dev/ttyUSB{i}", flush=True)
                 i = -1  # Serialが正常に開かれた場合はループを抜ける
             except Exception as e:
                 print(
-                    f"\n\n\n\n\n ESP32_{micon_number}とSerial接続失敗: {e} \n\n\n\n\n", flush=True)
+                    f"\n\n{micon_name}とSerial接続失敗: {e} \n\n", flush=True)
                 if i < 7:
                     i += 1  # 例外が発生した場合もiをインクリメントして次のポートを試す
                 else:
                     i = 0
         except Exception as e:
             print(
-                f"\n\n\n\n\n ESP32_{micon_number}接続試行時 /dev/ttyUSB{i} の権限追加に失敗 {e} \n\n\n\n\n", flush=True)
+                f"\n\n{micon_name}とSerial接続試行時 /dev/ttyUSB{i} の権限追加に失敗 {e} \n\n", flush=True)
 
         time.sleep(0.2)  # 0.2秒待って再試行
 
 
 def recept_serial():
-    global serial_list, serial_reception_text, battery_dict
+    global micon_dict, serial_reception_text, battery_dict
 
     def add_battery_info(battery_name: str, cell_number: int, voltage: float):
         battery_dict.setdefault(battery_name, {
@@ -204,34 +193,35 @@ def recept_serial():
         battery_dict[battery_name]["voltage_history"] = battery_dict[battery_name]["voltage_history"][:6]
 
     while True:
-        # 2つやるんじゃなくてforでやりたいよね！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
-        received_message_list: list[str] = [""] * 2
-        for micon_number in range(2):
+        for each_micon_dict_key, each_micon_dict_values in micon_dict.items():
             try:
-                received_message_list[micon_number] = serial_list[micon_number].readline(
-                ).decode('utf-8')[:-3]
-                if received_message_list[micon_number][0] == "$":
-                    # $を除く
-                    received_message_list[micon_number] = received_message_list[micon_number][1:]
+                received_message: str = each_micon_dict_values["serial_obj"].readline(
+                ).decode('utf-8')[:-2]  # \r\nを消す
+                print(
+                    f"\n                                                {each_micon_dict_key}から:{received_message}\n", flush=True)
+                if received_message[0] == "$":
+                    # print(
+                    # f"\n                                       {each_micon_dict_key}から$:{received_message}\n", flush=True)
+                    received_message = received_message[1:]  # $を除く
                     received_message_array: list[float] = [
-                        float(x) for x in received_message_list[micon_number].split(",")]  # 文字列を,で区切って配列化して数値化
-                    # print(received_message_1[0], flush=True)
-                    if received_message_list[micon_number][0] == 1:  # 4セルバッテリー
+                        float(x) for x in received_message.split(",")]  # 文字列を,で区切って配列化して数値化
+                    if received_message[0] == 1:  # 4セルバッテリー
                         add_battery_info("battery_4cell", 4,
                                          received_message_array[1])
-                    elif received_message_list[micon_number][0] == 2:  # 3セルバッテリー
+                    elif received_message[0] == 2:  # 3セルバッテリー
                         add_battery_info("battery_3cell", 3,
                                          received_message_array[1])
                 else:
                     # デバッグ用メッセージ
-                    print(
-                        f"?? {received_message_list[micon_number]}", flush=True)
+                    # print(
+                    #     f"\n                                       {each_micon_dict_key}から!:{received_message}\n", flush=True)
+                    pass
 
             except UnicodeDecodeError as e:
-                print(f"ESP32_{micon_number+1}のデコードエラー:{e}", flush=True)
+                print(f"{each_micon_dict_key}から受信時のデコードエラー:{e}", flush=True)
             except Exception as e:
-                print(f"ESP32_{micon_number+1}と接続失敗 読み取り時:{e}", flush=True)
-                connect_serial(micon_number+1)
+                print(f"{each_micon_dict_key}への接続失敗 読み取り試行時:{e}", flush=True)
+                connect_serial(each_micon_dict_key)
         # バッテリー保護
         # どこでこれを動作させるべきか考える！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
         if battery_dict != {}:
@@ -309,6 +299,7 @@ class MinimalSubscriber(Node):
     BLmotor_speed: list[int] = [0, 0]  # 射出用ダクテッドファンと仰角調整用GM6020
     servo_angle: int = 0
     is_run_ducted_fan: bool = False
+    is_reboot_micon: list[bool] = [False, False]  # 再起動したいマイコンはTrueにする 通常はFalse
 
     # 旋回中に角度センサーにかけられるPゲインーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
     turn_P_gain: float = 5
@@ -402,7 +393,7 @@ class MinimalSubscriber(Node):
         self.publisher_ESP32_to_Webserver.publish(msg)
 
     def timer_callback_001(self):
-        global reception_json, accuracy_angle, serial_list, battery_dict
+        global reception_json, accuracy_angle, micon_dict, battery_dict
         try:
             self.current_angle = reception_json["raw_angle"] + \
                 self.angle_adjust
@@ -469,8 +460,8 @@ class MinimalSubscriber(Node):
                     self.BLmotor_speed = [0] * len(self.BLmotor_speed)
                     self.is_run_ducted_fan = False
 
-            send_ESP32_data = [
-                int(self.state),  # 0
+            send_ESP32_data: list[int] = [
+                int(self.state),  # 0 状態
                 int(self.DCmotor_speed[0]),  # 1 メカナム
                 int(self.DCmotor_speed[1]),  # 2 メカナム
                 int(self.DCmotor_speed[2]),  # 3 メカナム
@@ -482,30 +473,26 @@ class MinimalSubscriber(Node):
                 int(self.servo_angle),  # 9 サーボ
                 # 10 ダクテッドファンのリレー 0 or 1
                 int(convert_to_binary(self.is_run_ducted_fan)),
-                # 再起動のやつは true false or Unique ID or Time
-                # ESP32が起動時に、シグナル送る
-
-                # バッテリーとESP32再起動も送る！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
+                # 11 ESP32_1を再起動するか 0 or 1
+                int(convert_to_binary(self.is_reboot_micon[0])),
+                # 12 ESP32_2を再起動するか 0 or 1
+                int(convert_to_binary(self.is_reboot_micon[1])),
+                # バッテリーstatusも送る！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
             ]
 
-            # send_ESP32_data = [1,2,3,4]
-            json_str = ','.join(map(str, send_ESP32_data)) + "\n"
+            json_str: str = ','.join(map(str, send_ESP32_data)) + "\n"
             if self.count_print % 10 == 0:  # 10回に1回実行
                 print(send_ESP32_data, flush=True)
             self.count_print += 1
-            try:
-                serial_list[0].write(json_str.encode())  # ESP32_1に書き込む
-            except Exception as e:
-                print(
-                    f"\n\n\n\n\n\n\n    ESP32_1 への送信に失敗: {e}\n\n\n\n\n\n\n", flush=True)
-                connect_serial(1)
-            try:
-                serial_list[1].write(json_str.encode())  # ESP32_2に書き込む
-                # print("ESP32_2に書き込めたよ", flush=True)
-            except Exception as e:
-                print(
-                    f"\n\n\n\n\n\n\n    ESP32_2 への送信に失敗: {e}\n\n\n\n\n\n\n", flush=True)
-                connect_serial(2)
+            for each_micon_dict_key, each_micon_dict_values in micon_dict.items():
+                try:
+                    each_micon_dict_values["serial_obj"].write(
+                        json_str.encode())
+                except Exception as e:
+                    print(
+                        f"\n\n{each_micon_dict_key}への送信に失敗: {e} \n\n", flush=True)
+                    connect_serial(each_micon_dict_key)
+                    # 片方のマイコンが途切れたときに、詰まるから、このやり方よくない 非同期にするか、connect_serialを並行処理でずっとwhileしといて、bool変数がTrueになったら接続処理するとか
         except KeyError as e:
             print(f"コントローラー の読み取りに失敗: {e}", flush=True)
 
@@ -595,10 +582,12 @@ class MinimalSubscriber(Node):
             {"axes": [0] * len(joy.axes), "buttons": [0] * len(joy.buttons)}
         )
 
+        # self.BLmotor_speed[0] = abs(
+        # int(self.joy_now["joy1"]["axes"][0]*2000))  # ダクテッドファン
         self.BLmotor_speed[0] = abs(
-            int(self.joy_now["joy1"]["axes"][0]*400))+1000  # ダクテッドファン
-        self.BLmotor_speed[1] = abs(
-            int(self.joy_now["joy1"]["axes"][2]*300))+1300  # GM6020
+            int(self.joy_now["joy1"]["axes"][0]*500))+1000  # ダクテッドファン
+        # self.BLmotor_speed[1] = abs(
+        #     int(self.joy_now["joy1"]["axes"][2]*300))+1300  # GM6020
 
         # 回収機構のモーター
         self.DCmotor_speed[4] = int(self.joy_now["joy1"]["axes"][1] * 255)
