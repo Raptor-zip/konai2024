@@ -20,16 +20,25 @@ def channel_send(channel, message):
 # シグナリングを受信し、RTCSessionDescription や RTCIceCandidate を処理するための非同期関数。
 async def consume_signaling(pc, signaling):
     while True:
-        obj = await signaling.receive()
+        # 予め定義されたstr変数からRTCSessionDescriptionオブジェクトを取得する例
+# ここではdummy_dataという変数に予め定義されたデータを使用しています
 
-        if isinstance(obj, RTCSessionDescription):
-            await pc.setRemoteDescription(obj)
+        dummy_data:str = "v=0\r\no=- 3918648610 3918648610 IN IP4 0.0.0.0\r\ns=-\r\nt=0 0\r\na=group:BUNDLE 0\r\na=msid-semantic:WMS *\r\nm=application 51316 DTLS/SCTP 5000\r\nc=IN IP4 192.168.229.68\r\na=mid:0\r\na=sctpmap:5000 webrtc-datachannel 65535\r\na=max-message-size:65536\r\na=candidate:a163705e00d9330ae8de17c9be20477e 1 udp 2130706431 192.168.229.68 51316 typ host\r\na=candidate:580b5f32035da7f14a30ea7a8d826c67 1 udp 2130706431 172.17.0.1 36489 typ host\r\na=candidate:d3134823d160adfc9a8a8f9c89d14550 1 udp 1694498815 133.106.222.116 51316 typ srflx raddr 192.168.229.68 rport 51316\r\na=candidate:0ad8db753210ce9554cf251a9e51e792 1 udp 1694498815 133.106.222.116 36489 typ srflx raddr 172.17.0.1 rport 36489\r\na=end-of-candidates\r\na=ice-ufrag:Jk3h\r\na=ice-pwd:4UYEkRHxeFWXtF0dGoxQry\r\na=fingerprint:sha-256 A9:2E:5D:38:7B:23:D7:BB:D3:BC:83:A0:C7:BE:82:D9:27:1C:7C:50:C2:1C:0A:A4:1C:A3:BD:51:78:9F:F8:D8\r\na=setup:actpass\r\n"
+
+        # dummy_dataを使用してRTCSessionDescriptionオブジェクトを作成する
+        obj = RTCSessionDescription(sdp=dummy_data, type='offer')
+
+        # obj = await signaling.receive() # signalingから受信したオブジェクトを待機します。
+        ############################################################################これがconsoleの入力だわ
+
+        if isinstance(obj, RTCSessionDescription): # 受信したオブジェクトがRTCSessionDescriptionの場合
+            await pc.setRemoteDescription(obj)# pcのリモート記述を設定
 
             if obj.type == "offer":
                 # send answer
-                await pc.setLocalDescription(await pc.createAnswer())
-                await signaling.send(pc.localDescription)
-        elif isinstance(obj, RTCIceCandidate):
+                await pc.setLocalDescription(await pc.createAnswer()) # "offer"の場合は"answer"を作成
+                await signaling.send(pc.localDescription) # 送信
+        elif isinstance(obj, RTCIceCandidate): # 受信したオブジェクトがRTCIceCandidateの場合、pcにIceCandidateを追加します。
             await pc.addIceCandidate(obj)
         elif obj is BYE:
             print("Exiting")
@@ -71,8 +80,19 @@ async def run_offer(pc, signaling):
         # channel_log(channel, "<", message)
 
     await pc.setLocalDescription(await pc.createOffer()) # ローカルのセッション記述を作成し、offer を生成します。
-    await signaling.send(pc.localDescription) # 作成した offer をシグナリングサーバーを介して送信します。
 
+    # await signaling.send(pc.localDescription) # 作成した offer をシグナリングサーバーを介して送信します。
+
+    temp = pc.localDescription
+    await signaling.send(temp) # 作成した offer をシグナリングサーバーを介して送信します。
+
+    print("korekita")
+    print(temp.sdp)
+    # 変にjson化しないで、そのままwebsocketする
+    print("korekita")
+
+
+    # ＃＃＃＃＃＃＃＃＃＃＃＃＃＃＃＃＃＃＃＃＃＃＃＃＃＃＃＃＃ユーザーの出力を待つやつかな？？
     await consume_signaling(pc, signaling) # シグナリングを介して受信した情報を処理するための非同期関数 consume_signaling を実行します。
 
 
