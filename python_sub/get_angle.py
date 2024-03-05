@@ -18,16 +18,23 @@ user_count: int = 0
 reception_json: dict = {}
 last_received_time: datetime
 
+@app.route('/')
+def got_index():
+    return render_template('index.html')
 
-@app.route('/sp')
-def got_sp():
-    return render_template('webrtc_sp.html')
+@app.route('/angle_sp')
+def got_angle_sp():
+    return render_template('angle_sp.html')
 
+@app.route('/control_sp')
+def got_control_sp():
+    return render_template('control_sp.html')
 
-@app.route('/pc')
+# ipadとかのwebrtc繋がずに、websocketだけで見るバージョンも作る？!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+@app.route('/pc') # angleとcontrol両方とも受信する
 def got_pc():
-    return render_template('webrtc_pc.html')
-
+    return render_template('pc.html')
 
 @socketio.on('connect')
 def connect(auth):
@@ -55,17 +62,28 @@ def state(json_data):
     last_received_time = current_time
 
 
-@socketio.on("sp_localSDP")
+@socketio.on("angle_sp_localSDP")
 def sp_localSDP(received_localSDP_str):
-    print(f"SP SDP受信:{received_localSDP_str}")
-    emit("send_sp_localSDP", {
+    print(f"angle_sp SDP受信:{received_localSDP_str}")
+    emit("send_angle_sp_localSDP", {
          "sp_localSDP":  received_localSDP_str}, broadcast=True)
 
+@socketio.on("control_sp_localSDP")
+def sp_localSDP(received_localSDP_str):
+    print(f"control_sp SDP受信:{received_localSDP_str}")
+    emit("send_control_sp_localSDP", {
+         "sp_localSDP":  received_localSDP_str}, broadcast=True)
 
-@socketio.on("pc_localSDP")
-def pc_localSDP(received_localSDP_str):
-    print(f"PC SDP受信:{received_localSDP_str}")
-    emit("send_pc_localSDP", {
+@socketio.on("angle_pc_localSDP")
+def angle_pc_localSDP(received_localSDP_str):
+    print(f"angle_pc SDP受信:{received_localSDP_str}")
+    emit("send_angle_pc_localSDP", {
+         "pc_localSDP":  received_localSDP_str}, broadcast=True)
+
+@socketio.on("control_pc_localSDP")
+def control_pc_localSDP(received_localSDP_str):
+    print(f"control_pc SDP受信:{received_localSDP_str}")
+    emit("send_control_pc_localSDP", {
          "pc_localSDP":  received_localSDP_str}, broadcast=True)
 
 
@@ -75,6 +93,7 @@ def flask_socketio_run():
     key_path = '/key.pem'
     socketio.run(app, host='0.0.0.0', port=5001, debug=True,
                  ssl_context=(cert_path, key_path), use_reloader=False)
+    # socketio.run(app, host='0.0.0.0', port=5001, debug=False, use_reloader=False)
 
 
 def publish():
@@ -93,7 +112,25 @@ def publish():
             print('done')
             break
 
+def receive_udp_webserver():
+    # UDPソケットの作成
+    udp_socket_webserver = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    udp_socket_webserver.bind(('127.0.0.1', 5002))
+    udp_socket_webserver.settimeout(1.0)  # タイムアウトを1秒に設定
+    while True:
+        try:
+            message, cli_addr = udp_socket_webserver.recvfrom(1024)
+            # print(f"Received: {message.decode('utf-8')}")
+            received_json_temp:str = message.decode('utf-8')
+            socketio.emit("send_control_data", received_json_temp, namespace='/')
+            # デコードエラーの処理もつける？？！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
+        except Exception as e:
+            print(
+                f"Webserver からの受信に失敗: {e}")
 
 if __name__ == '__main__':
+    # なんか他のwebserver.pyとかとマルチスレッドの記述方法違うけどいいのかな！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
     threading.Thread(target=flask_socketio_run).start()
     threading.Thread(target=publish).start()
+    threading.Thread(target=receive_udp_webserver).start()
+

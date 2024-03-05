@@ -319,5 +319,5 @@ int findFirstTrueIndex(boolean arr[]) {
       return i;
     }
   }
-  return -1;  // trueが見つからない場合は-1を返す////////////////////////////////////////////////////////////////治す
+  return -1;  // trueが見つからない場合は-1を返す
 }

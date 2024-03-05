@@ -12,10 +12,6 @@ TaskHandle_t thp[6]; // マルチスレッドのタスクハンドル格納用
 
 String incomingStrings = ""; // for incoming serial data
 
-Servo ducted_fan;
-Servo ducted_fan_2;
-// Servo GM6020;
-
 // 距離センサー
 const uint8_t sensor_count = 4;
 const uint8_t xshutPins[sensor_count] = {19, 18, 5, 4};
@@ -23,7 +19,9 @@ VL53L1X distance_sensors[sensor_count];
 uint8_t can_read_distance_sensors_list[sensor_count] = {};             // 使える距離センサーのリスト0〜3
 int16_t distance_sensors_result_list[sensor_count] = {-1, -1, -1, -1}; // 使える距離センサーのリスト0〜3
 
-// ブラシレスモーターのキャリブレーション
+// ブラシレスモーター
+Servo ducted_fan_1;
+Servo ducted_fan_2;
 boolean calibrate_ducted_fan_enabled_now = false;
 boolean calibrate_ducted_fan_enabled_old = false;
 boolean is_calibrating_ducted_fan = false;
@@ -53,11 +51,7 @@ size_t amount_motor = sizeof(PIN_array) / sizeof(PIN_array[0]);
 void setup()
 {
     xTaskCreatePinnedToCore(Core0a_calibrate_ducted_fan, "Core0a_calibrate_ducted_fan", 4096, NULL, 1, &thp[0], 0);
-    // xTaskCreatePinnedToCore(Core0b_calibrate_GM6020, "Core0b_calibrate_GM6020", 4096, NULL, 2, &thp[1], 0);
-    xTaskCreatePinnedToCore(Core0c_read_distance_sensor_0, "Core0c_read_distance_sensor_0", 4096, NULL, 9, &thp[2], 0);
-    // xTaskCreatePinnedToCore(Core1a_read_distance_sensor_1, "Core1a_read_distance_sensor_1", 4096, NULL, 6, &thp[3], 0);
-    // xTaskCreatePinnedToCore(Core1b_read_distance_sensor_2, "Core1b_read_distance_sensor_2", 4096, NULL, 5, &thp[4], 1);
-    // xTaskCreatePinnedToCore(Core1c_read_distance_sensor_3, "Core1c_read_distance_sensor_3", 4096, NULL, 4, &thp[5], 1);
+    xTaskCreatePinnedToCore(Core0b_read_distance_sensors, "Core0b_read_distance_sensors", 4096, NULL, 2, &thp[1], 0);
     pinMode(LED_BUILTIN, OUTPUT); // ESP32内蔵LED
     pinMode(23, OUTPUT);          // ブラシレスのリレー
     digitalWrite(23, LOW);        // ブラシレスのリレーをOFF
@@ -75,9 +69,6 @@ void setup()
     Serial.println("$2,1,1");
     // Serial2.setTimeout(1); // 1msでシリアル通信タイムアウト 本当はもう少し小さくしたいかも もしかしたらserial2だと意味ないかも
     // Serial2.begin(921600);
-
-    Wire.begin();
-    Wire.setClock(400000); // use 400 kHz I2C
 
     // ICに信号いれる
     for (uint8_t i = 0; i < sensor_count; i++)
@@ -126,93 +117,10 @@ void setup()
     // ダクテッドファンの設定
     pinMode(12, OUTPUT);
     pinMode(13, OUTPUT);
-    ducted_fan.attach(12);
+    ducted_fan_1.attach(12);
     ducted_fan_2.attach(13);
 
-    // GM6020の設定
-    // pinMode(13, OUTPUT);
-    // GM6020.attach(13);
-    // Serial.println("GM6020 キャリブレーション 最大");
-    // GM6020.writeMicroseconds(2000);
-    // delay(2000);
-    // Serial.println("GM6020 キャリブレーション 最小");
-    // GM6020.writeMicroseconds(1000);
-    // delay(2000);
-    // Serial.println("GM6020 キャリブレーション 完了");
-
     Serial.println("$2,1,2");
-}
-
-void Core0c_read_distance_sensor_0(void *args)
-{
-    delay(1000);
-    while (1)
-    {
-        //  距離センサーを読む
-        int i = 0;
-        distance_sensors_result_list[i] = distance_sensors[i].read();
-        if (distance_sensors[i].timeoutOccurred())
-        {
-            // Serial.print(i);
-            // Serial.println(" の読み取りに失敗");
-            distance_sensors_result_list[i] = -1;
-        }
-        delay(1);
-    }
-}
-
-void Core1a_read_distance_sensor_1(void *args)
-{
-    delay(1000);
-    while (1)
-    {
-        //  距離センサーを読む
-        int i = 1;
-        distance_sensors_result_list[i] = distance_sensors[i].read();
-        if (distance_sensors[i].timeoutOccurred())
-        {
-            // Serial.print(i);
-            // Serial.println(" の読み取りに失敗");
-            distance_sensors_result_list[i] = -1;
-        }
-        delay(1);
-    }
-}
-
-void Core1b_read_distance_sensor_2(void *args)
-{
-    delay(1000);
-    while (1)
-    {
-        //  距離センサーを読む
-        int i = 2;
-        distance_sensors_result_list[i] = distance_sensors[i].read();
-        if (distance_sensors[i].timeoutOccurred())
-        {
-            // Serial.print(i);
-            // Serial.println(" の読み取りに失敗");
-            distance_sensors_result_list[i] = -1;
-        }
-        delay(1);
-    }
-}
-
-void Core1c_read_distance_sensor_3(void *args)
-{
-    delay(1000);
-    while (1)
-    {
-        //  距離センサーを読む
-        int i = 3;
-        distance_sensors_result_list[i] = distance_sensors[i].read();
-        if (distance_sensors[i].timeoutOccurred())
-        {
-            // Serial.print(i);
-            // Serial.println(" の読み取りに失敗");
-            distance_sensors_result_list[i] = -1;
-        }
-        delay(1);
-    }
 }
 
 void Core0a_calibrate_ducted_fan(void *args)
@@ -220,19 +128,19 @@ void Core0a_calibrate_ducted_fan(void *args)
     delay(100);
     while (1)
     {
-        digitalWrite(LED_BUILTIN, HIGH);
+        // digitalWrite(LED_BUILTIN, HIGH);
         if (calibrate_ducted_fan_enabled_now == true && calibrate_ducted_fan_enabled_old == false)
         {
-            ducted_fan.attach(12);
+            ducted_fan_1.attach(12);
             ducted_fan_2.attach(13);
             digitalWrite(LED_BUILTIN, LOW);
             is_calibrating_ducted_fan = true;
             Serial.println("ダクテッドファン キャリブレーション 最大");
-            ducted_fan.writeMicroseconds(2000);
+            ducted_fan_1.writeMicroseconds(2000);
             ducted_fan_2.writeMicroseconds(2000);
             delay(2000);
             Serial.println("ダクテッドファン キャリブレーション 最小");
-            ducted_fan.writeMicroseconds(1000);
+            ducted_fan_1.writeMicroseconds(1000);
             ducted_fan_2.writeMicroseconds(1000);
             delay(2000);
             Serial.println("ダクテッドファン キャリブレーション 完了");
@@ -240,6 +148,28 @@ void Core0a_calibrate_ducted_fan(void *args)
         }
         calibrate_ducted_fan_enabled_old = calibrate_ducted_fan_enabled_now;
         delay(1);
+    }
+}
+
+void Core0b_read_distance_sensors(void *args)
+{
+    delay(1000);
+    Wire.begin();
+    Wire.setClock(400000); // use 400 kHz I2C
+
+    while (1)
+    {
+        for (uint8_t i = 0; i < sensor_count; i++){
+            //  距離センサーを読む
+            distance_sensors_result_list[i] = distance_sensors[i].read();
+            if (distance_sensors[i].timeoutOccurred())
+            {
+                // Serial.print(i);
+                // Serial.println(" の読み取りに失敗");
+                distance_sensors_result_list[i] = -1;
+            }
+            delay(1);
+        }
     }
 }
 
@@ -287,26 +217,24 @@ void loop()
                 {
                     // Serial.println("false");
                     // analogWrite(LED_BUILTIN, int(intArray[7]* (255/2000)));
-                    ducted_fan.writeMicroseconds(intArray[7]);
+                    ducted_fan_1.writeMicroseconds(intArray[7]);
                     ducted_fan_2.writeMicroseconds(intArray[8]);
                 }
                 else
                 {
                     // Serial.println("true");
                 }
-
-                // GM6020.writeMicroseconds(intArray[8]);
             }
             else
             {
                 // digitalWrite(LED_BUILTIN, HIGH);
-                digitalWrite(23, LOW); // リレーオフ
                 calibrate_ducted_fan_enabled_now = false;
-
-                digitalWrite(12, LOW);
-                digitalWrite(13, LOW);
-                ducted_fan.detach();   // 接続解除
+                digitalWrite(23, LOW); // リレーオフ
+                ducted_fan_1.detach(); // 接続解除
                 ducted_fan_2.detach(); // 接続解除
+                digitalWrite(12, LOW); // PWM停止
+                digitalWrite(13, LOW); // PWM停止
+
             }
             // analogWrite(LED_BUILTIN, abs(intArray[4]));
         }
@@ -324,12 +252,17 @@ void loop()
     //   Serial.println(received_strings);
     // }
 
-    // Serial.println("$2,4," + String(distance_sensors_result_list[0]) + "," + String(distance_sensors_result_list[1]) + "," + String(distance_sensors_result_list[2]) + "," + String(distance_sensors_result_list[3]));
+    Serial.println("$2,4," + String(distance_sensors_result_list[0]) + "," + String(distance_sensors_result_list[1]) + "," + String(distance_sensors_result_list[2]) + "," + String(distance_sensors_result_list[3]));
 
     // 100ms以上パソコンからデータを受信できなかったら全てのモーターを強制停止
     if (millis() - last_receive_time > 100)
     {
-        digitalWrite(23, LOW); // リレーにつながってるブラシレス2個停止
+        calibrate_ducted_fan_enabled_now = false;
+        digitalWrite(23, LOW); // リレーオフ
+        ducted_fan_1.detach(); // 接続解除
+        ducted_fan_2.detach(); // 接続解除
+        digitalWrite(12, LOW); // PWM停止
+        digitalWrite(13, LOW); // PWM停止
         for (int i = 0; i < amount_motor - 1; i++)
         {
             digitalWrite(PIN_array[i].INA, HIGH);

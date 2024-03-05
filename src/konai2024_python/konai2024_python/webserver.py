@@ -32,8 +32,6 @@ app.config['SECRET_KEY'] = 'secret!'
 
 socketio = SocketIO(app, cors_allowed_origins='*')  # , async_mode='eventlet'
 
-
-@socketio.event  # これ消していいよね?
 def main():
     with ThreadPoolExecutor(max_workers=2) as executor:
         executor.submit(publish)

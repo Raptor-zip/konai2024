@@ -13,8 +13,24 @@ let sadou_speed = 0;
 const alarm = new Audio("static/battery_alert.mp3");
 alarm.loop = true;
 
-let json_received = {};
+let received_json = {};
 namespace = '/test';
+
+// ICE server URLs
+let peerConnectionConfig = {
+    iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+};
+
+// Data channel オプション
+let dataChannelOptions = {
+    ordered: false,
+};
+
+// Peer Connection
+let peerConnection;
+
+// Data Channel
+let dataChannel;
 
 // 接続者数の更新
 socket.on('count_update', function (msg) {
@@ -30,8 +46,10 @@ window.setInterval(function () {
     socket.emit('json_request');
 }, 16);
 
-socket.on('json_receive', function (json) {
-    console.log(json);
+function update_info() {
+    let json = received_json;
+
+    // console.log(json);
     if ("state" in json) {
         // switch (json["state"]) {
         // case 0:
@@ -215,79 +233,9 @@ socket.on('json_receive', function (json) {
             for (let j = 0; j < json["joy"]["joy" + i]["buttons"].length; j++) {
                 document.getElementById("controller" + i + "_button" + j).setAttribute("true_false", json["joy"]["joy" + i]["buttons"][j]);
             }
-
-            // if (json["joy"]["joy0"]["axes"][0] > json["joy"]["joy0"]["axes"][2]) {
-            //     turn = json["joy"]["joy0"]["axes"][0] - speed / 2;
-            // } else {
-            //     turn = json["joy"]["joy0"]["axes"][0] - speed;
-            // }
-
-
-            // let speed = 0
-            // let turn = 0;
-
-            // let input_top = json["joy"]["joy0"]["axes"][0];
-            // let input_bottom = json["joy"]["joy0"]["axes"][2];
-            // if (Math.abs(input_top) < 0.1) {
-            //     input_top = 0;
-            // }
-            // if (Math.abs(input_bottom) < 0.1) {
-            //     input_bottom = 0;
-            // }
-
-            // if (input_top == 0 && input_bottom == 0) {
-            //     speed = 0;
-            //     turn = 0;
-            // } else {
-            //     if (input_bottom == 0) {
-            //         if (input_bottom / input_top < 0) {
-            //             console.log("-1と0");
-            //             // 0か2は逆に向いているなら 正転
-            //             speed = Math.abs(Math.max(input_top, input_bottom) - Math.abs(input_bottom - input_top));
-            //             turn = Math.max((Math.abs(input_top), Math.abs(input_bottom))) - Math.min(Math.abs(input_top), Math.abs(input_bottom));
-            //         } else {
-            //             console.log("1と0");
-            //             // 0か2は同じ方向に向いているなら 逆転
-            //             speed = 1 - Math.abs(Math.max(input_top, input_bottom) - Math.abs(input_bottom - input_top));
-            //             turn = Math.max((Math.abs(input_top), Math.abs(input_bottom))) - Math.min(Math.abs(input_top), Math.abs(input_bottom));
-            //         }
-            //     } else {
-            //         if (input_top / input_bottom < 0) {
-            //             // 0か2は逆に向いているなら 正転
-            //             speed = Math.abs(Math.max(input_top, input_bottom) - Math.abs(input_bottom - input_top));
-            //             turn = Math.max((Math.abs(input_top), Math.abs(input_bottom))) - Math.min(Math.abs(input_top), Math.abs(input_bottom));
-            //         } else {
-            //             console.log("top0");
-            //             // 0か2は同じ方向に向いているなら 逆転
-            //             // 0 -1
-            //             speed = Math.abs(Math.max(Math.abs(input_top), Math.abs(input_bottom)) - Math.abs(Math.abs(input_bottom) - Math.abs(input_top)));
-            //             turn = Math.max((Math.abs(input_top), Math.abs(input_bottom))) - Math.min(Math.abs(input_top), Math.abs(input_bottom));
-            //             if (input_top > input_bottom) {
-            //                 turn *= -1
-            //             }
-            //         }
-            //     }
-            // }
-            // // console.log(speed, turn);
-
-            // sadou_angle += turn * 5;
-            // sadou_speed = speed;
-
-            // let sadou_x = Math.cos(sadou_angle * (Math.PI / 180));
-            // let sadou_y = Math.sin(sadou_angle * (Math.PI / 180));
-
-            // document.getElementById("sadou_line").setAttribute("x2", sadou_x * -78.5 * sadou_speed);
-            // document.getElementById("sadou_line").setAttribute("y2", sadou_y * -78.5 * sadou_speed);
-            // document.getElementById("sadou_circle").setAttribute("cx", sadou_x * -78.5 * sadou_speed);
-            // document.getElementById("sadou_circle").setAttribute("cy", sadou_y * -78.5 * sadou_speed);
-
-            // // document.getElementById("sadou_line").setAttribute("x2", json["joy"]["joy0"]["axes"][0] * -78.5);
-            // // document.getElementById("sadou_line").setAttribute("y2", json["joy"]["joy0"]["axes"][1] * -78.5);
-            // // document.getElementById("sadou_circle").setAttribute("cx", json["joy"]["joy0"]["axes"][0] * -78.5);
-            // // document.getElementById("sadou_circle").setAttribute("cy", json["joy"]["joy0"]["axes"][1] * -78.5);
         }
     }
-});
+}
 
 function send_ros2() {
     p = document.getElementById("gain_p").value;
@@ -381,3 +329,203 @@ socket.on('my pong', function () {
         sum += ping_pong_times[i];
     document.getElementById("ping").innerText = Math.round(10 * sum / ping_pong_times.length) / 10;
 });
+
+
+window.setInterval(send_state, 20);
+function send_state() {
+    dataChannel.send(123456789);
+}
+
+// ページ読み込み時に呼び出す関数
+window.onload = function () {
+    document.getElementById("status").innerText = "closed";
+    // startPeerConnection(); // STARTボタンを押す
+};
+
+socket.on("send_control_pc_localSDP", function (json) {
+    console.log(json);
+    document.getElementById("remoteSDP").value = json["pc_localSDP"];
+    setRemoteSdp();
+});
+
+// 新しい RTCPeerConnection を作成する
+function createPeerConnection() {
+    let pc = new RTCPeerConnection(peerConnectionConfig);
+
+    // ICE candidate 取得時のイベントハンドラを登録
+    pc.onicecandidate = function (evt) {
+        if (evt.candidate) {
+            // 一部の ICE candidate を取得
+            // Trickle ICE では ICE candidate を相手に通知する
+            console.log(evt.candidate);
+            document.getElementById("status").innerText =
+                "Collecting ICE candidates";
+        } else {
+            // 全ての ICE candidate の取得完了（空の ICE candidate イベント）
+            // Vanilla ICE では，全てのICE candidate を含んだ SDP を相手に通知する
+            // （SDP は pc.localDescription.sdp で取得できる）
+            // 今回は手動でシグナリングするため textarea に SDP を表示する
+            let test = "{\"sdp\":\"" +
+                pc.localDescription.sdp.replace(/\n/g, '').replace(/\r/g, '\\r\\n') + "\", \"type\": \"offer\"}";
+            document.getElementById("localSDP").value = test;
+            socket.emit("control_sp_localSDP", pc.localDescription.sdp);
+            document.getElementById("status").innerText = "Vanilla ICE ready";
+        }
+    };
+
+    pc.onconnectionstatechange = function (evt) {
+        switch (pc.connectionState) {
+            case "connected":
+                document.getElementById("status").innerText = "connected";
+                break;
+            case "disconnected":
+            case "failed":
+                document.getElementById("status").innerText = "disconnected";
+                break;
+            case "closed":
+                document.getElementById("status").innerText = "closed";
+                break;
+        }
+    };
+
+    pc.ondatachannel = function (evt) {
+        console.log("Data channel created:", evt);
+        setupDataChannel(evt.channel);
+        dataChannel = evt.channel;
+    };
+
+    return pc;
+}
+
+// ピアの接続を開始する
+// STARTボタンが押されるとこれが実行される
+function startPeerConnection() {
+    // 新しい RTCPeerConnection を作成する
+    peerConnection = createPeerConnection();
+
+    // Data channel を生成
+    dataChannel = peerConnection.createDataChannel(
+        "test-data-channel",
+        dataChannelOptions
+    );
+    setupDataChannel(dataChannel);
+
+    // Offer を生成する
+    peerConnection
+        .createOffer()
+        .then(function (sessionDescription) {
+            console.log("createOffer() succeeded.");
+            return peerConnection.setLocalDescription(sessionDescription);
+        })
+        .then(function () {
+            // setLocalDescription() が成功した場合
+            // Trickle ICE ではここで SDP を相手に通知する
+            // Vanilla ICE では ICE candidate が揃うのを待つ
+            console.log("setLocalDescription() succeeded.");
+        })
+        .catch(function (err) {
+            console.error("setLocalDescription() failed.", err);
+        });
+
+    document.getElementById("status").innerText = "offer created";
+}
+
+// Data channel のイベントハンドラを定義する
+function setupDataChannel(dc) {
+    dc.onerror = function (error) {
+        console.log("Data channel error:", error);
+    };
+    dc.onmessage = function (evt) {
+        // console.log("Data channel message:", evt.data);
+        let msg = evt.data;
+        console.log(typeof (evt.data));
+        received_json = JSON.parse(evt.data);
+        received_json = JSON.parse(received_json);
+        console.log(typeof (received_json));
+        console.log(received_json);
+        update_info();
+        // document.getElementById("received_json").innerText = evt.data;
+    };
+    dc.onopen = function (evt) {
+        console.log("Data channel opened:", evt);
+    };
+    dc.onclose = function () {
+        console.log("Data channel closed.");
+    };
+}
+
+// 相手の SDP 通知を受ける
+// SETが押されたときの処理
+function setRemoteSdp() {
+    // let sdptext = document.getElementById("remoteSDP").value;
+    let sdptext = JSON.parse(document.getElementById("remoteSDP").value)["sdp"].replace("\\r\\n", "\n");
+    console.log(sdptext);
+
+    if (peerConnection) {
+        // Peer Connection が生成済みの場合，SDP を Answer と見なす
+        let answer = new RTCSessionDescription({
+            type: "answer",
+            sdp: sdptext,
+        });
+        peerConnection
+            .setRemoteDescription(answer)
+            .then(function () {
+                console.log("setRemoteDescription() succeeded.");
+            })
+            .catch(function (err) {
+                console.error("setRemoteDescription() failed.", err);
+            });
+    } else {
+        // Peer Connection が未生成の場合，SDP を Offer と見なす
+        let offer = new RTCSessionDescription({
+            type: "offer",
+            sdp: sdptext,
+        });
+        // Peer Connection を生成
+        peerConnection = createPeerConnection();
+        peerConnection
+            .setRemoteDescription(offer)
+            .then(function () {
+                console.log("setRemoteDescription() succeeded.");
+            })
+            .catch(function (err) {
+                console.error("setRemoteDescription() failed.", err);
+            });
+        // Answer を生成
+        peerConnection
+            .createAnswer()
+            .then(function (sessionDescription) {
+                console.log("createAnswer() succeeded.");
+                return peerConnection.setLocalDescription(sessionDescription);
+            })
+            .then(function () {
+                // setLocalDescription() が成功した場合
+                // Trickle ICE ではここで SDP を相手に通知する
+                // Vanilla ICE では ICE candidate が揃うのを待つ
+                console.log("setLocalDescription() succeeded.");
+            })
+            .catch(function (err) {
+                console.error("setLocalDescription() failed.", err);
+            });
+        document.getElementById("status").innerText = "answer created";
+    }
+}
+
+// チャットメッセージの送信
+function sendMessage() {
+    if (
+        !peerConnection ||
+        peerConnection.connectionState != "connected"
+    ) {
+        alert("PeerConnection is not established.");
+        return false;
+    }
+    let msg = document.getElementById("message").value;
+    document.getElementById("message").value = "";
+
+    document.getElementById("history").value =
+        "me> " + msg + "\n" + document.getElementById("history").value;
+    dataChannel.send(msg);
+
+    return true;
+}

@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <html>
+    <head>
+      <title>PC側角度取得</title>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+      <script
+        src="https://cdn.socket.io/4.7.4/socket.io.min.js"
+        integrity="sha384-Gr6Lu2Ajx28mzwyVR8CFkULdCU7kMlZ9UthllibdOSo6qAiN+yXNHqtgdTvFXMT4"
+        crossorigin="anonymous"
+      ></script>
+      <script type="text/javascript">
+        let state = {
+          raw_angle: 0,
+          sp_battery_level: 0,
+        };
+
+        // ICE server URLs
+        let peerConnectionConfig = {
+          iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+        };
+
+        // Data channel オプション
+        let dataChannelOptions = {
+          ordered: false,
+        };
+        // クラスとインスタンスの概念理解してないときれいなコードかけないよね！！！！！！！！！！！
+        // Peer Connection
+        let angle_peerConnection;
+        // Peer Connection
+        let control_peerConnection;
+
+        // Data Channel
+        let angle_dataChannel;
+        // Data Channel
+        let control_dataChannel;
+
+        // ページ読み込み時に呼び出す関数
+        window.onload = function () {
+          document.getElementById("angle_status").value = "closed";
+          document.getElementById("control_status").value = "closed";
+        };
+
+        // 新しい RTCPeerConnection を作成する
+        function angle_createPeerConnection() {
+          let pc = new RTCPeerConnection(peerConnectionConfig);
+
+          // ICE candidate 取得時のイベントハンドラを登録
+          pc.onicecandidate = function (evt) {
+            if (evt.candidate) {
+              // 一部の ICE candidate を取得
+              // Trickle ICE では ICE candidate を相手に通知する
+              console.log(evt.candidate);
+              document.getElementById("angle_status").value =
+                "Collecting ICE candidates";
+            } else {
+              // 全ての ICE candidate の取得完了（空の ICE candidate イベント）
+              // Vanilla ICE では，全てのICE candidate を含んだ SDP を相手に通知する
+              // （SDP は pc.localDescription.sdp で取得できる）
+              // 今回は手動でシグナリングするため textarea に SDP を表示する
+              document.getElementById("angle_localSDP").value =
+                pc.localDescription.sdp;
+              socket.emit("angle_pc_localSDP", pc.localDescription.sdp);
+              document.getElementById("angle_status").value =
+                "Vanilla ICE ready";
+            }
+          };
+
+          pc.onconnectionstatechange = function (evt) {
+            switch (pc.connectionState) {
+              case "connected":
+                document.getElementById("angle_status").value = "connected";
+                break;
+              case "disconnected":
+              case "failed":
+                document.getElementById("angle_status").value = "disconnected";
+                break;
+              case "closed":
+                document.getElementById("angle_status").value = "closed";
+                break;
+            }
+          };
+
+          pc.ondatachannel = function (evt) {
+            console.log("Data channel created:", evt);
+            angle_setupDataChannel(evt.channel);
+            angle_dataChannel = evt.channel;
+          };
+
+          return pc;
+        }
+
+        // 新しい RTCPeerConnection を作成する
+        function control_createPeerConnection() {
+          let pc = new RTCPeerConnection(peerConnectionConfig);
+
+          // ICE candidate 取得時のイベントハンドラを登録
+          pc.onicecandidate = function (evt) {
+            if (evt.candidate) {
+              // 一部の ICE candidate を取得
+              // Trickle ICE では ICE candidate を相手に通知する
+              console.log(evt.candidate);
+              document.getElementById("control_status").value =
+                "Collecting ICE candidates";
+            } else {
+              // 全ての ICE candidate の取得完了（空の ICE candidate イベント）
+              // Vanilla ICE では，全てのICE candidate を含んだ SDP を相手に通知する
+              // （SDP は pc.localDescription.sdp で取得できる）
+              // 今回は手動でシグナリングするため textarea に SDP を表示する
+              document.getElementById("control_localSDP").value =
+                pc.localDescription.sdp;
+              socket.emit("control_pc_localSDP", pc.localDescription.sdp);
+              document.getElementById("control_status").value =
+                "Vanilla ICE ready";
+            }
+          };
+
+          pc.onconnectionstatechange = function (evt) {
+            switch (pc.connectionState) {
+              case "connected":
+                document.getElementById("control_status").value = "connected";
+                break;
+              case "disconnected":
+              case "failed":
+                document.getElementById("control_status").value =
+                  "disconnected";
+                break;
+              case "closed":
+                document.getElementById("control_status").value = "closed";
+                break;
+            }
+          };
+
+          pc.ondatachannel = function (evt) {
+            console.log("Data channel created:", evt);
+            control_setupDataChannel(evt.channel);
+            control_dataChannel = evt.channel;
+          };
+
+          return pc;
+        }
+
+        // ピアの接続を開始する
+        // STARTボタンが押されるとこれが実行される
+        function angle_startPeerConnection() {
+          // 新しい RTCPeerConnection を作成する
+          angle_peerConnection = angle_createPeerConnection();
+
+          // Data channel を生成
+          angle_dataChannel = angle_peerConnection.createDataChannel(
+            "test-data-channel",
+            dataChannelOptions
+          );
+          angle_setupDataChannel(angle_dataChannel);
+
+          // Offer を生成する
+          angle_peerConnection
+            .createOffer()
+            .then(function (sessionDescription) {
+              console.log("createOffer() succeeded.");
+              return angle_peerConnection.setLocalDescription(
+                sessionDescription
+              );
+            })
+            .then(function () {
+              // setLocalDescription() が成功した場合
+              // Trickle ICE ではここで SDP を相手に通知する
+              // Vanilla ICE では ICE candidate が揃うのを待つ
+              console.log("setLocalDescription() succeeded.");
+            })
+            .catch(function (err) {
+              console.error("setLocalDescription() failed.", err);
+            });
+
+          document.getElementById("angle_status").value = "offer created";
+        }
+
+        // ピアの接続を開始する
+        // STARTボタンが押されるとこれが実行される
+        function control_startPeerConnection() {
+          // 新しい RTCPeerConnection を作成する
+          control_peerConnection = control_createPeerConnection();
+
+          // Data channel を生成
+          control_dataChannel = control_peerConnection.createDataChannel(
+            "test-data-channel",
+            dataChannelOptions
+          );
+          control_setupDataChannel(control_dataChannel);
+
+          // Offer を生成する
+          control_peerConnection
+            .createOffer()
+            .then(function (sessionDescription) {
+              console.log("createOffer() succeeded.");
+              return control_peerConnection.setLocalDescription(
+                sessionDescription
+              );
+            })
+            .then(function () {
+              // setLocalDescription() が成功した場合
+              // Trickle ICE ではここで SDP を相手に通知する
+              // Vanilla ICE では ICE candidate が揃うのを待つ
+              console.log("setLocalDescription() succeeded.");
+            })
+            .catch(function (err) {
+              console.error("setLocalDescription() failed.", err);
+            });
+
+          document.getElementById("control_status").value = "offer created";
+        }
+
+        // Data channel のイベントハンドラを定義する
+        function angle_setupDataChannel(dc) {
+          dc.onerror = function (error) {
+            console.log("Data channel error:", error);
+          };
+          dc.onmessage = function (evt) {
+            // console.log('Data channel message:', evt.data);
+            let msg = Number(evt.data); // stringだよ
+            // document.getElementById('history').value = 'other> ' + msg + '\n' + document.getElementById('history').value;
+            document.getElementById("received_angle").innerText = msg;
+            state["raw_angle"] = msg;
+            socket.emit("state", state);
+            if (Math.floor(msg) == 300) {
+              document.getElementById("red").innerText = "■";
+            } else {
+              document.getElementById("red").innerText = "";
+            }
+          };
+          dc.onopen = function (evt) {
+            console.log("Data channel opened:", evt);
+          };
+          dc.onclose = function () {
+            console.log("Data channel closed.");
+          };
+        }
+
+        // Data channel のイベントハンドラを定義する
+        function control_setupDataChannel(dc) {
+          dc.onerror = function (error) {
+            console.log("Data channel error:", error);
+          };
+          dc.onmessage = function (evt) {
+            // console.log('Data channel message:', evt.data);
+            let msg = Number(evt.data); // stringだよ
+            // document.getElementById('history').value = 'other> ' + msg + '\n' + document.getElementById('history').value;
+            document.getElementById("controlll").innerText = msg;
+          };
+          dc.onopen = function (evt) {
+            console.log("Data channel opened:", evt);
+          };
+          dc.onclose = function () {
+            console.log("Data channel closed.");
+          };
+        }
+
+        // 相手の SDP 通知を受ける
+        // SETが押されたときの処理
+        function angle_setRemoteSdp() {
+          let sdptext = document.getElementById("angle_remoteSDP").value;
+
+          if (angle_peerConnection) {
+            // Peer Connection が生成済みの場合，SDP を Answer と見なす
+            let answer = new RTCSessionDescription({
+              type: "answer",
+              sdp: sdptext,
+            });
+            angle_peerConnection
+              .setRemoteDescription(answer)
+              .then(function () {
+                console.log("setRemoteDescription() succeeded.");
+              })
+              .catch(function (err) {
+                console.error("setRemoteDescription() failed.", err);
+              });
+          } else {
+            // Peer Connection が未生成の場合，SDP を Offer と見なす
+            let offer = new RTCSessionDescription({
+              type: "offer",
+              sdp: sdptext,
+            });
+            // Peer Connection を生成
+            angle_peerConnection = angle_createPeerConnection();
+            angle_peerConnection
+              .setRemoteDescription(offer)
+              .then(function () {
+                console.log("setRemoteDescription() succeeded.");
+              })
+              .catch(function (err) {
+                console.error("setRemoteDescription() failed.", err);
+              });
+            // Answer を生成
+            angle_peerConnection
+              .createAnswer()
+              .then(function (sessionDescription) {
+                console.log("createAnswer() succeeded.");
+                return angle_peerConnection.setLocalDescription(
+                  sessionDescription
+                );
+              })
+              .then(function () {
+                // setLocalDescription() が成功した場合
+                // Trickle ICE ではここで SDP を相手に通知する
+                // Vanilla ICE では ICE candidate が揃うのを待つ
+                console.log("setLocalDescription() succeeded.");
+              })
+              .catch(function (err) {
+                console.error("setLocalDescription() failed.", err);
+              });
+            document.getElementById("angle_status").value = "answer created";
+          }
+        }
+
+        function control_setRemoteSdp() {
+          let sdptext = document.getElementById("control_remoteSDP").value;
+
+          if (control_peerConnection) {
+            // Peer Connection が生成済みの場合，SDP を Answer と見なす
+            let answer = new RTCSessionDescription({
+              type: "answer",
+              sdp: sdptext,
+            });
+            control_peerConnection
+              .setRemoteDescription(answer)
+              .then(function () {
+                console.log("setRemoteDescription() succeeded.");
+              })
+              .catch(function (err) {
+                console.error("setRemoteDescription() failed.", err);
+              });
+          } else {
+            // Peer Connection が未生成の場合，SDP を Offer と見なす
+            let offer = new RTCSessionDescription({
+              type: "offer",
+              sdp: sdptext,
+            });
+            // Peer Connection を生成
+            control_peerConnection = control_createPeerConnection();
+            control_peerConnection
+              .setRemoteDescription(offer)
+              .then(function () {
+                console.log("setRemoteDescription() succeeded.");
+              })
+              .catch(function (err) {
+                console.error("setRemoteDescription() failed.", err);
+              });
+            // Answer を生成
+            control_peerConnection
+              .createAnswer()
+              .then(function (sessionDescription) {
+                console.log("createAnswer() succeeded.");
+                return control_peerConnection.setLocalDescription(
+                  sessionDescription
+                );
+              })
+              .then(function () {
+                // setLocalDescription() が成功した場合
+                // Trickle ICE ではここで SDP を相手に通知する
+                // Vanilla ICE では ICE candidate が揃うのを待つ
+                console.log("setLocalDescription() succeeded.");
+              })
+              .catch(function (err) {
+                console.error("setLocalDescription() failed.", err);
+              });
+            document.getElementById("control_status").value = "answer created";
+          }
+        }
+
+        // チャットメッセージの送信
+        // function sendMessage() {
+        //   if (
+        //     !peerConnection ||
+        //     peerConnection.connectionState != "connected"
+        //   ) {
+        //     alert("PeerConnection is not established.");
+        //     return false;
+        //   }
+        //   // let msg = document.getElementById('message').value;
+        //   let msg = "";
+        //   document.getElementById("message").value = "";
+
+        //   document.getElementById("history").value =
+        //     "me> " + msg + "\n" + document.getElementById("history").value;
+        //   dataChannel.send(msg);
+
+        //   return true;
+        // }
+
+        let socket = io();
+
+        socket.on("send_angle_sp_localSDP", function (json) {
+          console.log(json);
+          document.getElementById("angle_remoteSDP").value =
+            json["sp_localSDP"];
+          angle_setRemoteSdp();
+        });
+
+        socket.on("send_control_sp_localSDP", function (json) {
+          console.log(json);
+          document.getElementById("control_remoteSDP").value =
+            json["sp_localSDP"];
+          control_setRemoteSdp();
+        });
+
+        socket.on("send_control_data", function (json_str) {
+          console.log(json_str);
+          control_dataChannel.send(json_str);
+          console.log("送信");
+        });
+      </script>
+    </head>
+
+    <body>
+      <p>
+        状態:
+        <input type="text" id="angle_status" value="" readonly="readonly" />
+      </p>
+      <button type="button" onclick="angle_startPeerConnection()">Start</button>
+      <textarea
+        id="angle_localSDP"
+        cols="80"
+        rows="30"
+        readonly="readonly"
+      ></textarea>
+      <textarea id="angle_remoteSDP" cols="80" rows="30"></textarea>
+      <button type="button" onclick="angle_setRemoteSdp();">Set</button>
+      <!-- <form action="javascript:sendMessage()">
+        <input type="text" id="message" size="30" value="" />
+        <input type="submit" value="Send" />
+      </form> -->
+      <p id="received_angle"></p>
+      <textarea
+        id="angle_history"
+        cols="80"
+        rows="1"
+        readonly="readonly"
+      ></textarea>
+      <h1 id="red" style="color: #ff0000; font-size: 100px"></h1>
+
+      <p>
+        状態:
+        <input type="text" id="control_status" value="" readonly="readonly" />
+      </p>
+      <button type="button" onclick="control_startPeerConnection()">
+        Start
+      </button>
+      <textarea
+        id="control_localSDP"
+        cols="80"
+        rows="30"
+        readonly="readonly"
+      ></textarea>
+      <textarea id="control_remoteSDP" cols="80" rows="30"></textarea>
+      <button type="button" onclick="control_setRemoteSdp();">Set</button>
+      <!-- <form action="javascript:sendMessage()">
+        <input type="text" id="message" size="30" value="" />
+        <input type="submit" value="Send" />
+      </form> -->
+      <p id="controlll"></p>
+      <textarea
+        id="control_history"
+        cols="80"
+        rows="1"
+        readonly="readonly"
+      ></textarea>
+      <h1 id="red" style="color: #ff0000; font-size: 100px"></h1>
+    </body>
+  </html>
+</html>

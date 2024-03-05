@@ -10,6 +10,26 @@
 </head>
 
 <body>
+          <p>状態</p>
+      <p id="status"></p>
+
+      <button type="button" onclick="startPeerConnection()">Start</button>
+      <textarea
+        id="localSDP"
+        cols="80"
+        rows="20"
+        readonly="readonly"
+      ></textarea>
+      <textarea id="remoteSDP" cols="80" rows="20"></textarea>
+      <button type="button" onclick="setRemoteSdp();">Set</button>
+      <form action="javascript:sendMessage()">
+        <input type="text" id="message" size="30" value="" />
+        <input type="submit" value="Send" />
+      </form>
+      <textarea id="history" cols="80" rows="10" readonly="readonly"></textarea>
+      <p id="received_json"></p>
+
+
     <div class="container">
         <div id="robot" class="parents">
             <div id="esp32_ip_value">192.168.-</div>

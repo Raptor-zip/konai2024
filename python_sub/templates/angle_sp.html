@@ -73,7 +73,7 @@
           startPeerConnection(); // STARTボタンを押す
         };
 
-        socket.on("send_pc_localSDP", function (json) {
+        socket.on("send_angle_pc_localSDP", function (json) {
           console.log(json);
           document.getElementById("remoteSDP").value = json["pc_localSDP"];
           setRemoteSdp();
@@ -98,7 +98,7 @@
               // 今回は手動でシグナリングするため textarea に SDP を表示する
               document.getElementById("localSDP").value =
                 pc.localDescription.sdp;
-              socket.emit("sp_localSDP", pc.localDescription.sdp);
+              socket.emit("angle_sp_localSDP", pc.localDescription.sdp);
               document.getElementById("status").innerText = "Vanilla ICE ready";
             }
           };
