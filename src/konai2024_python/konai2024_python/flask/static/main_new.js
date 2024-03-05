@@ -28,7 +28,7 @@ socket.on('connect', function () {
 window.setInterval(function () {
     start_time_ping_pong = (new Date).getTime();
     socket.emit('json_request');
-}, 16);
+}, 33);
 
 socket.on('json_receive', function (json) {
     console.log(json);
@@ -111,7 +111,6 @@ socket.on('json_receive', function (json) {
     if ("wifi_signal_strength" in json) {
         document.getElementById("wifi_signal_strength_value").innerText = json["wifi_signal_strength"];
     }
-    console.log(json["DCmotor_speed"][0]);
     if ("DCmotor_speed" in json) {
         for (let i = 0; i < json["DCmotor_speed"].length; i++) {
             // document.getElementById("motor" + i + "_speed_char").innerText = Math.round(json["motor" + i + "_speed"]);
@@ -223,68 +222,68 @@ socket.on('json_receive', function (json) {
             // }
 
 
-            // let speed = 0
-            // let turn = 0;
+            let speed = 0
+            let turn = 0;
 
-            // let input_top = json["joy"]["joy0"]["axes"][0];
-            // let input_bottom = json["joy"]["joy0"]["axes"][2];
-            // if (Math.abs(input_top) < 0.1) {
-            //     input_top = 0;
-            // }
-            // if (Math.abs(input_bottom) < 0.1) {
-            //     input_bottom = 0;
-            // }
+            let input_top = json["joy"]["joy0"]["axes"][0];
+            let input_bottom = json["joy"]["joy0"]["axes"][2];
+            if (Math.abs(input_top) < 0.1) {
+                input_top = 0;
+            }
+            if (Math.abs(input_bottom) < 0.1) {
+                input_bottom = 0;
+            }
 
-            // if (input_top == 0 && input_bottom == 0) {
-            //     speed = 0;
-            //     turn = 0;
-            // } else {
-            //     if (input_bottom == 0) {
-            //         if (input_bottom / input_top < 0) {
-            //             console.log("-1と0");
-            //             // 0か2は逆に向いているなら 正転
-            //             speed = Math.abs(Math.max(input_top, input_bottom) - Math.abs(input_bottom - input_top));
-            //             turn = Math.max((Math.abs(input_top), Math.abs(input_bottom))) - Math.min(Math.abs(input_top), Math.abs(input_bottom));
-            //         } else {
-            //             console.log("1と0");
-            //             // 0か2は同じ方向に向いているなら 逆転
-            //             speed = 1 - Math.abs(Math.max(input_top, input_bottom) - Math.abs(input_bottom - input_top));
-            //             turn = Math.max((Math.abs(input_top), Math.abs(input_bottom))) - Math.min(Math.abs(input_top), Math.abs(input_bottom));
-            //         }
-            //     } else {
-            //         if (input_top / input_bottom < 0) {
-            //             // 0か2は逆に向いているなら 正転
-            //             speed = Math.abs(Math.max(input_top, input_bottom) - Math.abs(input_bottom - input_top));
-            //             turn = Math.max((Math.abs(input_top), Math.abs(input_bottom))) - Math.min(Math.abs(input_top), Math.abs(input_bottom));
-            //         } else {
-            //             console.log("top0");
-            //             // 0か2は同じ方向に向いているなら 逆転
-            //             // 0 -1
-            //             speed = Math.abs(Math.max(Math.abs(input_top), Math.abs(input_bottom)) - Math.abs(Math.abs(input_bottom) - Math.abs(input_top)));
-            //             turn = Math.max((Math.abs(input_top), Math.abs(input_bottom))) - Math.min(Math.abs(input_top), Math.abs(input_bottom));
-            //             if (input_top > input_bottom) {
-            //                 turn *= -1
-            //             }
-            //         }
-            //     }
-            // }
-            // // console.log(speed, turn);
+            if (input_top == 0 && input_bottom == 0) {
+                speed = 0;
+                turn = 0;
+            } else {
+                if (input_bottom == 0) {
+                    if (input_bottom / input_top < 0) {
+                        console.log("-1と0");
+                        // 0か2は逆に向いているなら 正転
+                        speed = Math.abs(Math.max(input_top, input_bottom) - Math.abs(input_bottom - input_top));
+                        turn = Math.max((Math.abs(input_top), Math.abs(input_bottom))) - Math.min(Math.abs(input_top), Math.abs(input_bottom));
+                    } else {
+                        console.log("1と0");
+                        // 0か2は同じ方向に向いているなら 逆転
+                        speed = 1 - Math.abs(Math.max(input_top, input_bottom) - Math.abs(input_bottom - input_top));
+                        turn = Math.max((Math.abs(input_top), Math.abs(input_bottom))) - Math.min(Math.abs(input_top), Math.abs(input_bottom));
+                    }
+                } else {
+                    if (input_top / input_bottom < 0) {
+                        // 0か2は逆に向いているなら 正転
+                        speed = Math.abs(Math.max(input_top, input_bottom) - Math.abs(input_bottom - input_top));
+                        turn = Math.max((Math.abs(input_top), Math.abs(input_bottom))) - Math.min(Math.abs(input_top), Math.abs(input_bottom));
+                    } else {
+                        console.log("top0");
+                        // 0か2は同じ方向に向いているなら 逆転
+                        // 0 -1
+                        speed = Math.abs(Math.max(Math.abs(input_top), Math.abs(input_bottom)) - Math.abs(Math.abs(input_bottom) - Math.abs(input_top)));
+                        turn = Math.max((Math.abs(input_top), Math.abs(input_bottom))) - Math.min(Math.abs(input_top), Math.abs(input_bottom));
+                        if (input_top > input_bottom) {
+                            turn *= -1
+                        }
+                    }
+                }
+            }
+            console.log(speed, turn);
 
-            // sadou_angle += turn * 5;
-            // sadou_speed = speed;
+            sadou_angle += turn * 5;
+            sadou_speed = speed;
 
-            // let sadou_x = Math.cos(sadou_angle * (Math.PI / 180));
-            // let sadou_y = Math.sin(sadou_angle * (Math.PI / 180));
+            let sadou_x = Math.cos(sadou_angle * (Math.PI / 180));
+            let sadou_y = Math.sin(sadou_angle * (Math.PI / 180));
 
-            // document.getElementById("sadou_line").setAttribute("x2", sadou_x * -78.5 * sadou_speed);
-            // document.getElementById("sadou_line").setAttribute("y2", sadou_y * -78.5 * sadou_speed);
-            // document.getElementById("sadou_circle").setAttribute("cx", sadou_x * -78.5 * sadou_speed);
-            // document.getElementById("sadou_circle").setAttribute("cy", sadou_y * -78.5 * sadou_speed);
+            document.getElementById("sadou_line").setAttribute("x2", sadou_x * -78.5 * sadou_speed);
+            document.getElementById("sadou_line").setAttribute("y2", sadou_y * -78.5 * sadou_speed);
+            document.getElementById("sadou_circle").setAttribute("cx", sadou_x * -78.5 * sadou_speed);
+            document.getElementById("sadou_circle").setAttribute("cy", sadou_y * -78.5 * sadou_speed);
 
-            // // document.getElementById("sadou_line").setAttribute("x2", json["joy"]["joy0"]["axes"][0] * -78.5);
-            // // document.getElementById("sadou_line").setAttribute("y2", json["joy"]["joy0"]["axes"][1] * -78.5);
-            // // document.getElementById("sadou_circle").setAttribute("cx", json["joy"]["joy0"]["axes"][0] * -78.5);
-            // // document.getElementById("sadou_circle").setAttribute("cy", json["joy"]["joy0"]["axes"][1] * -78.5);
+            // document.getElementById("sadou_line").setAttribute("x2", json["joy"]["joy0"]["axes"][0] * -78.5);
+            // document.getElementById("sadou_line").setAttribute("y2", json["joy"]["joy0"]["axes"][1] * -78.5);
+            // document.getElementById("sadou_circle").setAttribute("cx", json["joy"]["joy0"]["axes"][0] * -78.5);
+            // document.getElementById("sadou_circle").setAttribute("cy", json["joy"]["joy0"]["axes"][1] * -78.5);
         }
     }
 });

@@ -14,14 +14,14 @@ app.config['SECRET_KEY'] = 'secret!'
 
 socketio = SocketIO(app, cors_allowed_origins='*')
 
-user_count = 0
-reception_json = {}
-last_received_time = None
+user_count: int = 0
+reception_json: dict = {}
+last_received_time: datetime
 
 
 @app.route('/')
 def index():
-    return render_template('sp.html')
+    return render_template('get_sp_state_websocket_old.html')
 
 
 @socketio.on('connect')
@@ -40,10 +40,10 @@ def disconnect():
 
 
 @socketio.on('state')
-def connect(json_data):
+def satate(json_data):
     global reception_json, last_received_time
     reception_json = json_data
-    current_time = datetime.now()
+    current_time: datetime = datetime.now()
     time_difference = current_time - last_received_time
     hertz = 1 / time_difference.total_seconds()
     print(f"{json_data} {hertz:.0f} Hz")
@@ -54,7 +54,7 @@ def flask_socketio_run():
     print("flask_socketio_run起動", flush=True)
     cert_path = '/cert.pem'
     key_path = '/key.pem'
-    socketio.run(app, host='0.0.0.0', port=5001, debug=True,
+    socketio.run(app, host='0.0.0.0', port=5002, debug=True,
                  ssl_context=(cert_path, key_path), use_reloader=False)
 
 

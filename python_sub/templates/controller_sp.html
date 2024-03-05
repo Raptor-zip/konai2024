@@ -3,9 +3,7 @@
 
 <head>
     <title>ロボット制御</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.3/socket.io.js"
-        integrity="sha512-jDUVpk2awjMnyrpY2xZguylQVRDeS9kRBImn0M3NJaZzowzUpKr6i62ynwPG0vNS1+NsTk4ji+iznbc5m0ZCKQ=="
-        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js" integrity="sha384-Gr6Lu2Ajx28mzwyVR8CFkULdCU7kMlZ9UthllibdOSo6qAiN+yXNHqtgdTvFXMT4" crossorigin="anonymous"></script>
     <link rel=stylesheet type=text/css href="{{ url_for('static', filename='main.css') }}">
     <script type=text/javascript src="{{ url_for('static', filename='main.js') }}"></script>
     <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}">
@@ -126,9 +124,9 @@
             <div id="ubuntu_ip_value">192.168.-</div>
             <div id="controllers"></div>
             <div id="gain_controll">
-                <input type="number" id="gain_p" step="0.01" value="0.02">
-                <input type="number" id="gain_i" step="0.01" value="0">
-                <input type="number" id="gain_d" step="0.01" value="0">
+                <input type="number" id="gain_p" step="0.01" value="4">
+                <input type="number" id="gain_i" step="0.01" value="0.1">
+                <input type="number" id="gain_d" step="0.01" value="20">
                 <button class="button" onclick="send_ros2()">更新</button>
             </div>
             <div id="sadou">

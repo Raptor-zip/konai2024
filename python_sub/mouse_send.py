@@ -1,5 +1,5 @@
 import evdev
-import socket
+import socket # UDP送信用 ポート5020
 
 def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -20,13 +20,10 @@ def main():
             if event.type == evdev.ecodes.EV_REL:
                 if event.code == evdev.ecodes.REL_X:
                     data = ','.join([str(event.value * -1), '0']).encode('utf-8')
-                    sock.sendto(data, ('127.0.0.1', 5020))
-                    print(data)
-
                 elif event.code == evdev.ecodes.REL_Y:
                     data = ','.join(['0', str(event.value)]).encode('utf-8')
-                    sock.sendto(data, ('127.0.0.1', 5020))
-                    print(data)
+                sock.sendto(data, ('127.0.0.1', 5020))
+                print(data)
     else:
         print("エラー  Logitech G PRO Gaming Mouseを検出できませんでした")
 
