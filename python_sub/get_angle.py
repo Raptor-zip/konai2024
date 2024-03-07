@@ -91,9 +91,11 @@ def flask_socketio_run():
     print("flask_socketio_run起動", flush=True)
     cert_path = '/cert.pem'
     key_path = '/key.pem'
-    socketio.run(app, host='0.0.0.0', port=5001, debug=True,
+    socketio.run(app, host='0.0.0.0', port=5001, debug=False,
                  ssl_context=(cert_path, key_path), use_reloader=False)
+
     # socketio.run(app, host='0.0.0.0', port=5001, debug=False, use_reloader=False)
+    # debug=Trueにすると0.0.0.0が勝手にlocalhostになるっぽいかも いや無理だわかなしい
 
 
 def send_udp_to_main():
