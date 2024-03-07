@@ -9,9 +9,11 @@
 
 const byte EN_PIN = 2;
 const long BAUDRATE = 115200;
-const int TIMEOUT = 1000;  // 通信できてないか確認用にわざと遅めに設定
+const int TIMEOUT = 15;  // 通信できてないか確認用にわざと遅めに設定
 
+// サーボの設定
 IcsHardSerialClass krs(&Serial2, EN_PIN, BAUDRATE, TIMEOUT);  // インスタンス＋ENピン(2番ピン)およびUARTの指定
+bool shouldExecute = true; // グローバル変数として処理を実行するかどうかのフラグを定義
 
 TaskHandle_t thp[3];  // マルチスレッドのタスクハンドル格納用
 
@@ -242,8 +244,16 @@ void loop() {
 
       state_boolean_array[201] = true;
 
+krs.setPos(0, krs.degPos(int(intArray[9]))); // 対象の処理を実行
       // サーボモーターの処理
-      krs.setPos(0, krs.degPos(int(intArray[9])));
+      // if (shouldExecute) {
+      //   unsigned long startTime_servo = millis(); // 処理開始時間を記録
+      //   krs.setPos(0, krs.degPos(int(intArray[9]))); // 対象の処理を実行
+
+      //   if (millis() - startTime_servo > 10) { // 10ms以上かかった場合
+      //     shouldExecute = false; // 次回からはこの処理を実行しない
+      //   }
+      // }
     } else {
       Serial.println("シリアル通信エラー105");
       Serial.println("$1,5," + String(incomingStrings));

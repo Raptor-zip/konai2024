@@ -85,7 +85,7 @@ except subprocess.CalledProcessError:
 def main():
     with ThreadPoolExecutor(max_workers=6) as executor:
         executor.submit(sp_udp_reception)
-        executor.submit(receive_udp_webserver)
+        # executor.submit(receive_udp_webserver)
         executor.submit(battery_alert)
         executor.submit(recept_serial)
         executor.submit(connect_serial)
@@ -382,6 +382,7 @@ class MinimalSubscriber(Node):
     BLmotor_speed: list[int] = [0, 0]  # 射出用ダクテッドファンと仰角調整用GM6020
     servo_angle: int = 0
     is_run_ducted_fan: bool = False
+    is_slow_speed:bool = False
 
     # Initialize PID parameters dict型にしたい！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
     kp: float = 0.02  # Proportional gain 基本要素として必須。これをベースに、必要に応じて他の項を追加する
@@ -528,6 +529,11 @@ class MinimalSubscriber(Node):
             self.DCmotor_speed[:4] = [int(speed * 255 / max_motor_speed)
                                       for speed in self.DCmotor_speed[:4]]
 
+        # 低速モードの処理
+        if self.is_slow_speed == True:
+            self.DCmotor_speed[:4] = [int(speed * 0.5)
+                                      for speed in self.DCmotor_speed[:4]]
+
         # モータースピードが絶対値16未満の値を削除 (ジョイコンの戻りが悪いときでもブレーキを利かすため)
         self.DCmotor_speed = [
             0 if abs(i) < 16 else i for i in self.DCmotor_speed]
@@ -572,7 +578,7 @@ class MinimalSubscriber(Node):
         micon_dict["ESP32_2"]["reboot"] = False
 
         json_str: str = ','.join(map(str, send_ESP32_data)) + "\n"
-        if self.count_print % 1 == 0:  # 10回に1回実行
+        if self.count_print % 10 == 0:  # 10回に1回実行
             print(send_ESP32_data, flush=True)
         self.count_print += 1
         for each_micon_dict_key, each_micon_dict_values in micon_dict.items():
@@ -595,6 +601,10 @@ class MinimalSubscriber(Node):
         })
         if len(self.joy_now["joy0"]["axes"]) == 6:
             self.joy_now["joy0"] = convert_PS3_to_WiiU(self.joy_now["joy0"])
+        # 各axesが0.3未満の場合に0に設定する
+        for i in range(len(self.joy_now["joy0"]["axes"])):
+            if abs(self.joy_now["joy0"]["axes"][i]) < 0.3:
+                self.joy_now["joy0"]["axes"][i] = 0
         self.joy_past.setdefault(  # 初回のみ実行 上書き不可
             "joy0",
             {"axes": [0] * len(joy.axes), "buttons": [0] * len(joy.buttons)}
@@ -606,10 +616,13 @@ class MinimalSubscriber(Node):
         self.joy0_stick1_distance = min(math.sqrt(
             self.joy_now["joy0"]["axes"][2]**2 + self.joy_now["joy0"]["axes"][3]**2), 1)  # ジョイスティックの傾きの大きさを求める(最大1最小0) # これよりも、割る1.4141356のほうがよくね？
 
-        # self.motor5_speed = int(self.joy_now["joy0"]["axes"][1]*255)
+        # Bボタン
+        if self.joy_past["joy0"]["buttons"][0] == 0 and self.joy_now["joy0"]["buttons"][0] == 1:
+            self.BLmotor_speed[0] = min(1500,max(1000,self.BLmotor_speed[0] - 20))
 
-        # サーボの制御
-        self.servo_angle = int(self.joy_now["joy0"]["axes"][1]*174)
+        # Aボタン
+        if self.joy_past["joy0"]["buttons"][1] == 0 and self.joy_now["joy0"]["buttons"][1] == 1:
+            self.BLmotor_speed[0] = max(1000,min(1500,self.BLmotor_speed[0] + 20))
 
         if self.joy_now["joy0"]["buttons"][2] == 1:  # Xボタン
             # 0°に旋回
@@ -639,13 +652,58 @@ class MinimalSubscriber(Node):
             self.angle_when_turn = []
             self.time_when_turn = []
             self.angle_control_count = 0
-        if self.joy_now["joy0"]["buttons"][8] == 1:  # マイナスボタン
-            self.is_run_ducted_fan = False
-        if self.joy_now["joy0"]["buttons"][9] == 1:  # プラスボタン
-            self.is_run_ducted_fan = True
+
+        # Rボタン
+        if self.joy_now["joy0"]["buttons"][4] == 1:
+            # 走行補助強制停止
+            self.state = 0
+            self.DCmotor_speed = [0] * len(self.DCmotor_speed)
+            self.BLmotor_speed = [0] * len(self.BLmotor_speed)
+
+        # Lボタン
+        if self.joy_now["joy0"]["buttons"][5] == 1:
+            # 低速モード
+            self.is_slow_speed = True
+        else:
+            self.is_slow_speed = False
+
+        # サーボの制御
+        # self.servo_angle = int(self.joy_now["joy0"]["axes"][1]*174)
+        # -ボタン サーボ初期位置
+        if self.joy_past["joy0"]["buttons"][8] == 0 and self.joy_now["joy0"]["buttons"][8] == 1:
+            self.servo_angle = 0
+
+        # +ボタン サーボ装填
+        if self.joy_past["joy0"]["buttons"][9] == 0 and self.joy_now["joy0"]["buttons"][9] == 1:
+            self.servo_angle = 45
+
+        # ダクテッドのリレー
+        if self.joy_past["joy0"]["buttons"][10] == 0 and self.joy_now["joy0"]["buttons"][10] == 1:
+            if self.is_run_ducted_fan == True:
+                self.is_run_ducted_fan = False
+            else:
+                self.is_run_ducted_fan = True
+        # if self.joy_now["joy0"]["buttons"][8] == 1:  # マイナスボタン
+        #     self.is_run_ducted_fan = False
+        # if self.joy_now["joy0"]["buttons"][9] == 1:  # プラスボタン
+        #     self.is_run_ducted_fan = True
+
+        # 回収モーター
+        # 左ジョイスティック 逆回転
+        if self.joy_now["joy0"]["buttons"][11] == 1 and self.joy_now["joy0"]["buttons"][12] == 0:
+            self.DCmotor_speed[4] = -255
+        # 右ジョイスティック 回転
+        if self.joy_now["joy0"]["buttons"][11] == 0 and self.joy_now["joy0"]["buttons"][12] == 1:
+            self.DCmotor_speed[4] = 255
+        if self.joy_now["joy0"]["buttons"][11] == 0 and self.joy_now["joy0"]["buttons"][12] == 0:
+            self.DCmotor_speed[4] = 0
+        if self.joy_now["joy0"]["buttons"][11] == 1 and self.joy_now["joy0"]["buttons"][12] == 1:
+            self.DCmotor_speed[4] = 0
 
         # LボタンとRボタン同時押し
-        if self.joy_now["joy0"]["buttons"][4] == 1 and self.joy_now["joy0"]["buttons"][5] == 1:
+        # 今日は↑
+        if self.joy_now["joy0"]["buttons"][13] == 1:
+        # if self.joy_now["joy0"]["buttons"][4] == 1 and self.joy_now["joy0"]["buttons"][5] == 1:
             # 角度リセット
             if reception_json["raw_angle"] < 0:
                 # マイナスのとき
@@ -655,25 +713,16 @@ class MinimalSubscriber(Node):
             # 座標リセット
                 coordinates = [[1, 1], [2, 2]]
 
-        if self.joy_past["joy0"]["buttons"][10] == 0 and self.joy_now["joy0"]["buttons"][10] == 1:  # homeボタン
-            # タイマースタート
-            self.start_time = time.time()
+        # if self.joy_past["joy0"]["buttons"][11] == 0 and self.joy_now["joy0"]["buttons"][11] == 1:
+        #     # ESP32_1のソフトウェアリセット
+        #     micon_dict["ESP32_1"]["reboot"] = True
+        #     # 送信後に False に戻す
 
-        if self.joy_past["joy0"]["buttons"][11] == 0 and self.joy_now["joy0"]["buttons"][11] == 1:
-            # ESP32_1のソフトウェアリセット
-            micon_dict["ESP32_1"]["reboot"] = True
-            # 送信後に False に戻す
+        # if self.joy_past["joy0"]["buttons"][12] == 0 and self.joy_now["joy0"]["buttons"][12] == 1:
+        #     # ESP32_2のソフトウェアリセット
+        #     micon_dict["ESP32_2"]["reboot"] = True
+        #     # 送信後に False に戻す
 
-        if self.joy_past["joy0"]["buttons"][12] == 0 and self.joy_now["joy0"]["buttons"][12] == 1:
-            # ESP32_2のソフトウェアリセット
-            micon_dict["ESP32_2"]["reboot"] = True
-            # 送信後に False に戻す
-
-        if self.joy_now["joy0"]["buttons"][6] == 1 or self.joy_now["joy0"]["buttons"][7] == 1:  # ZRボタンまたはZLボタン
-            # 走行補助強制停止
-            self.state = 0
-            self.DCmotor_speed = [0] * len(self.DCmotor_speed)
-            self.BLmotor_speed = [0] * len(self.BLmotor_speed)
 
         self.joy_past["joy0"] = self.joy_now["joy0"]
 
@@ -690,28 +739,28 @@ class MinimalSubscriber(Node):
             {"axes": [0] * len(joy.axes), "buttons": [0] * len(joy.buttons)}
         )
 
-        self.BLmotor_speed[0] = abs(
-            int(self.joy_now["joy1"]["axes"][0]*500))+1000  # ダクテッドファン
-        self.BLmotor_speed[1] = abs(
-            int(self.joy_now["joy1"]["axes"][2]*500))+1000  # ダクテッドファン
+        # self.BLmotor_speed[0] = abs(
+        #     int(self.joy_now["joy1"]["axes"][0]*500))+1000  # ダクテッドファン
+        # self.BLmotor_speed[1] = abs(
+        #     int(self.joy_now["joy1"]["axes"][2]*500))+1000  # ダクテッドファン
 
-        # 回収機構のモーター
-        self.DCmotor_speed[4] = int(self.joy_now["joy1"]["axes"][1] * 255)
+        # # 回収機構のモーター
+        # self.DCmotor_speed[4] = int(self.joy_now["joy1"]["axes"][1] * 255)
 
-        self.DCmotor_speed[5] = int(self.joy_now["joy1"]["axes"][3] * 255)
+        # self.DCmotor_speed[5] = int(self.joy_now["joy1"]["axes"][3] * 255)
 
-        if self.joy_now["joy1"]["buttons"][8] == 1:  # マイナスボタン
-            self.is_run_ducted_fan = False
-        if self.joy_now["joy1"]["buttons"][9] == 1:  # プラスボタン
-            self.is_run_ducted_fan = True
+        # if self.joy_now["joy1"]["buttons"][8] == 1:  # マイナスボタン
+        #     self.is_run_ducted_fan = False
+        # if self.joy_now["joy1"]["buttons"][9] == 1:  # プラスボタン
+        #     self.is_run_ducted_fan = True
 
-        if self.joy_now["joy1"]["buttons"][6] == 1 or self.joy_now["joy1"]["buttons"][7] == 1:
-            # 走行補助強制停止
-            self.state = 0
-            self.DCmotor_speed = [0] * len(self.DCmotor_speed)
-            self.BLmotor_speed = [0] * len(self.BLmotor_speed)
+        # if self.joy_now["joy1"]["buttons"][6] == 1 or self.joy_now["joy1"]["buttons"][7] == 1:
+        #     # 走行補助強制停止
+        #     self.state = 0
+        #     self.DCmotor_speed = [0] * len(self.DCmotor_speed)
+        #     self.BLmotor_speed = [0] * len(self.BLmotor_speed)
 
-        self.joy_past["joy1"] = self.joy_now["joy1"]
+        # self.joy_past["joy1"] = self.joy_now["joy1"]
 
     def control_mecanum_wheels(self, direction, speed) -> list[int]:
         # ラジアンに変換

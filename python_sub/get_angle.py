@@ -96,13 +96,13 @@ def flask_socketio_run():
     # socketio.run(app, host='0.0.0.0', port=5001, debug=False, use_reloader=False)
 
 
-def publish():
+def send_udp_to_main():
     global reception_json
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     while True:
         try:
             sock.sendto(json.dumps(reception_json).encode(
-                'utf-8'), ('127.0.0.1', 5010))
+                'utf-8'), ('127.0.0.1', 5010)) # 角度データのみを送信
             # print(json.dumps(reception_json).encode('utf-8'))
             time.sleep(0.02)
 
@@ -112,25 +112,42 @@ def publish():
             print('done')
             break
 
-def receive_udp_webserver():
+def receive_udp_from_main():
     # UDPソケットの作成
-    udp_socket_webserver = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    udp_socket_webserver.bind(('127.0.0.1', 5002))
-    udp_socket_webserver.settimeout(1.0)  # タイムアウトを1秒に設定
+    received_udp_from_main = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    received_udp_from_main.bind(('127.0.0.1', 5002))
+    received_udp_from_main.settimeout(1.0)  # タイムアウトを1秒に設定
     while True:
         try:
-            message, cli_addr = udp_socket_webserver.recvfrom(1024)
+            message, cli_addr = received_udp_from_main.recvfrom(1024)
             # print(f"Received: {message.decode('utf-8')}")
             received_json_temp:str = message.decode('utf-8')
             socketio.emit("send_control_data", received_json_temp, namespace='/')
             # デコードエラーの処理もつける？？！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
         except Exception as e:
             print(
-                f"Webserver からの受信に失敗: {e}")
+                f"main からの受信に失敗: {e}")
+
+def receive_udp_from_webrtc():
+    # UDPソケットの作成
+    received_udp_from_webrtc = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    received_udp_from_webrtc.bind(('127.0.0.1', 5005))
+    received_udp_from_webrtc.settimeout(1.0)  # タイムアウトを1秒に設定
+    while True:
+        try:
+            message, cli_addr = received_udp_from_webrtc.recvfrom(1024)
+            # print(f"Received: {message.decode('utf-8')}")
+            received_json_temp:str = message.decode('utf-8')
+            # webrtcで生成したlocal?SDP
+            socketio.emit("send_control_pc_localSDP", received_json_temp, namespace='/')
+            # デコードエラーの処理もつける？？！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
+        except Exception as e:
+            print(
+                f"webrtc からの受信に失敗: {e}")
 
 if __name__ == '__main__':
-    # なんか他のwebserver.pyとかとマルチスレッドの記述方法違うけどいいのかな！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
     threading.Thread(target=flask_socketio_run).start()
-    threading.Thread(target=publish).start()
-    threading.Thread(target=receive_udp_webserver).start()
+    threading.Thread(target=send_udp_to_main).start()
+    threading.Thread(target=receive_udp_from_webrtc).start()
+    threading.Thread(target=receive_udp_from_main).start()
 

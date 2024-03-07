@@ -457,8 +457,8 @@ function setupDataChannel(dc) {
 // 相手の SDP 通知を受ける
 // SETが押されたときの処理
 function setRemoteSdp() {
-    // let sdptext = document.getElementById("remoteSDP").value;
-    let sdptext = JSON.parse(document.getElementById("remoteSDP").value)["sdp"].replace("\\r\\n", "\n");
+    let sdptext = document.getElementById("remoteSDP").value;
+    // let sdptext = JSON.parse(document.getElementById("remoteSDP").value)["sdp"].replace("\\r\\n", "\n");
     console.log(sdptext);
 
     if (peerConnection) {

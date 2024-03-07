@@ -3,6 +3,8 @@ import asyncio
 import logging
 import time
 import aioconsole  # Added for asynchronous console input
+import socket # UDP localhostで
+import threading
 
 from aiortc import RTCIceCandidate, RTCPeerConnection, RTCSessionDescription
 from aiortc.contrib.signaling import BYE, add_signaling_arguments, create_signaling
@@ -96,7 +98,7 @@ async def run_offer(pc, signaling):
     await consume_signaling(pc, signaling) # シグナリングを介して受信した情報を処理するための非同期関数 consume_signaling を実行します。
 
 
-if __name__ == "__main__":
+def webrtc():
     parser = argparse.ArgumentParser(description="Data channels ping/pong") # argparse を使用してコマンドライン引数を処理し、"role" と "--verbose" の引数を受け入れます。
     parser.add_argument("role", choices=["offer", "answer"])
     parser.add_argument("--verbose", "-v", action="count")
@@ -124,3 +126,26 @@ if __name__ == "__main__":
     finally:
         loop.run_until_complete(pc.close())
         loop.run_until_complete(signaling.close())
+
+
+def receive_udp():
+    # UDPソケットの作成
+    received_udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    received_udp.bind(('127.0.0.1', 5004))
+    received_udp.settimeout(1.0)  # タイムアウトを1秒に設定
+    while True:
+        try:
+            message, cli_addr = received_udp.recvfrom(1024)
+            # print(f"Received: {message.decode('utf-8')}")
+            received_json_temp:str = message.decode('utf-8')
+            # socketio.emit("send_control_data", received_json_temp, namespace='/')
+            # デコードエラーの処理もつける？？！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
+        except Exception as e:
+            print(
+                f"main からの受信に失敗: {e}")
+
+
+if __name__ == "__main__":
+    asyncio.run(webrtc())
+    # threading.Thread(target=webrtc).start()
+    threading.Thread(target=receive_udp).start()

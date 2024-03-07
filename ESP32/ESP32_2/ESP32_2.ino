@@ -135,15 +135,15 @@ void Core0a_calibrate_ducted_fan(void *args)
             ducted_fan_2.attach(13);
             digitalWrite(LED_BUILTIN, LOW);
             is_calibrating_ducted_fan = true;
-            Serial.println("ダクテッドファン キャリブレーション 最大");
+            // Serial.println("ダクテッドファン キャリブレーション 最大");
             ducted_fan_1.writeMicroseconds(2000);
             ducted_fan_2.writeMicroseconds(2000);
             delay(2000);
-            Serial.println("ダクテッドファン キャリブレーション 最小");
+            // Serial.println("ダクテッドファン キャリブレーション 最小");
             ducted_fan_1.writeMicroseconds(1000);
             ducted_fan_2.writeMicroseconds(1000);
             delay(2000);
-            Serial.println("ダクテッドファン キャリブレーション 完了");
+            // Serial.println("ダクテッドファン キャリブレーション 完了");
             is_calibrating_ducted_fan = false;
         }
         calibrate_ducted_fan_enabled_old = calibrate_ducted_fan_enabled_now;
@@ -162,6 +162,7 @@ void Core0b_read_distance_sensors(void *args)
         for (uint8_t i = 0; i < sensor_count; i++){
             //  距離センサーを読む
             distance_sensors_result_list[i] = distance_sensors[i].read();
+            Serial.println(distance_sensors_result_list[i]);
             if (distance_sensors[i].timeoutOccurred())
             {
                 // Serial.print(i);
@@ -252,7 +253,7 @@ void loop()
     //   Serial.println(received_strings);
     // }
 
-    Serial.println("$2,4," + String(distance_sensors_result_list[0]) + "," + String(distance_sensors_result_list[1]) + "," + String(distance_sensors_result_list[2]) + "," + String(distance_sensors_result_list[3]));
+    // Serial.println("$2,4," + String(distance_sensors_result_list[0]) + "," + String(distance_sensors_result_list[1]) + "," + String(distance_sensors_result_list[2]) + "," + String(distance_sensors_result_list[3]));
 
     // 100ms以上パソコンからデータを受信できなかったら全てのモーターを強制停止
     if (millis() - last_receive_time > 100)
