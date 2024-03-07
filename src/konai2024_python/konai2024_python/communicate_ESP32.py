@@ -16,6 +16,7 @@ import time
 import serial
 import ipget  # IPアドレス取得用
 import socket  # UDP通信用
+import asyncio # 非同期関数を実行するため
 import math
 import evdev
 from matplotlib import pyplot as plt  # 描画用ライブラリ
@@ -175,14 +176,18 @@ def connect_serial():
                     exclude_list: list[int] = []
 
                     for each_micon_dict in micon_dict.values():  # micon_dictの各値に対して #なんかきもいねまたmicon_dict参照してるのアホらしい
-                        try:
-                            # ポートがnoneじゃないか確認 絶対もっといい書き方ある！！
-                            temp: str = each_micon_dict["serial_obj"].readline(
-                            )
+                        if each_micon_dict["serial_obj"].in_waiting > 0:
                             exclude_list.append(each_micon_dict["serial_id"])
-                        except Exception as e:
-                            # print(f"ポートがnoneのときに出るエラー。無視して次のポートを試行する:{e}", flush=True)
-                            pass
+
+                        # try:
+                        #     # ポートがnoneじゃないか確認 絶対もっといい書き方ある！！
+                        #     # readlineだと消えちゃわないっすか？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？
+                        #     temp: str = each_micon_dict["serial_obj"].readline(
+                        #     )
+                        #     exclude_list.append(each_micon_dict["serial_id"])
+                        # except Exception as e:
+                        #     # print(f"ポートがnoneのときに出るエラー。無視して次のポートを試行する:{e}", flush=True)
+                        #     pass
 
                     if i in exclude_list:
                         i += 1  # iが除外リストに含まれている場合、iをインクリメントする
@@ -198,8 +203,8 @@ def connect_serial():
                             micon_values["is_connected"] = True
                             i = -1  # Serialが正常に開かれた場合はループを抜ける
                         except Exception as e:
-                            print(
-                                f"\n\n{micon_name}とSerial接続失敗: {e} \n\n", flush=True)
+                            # print(
+                            #     f"\n\n{micon_name}とSerial接続失敗: {e} \n\n", flush=True)
                             if i < 7:
                                 i += 1  # 例外が発生した場合もiをインクリメントして次のポートを試す
                             else:
@@ -361,25 +366,51 @@ def battery_alert():
         time.sleep(0.2)  # 無駄にCPUを使わないようにする
 
 
-def convert_PS3_to_WiiU(joy_before: dict):
-    joy_after: dict = {}
-    joy_after.setdefault("buttons", joy_before["buttons"])
-    joy_after.setdefault("axes", [joy_before["axes"][0], joy_before["axes"]
-                         [1], joy_before["axes"][3], joy_before["axes"][4]])
+def convert_PS3_to_WiiU(joy_before: dict) -> dict:
+    joy_after: dict = {"buttons": joy_before["buttons"],
+                       "axes": [joy_before["axes"][0], joy_before["axes"][1], joy_before["axes"][3], joy_before["axes"][4]]}
     return joy_after
 
 
 def convert_PS4_to_WiiU(joy_before: dict):
-    joy_after: dict = {}
+    joy_after: dict = {"buttons": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}
+    # リマッピングする
     # print(joy_before,flush=True)
-    joy_after.setdefault("buttons", joy_before["buttons"])
-    joy_after["buttons"].insert(6,joy_before["axes"][4])
-    joy_after["buttons"].insert(7,joy_before["axes"][5])
+
+    joy_after["buttons"][0] = joy_before["buttons"][0]
+    joy_after["buttons"][1] = joy_before["buttons"][1]
+    joy_after["buttons"][2] = joy_before["buttons"][3]
+    joy_after["buttons"][3] = joy_before["buttons"][2]
+    joy_after["buttons"][4] = joy_before["buttons"][9]
+    joy_after["buttons"][5] = joy_before["buttons"][10]
+    joy_after["buttons"][6] = joy_before["axes"][4]
+    if joy_after["buttons"][6] == -1:
+        joy_after["buttons"][6] = 1
+    else:
+        joy_after["buttons"][6] = 0
+    joy_after["buttons"][7] = joy_before["axes"][5]
+    if joy_after["buttons"][7] == -1:
+        joy_after["buttons"][7] = 1
+    else:
+        joy_after["buttons"][7] = 0
+    joy_after["buttons"][8] = joy_before["buttons"][4]
+    joy_after["buttons"][9] = joy_before["buttons"][6]
+    joy_after["buttons"][10] = joy_before["buttons"][5]
+    joy_after["buttons"][11] = joy_before["buttons"][7]
+    joy_after["buttons"][12] = joy_before["buttons"][8]
+    joy_after["buttons"][13] = joy_before["buttons"][11]
+    joy_after["buttons"][14] = joy_before["buttons"][12]
+    joy_after["buttons"][15] = joy_before["buttons"][13]
+    joy_after["buttons"][16] = joy_before["buttons"][14]
+    # joy_before["buttons"][15]はタッチパッドおしこみ
+
+
+
     joy_after.setdefault("axes", [joy_before["axes"][0], joy_before["axes"]
                          [1], joy_before["axes"][2], joy_before["axes"][3]])
     # L2 [4]
     # R2 [5]
-    print(joy_after,flush=True)
+    # print(joy_after,flush=True)
     return joy_after
 
 
@@ -401,6 +432,8 @@ class MinimalSubscriber(Node):
     servo_angle: int = 0
     is_run_ducted_fan: bool = False
     is_slow_speed:bool = False
+
+    time_pushed_load_button:int = 0 # 装填ボタンが押された時間
 
     # Initialize PID parameters dict型にしたい！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
     kp: float = 0.02  # Proportional gain 基本要素として必須。これをベースに、必要に応じて他の項を追加する
@@ -443,11 +476,11 @@ class MinimalSubscriber(Node):
             "joy0",
             self.joy0_listener_callback,
             10)
-        self.subscription = self.create_subscription(
-            Joy,
-            "joy1",
-            self.joy1_listener_callback,
-            10)
+        # self.subscription = self.create_subscription(
+        #     Joy,
+        #     "joy1",
+        #     self.joy1_listener_callback,
+        #     10)
         self.subscription = self.create_subscription(
             String, 'Web_to_Main', self.Web_to_Main_listener_callback, 10)
         self.subscription  # prevent unused variable warning
@@ -547,13 +580,21 @@ class MinimalSubscriber(Node):
             self.DCmotor_speed[:4] = [int(speed * 255 / max_motor_speed)
                                       for speed in self.DCmotor_speed[:4]]
 
+
+        #   装填サーボの処理
+        if self.time_pushed_load_button != 0 and int(time.time() * 1000) - self.time_pushed_load_button > 1500:
+            # 1500msで0°に戻る
+            self.servo_angle = 0
+            self.time_pushed_load_button = 0
+
         # 回収機構のリミットスイッチの処理
-        if sensors.limit_switch == True:
+        # リミットスイッチが押されているかつ、巻き取る方向に動かそうとしているならモーター停止。リミットスイッチが押されていても、展開方向に動かそうとすることはできる
+        if sensors.limit_switch == True and self.DCmotor_speed[4] > 0:
             self.DCmotor_speed[4] = 0
 
         # 低速モードの処理
         if self.is_slow_speed == True:
-            self.DCmotor_speed[:4] = [int(speed * 0.5)
+            self.DCmotor_speed[:4] = [int(speed * 0.3)
                                       for speed in self.DCmotor_speed[:4]]
 
         # モータースピードが絶対値16未満の値を削除 (ジョイコンの戻りが悪いときでもブレーキを利かすため)
@@ -570,6 +611,7 @@ class MinimalSubscriber(Node):
                 # 3セルで動かすものは ブラシレスモーター
                 self.is_run_ducted_fan = False  # リレーを非通電状態に
                 self.BLmotor_speed = [0] * len(self.BLmotor_speed)
+                print("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",flush=True)
 
         send_ESP32_data: list[int] = [
             int(self.state),  # 0 状態
@@ -602,6 +644,7 @@ class MinimalSubscriber(Node):
         json_str: str = ','.join(map(str, send_ESP32_data)) + "\n"
         if self.count_print % 10 == 0:  # 10回に1回実行
             print(send_ESP32_data, flush=True)
+            pass
         self.count_print += 1
         for each_micon_dict_key, each_micon_dict_values in micon_dict.items():
             try:
@@ -642,11 +685,11 @@ class MinimalSubscriber(Node):
 
         # Bボタン
         if self.joy_past["joy0"]["buttons"][0] == 0 and self.joy_now["joy0"]["buttons"][0] == 1:
-            self.BLmotor_speed[0] = min(1500,max(1000,self.BLmotor_speed[0] - 20))
+            self.BLmotor_speed[0] = min(1500,max(1000,self.BLmotor_speed[0] - 10))
 
         # Aボタン
         if self.joy_past["joy0"]["buttons"][1] == 0 and self.joy_now["joy0"]["buttons"][1] == 1:
-            self.BLmotor_speed[0] = max(1000,min(1500,self.BLmotor_speed[0] + 20))
+            self.BLmotor_speed[0] = max(1000,min(1500,self.BLmotor_speed[0] + 10))
 
         if self.joy_now["joy0"]["buttons"][2] == 1:  # Xボタン
             # 0°に旋回
@@ -691,42 +734,24 @@ class MinimalSubscriber(Node):
         else:
             self.is_slow_speed = False
 
-        # サーボの制御
-        # self.servo_angle = int(self.joy_now["joy0"]["axes"][1]*174)
-        # -ボタン サーボ初期位置
-        if self.joy_past["joy0"]["buttons"][8] == 0 and self.joy_now["joy0"]["buttons"][8] == 1:
-            self.servo_angle = 0
-
-        # +ボタン サーボ装填
-        if self.joy_past["joy0"]["buttons"][9] == 0 and self.joy_now["joy0"]["buttons"][9] == 1:
-            self.servo_angle = 45
-
         # ダクテッドのリレー
-        if self.joy_past["joy0"]["buttons"][10] == 0 and self.joy_now["joy0"]["buttons"][10] == 1:
+        # ZL
+        if self.joy_past["joy0"]["buttons"][6] == 0 and self.joy_now["joy0"]["buttons"][6] == 1:
             if self.is_run_ducted_fan == True:
                 self.is_run_ducted_fan = False
             else:
                 self.is_run_ducted_fan = True
-        # if self.joy_now["joy0"]["buttons"][8] == 1:  # マイナスボタン
-        #     self.is_run_ducted_fan = False
-        # if self.joy_now["joy0"]["buttons"][9] == 1:  # プラスボタン
-        #     self.is_run_ducted_fan = True
 
-        # 回収モーター
-        # 左ジョイスティック 逆回転
-        if self.joy_now["joy0"]["buttons"][11] == 1 and self.joy_now["joy0"]["buttons"][12] == 0:
-            self.DCmotor_speed[4] = -255
-        # 右ジョイスティック 回転
-        if self.joy_now["joy0"]["buttons"][11] == 0 and self.joy_now["joy0"]["buttons"][12] == 1:
-            self.DCmotor_speed[4] = 255
-        if self.joy_now["joy0"]["buttons"][11] == 0 and self.joy_now["joy0"]["buttons"][12] == 0:
-            self.DCmotor_speed[4] = 0
-        if self.joy_now["joy0"]["buttons"][11] == 1 and self.joy_now["joy0"]["buttons"][12] == 1:
-            self.DCmotor_speed[4] = 0
+        # サーボの制御
+        # self.servo_angle = int(self.joy_now["joy0"]["axes"][1]*174)
+        # ZR装填 サーボ初期位置
+        if self.joy_past["joy0"]["buttons"][7] == 0 and self.joy_now["joy0"]["buttons"][7] == 1:
+            self.time_pushed_load_button = int(time.time() * 1000) # エポックミリ秒
+            self.servo_angle = 45
 
-        # LボタンとRボタン同時押し
-        # 今日は↑
-        if self.joy_now["joy0"]["buttons"][13] == 1:
+        # リセット
+        # + / options
+        if self.joy_now["joy0"]["buttons"][9] == 1:
         # if self.joy_now["joy0"]["buttons"][4] == 1 and self.joy_now["joy0"]["buttons"][5] == 1:
             # 角度リセット
             if reception_json["raw_angle"] < 0:
@@ -736,6 +761,18 @@ class MinimalSubscriber(Node):
                 self.angle_adjust = -1 * reception_json["raw_angle"]
             # 座標リセット
                 coordinates = [[1, 1], [2, 2]]
+
+        # 回収モーター
+        # 左ジョイスティック 回収機構 展開
+        if self.joy_now["joy0"]["buttons"][14] == 1 and self.joy_now["joy0"]["buttons"][16] == 0:
+            self.DCmotor_speed[4] = -255
+        # 右ジョイスティック 回収機構 巻取り
+        if self.joy_now["joy0"]["buttons"][14] == 0 and self.joy_now["joy0"]["buttons"][16] == 1:
+            self.DCmotor_speed[4] = 255
+        if self.joy_now["joy0"]["buttons"][14] == 0 and self.joy_now["joy0"]["buttons"][16] == 0:
+            self.DCmotor_speed[4] = 0
+        if self.joy_now["joy0"]["buttons"][14] == 1 and self.joy_now["joy0"]["buttons"][16] == 1:
+            self.DCmotor_speed[4] = 0
 
         # if self.joy_past["joy0"]["buttons"][11] == 0 and self.joy_now["joy0"]["buttons"][11] == 1:
         #     # ESP32_1のソフトウェアリセット
@@ -750,40 +787,18 @@ class MinimalSubscriber(Node):
 
         self.joy_past["joy0"] = self.joy_now["joy0"]
 
-    def joy1_listener_callback(self, joy):
-        self.joy_now.update({  # 上書きOK
-            "joy1":
-            {"axes": list(joy.axes),
-             "buttons": list(joy.buttons)}
-        })
-        if len(self.joy_now["joy1"]["axes"]) == 6:
-            self.joy_now["joy1"] = convert_PS3_to_WiiU(self.joy_now["joy1"])
-        self.joy_past.setdefault(  # 初回のみ実行 上書き不可
-            "joy1",
-            {"axes": [0] * len(joy.axes), "buttons": [0] * len(joy.buttons)}
-        )
-
-        # self.BLmotor_speed[0] = abs(
-        #     int(self.joy_now["joy1"]["axes"][0]*500))+1000  # ダクテッドファン
-        # self.BLmotor_speed[1] = abs(
-        #     int(self.joy_now["joy1"]["axes"][2]*500))+1000  # ダクテッドファン
-
-        # # 回収機構のモーター
-        # self.DCmotor_speed[4] = int(self.joy_now["joy1"]["axes"][1] * 255)
-
-        # self.DCmotor_speed[5] = int(self.joy_now["joy1"]["axes"][3] * 255)
-
-        # if self.joy_now["joy1"]["buttons"][8] == 1:  # マイナスボタン
-        #     self.is_run_ducted_fan = False
-        # if self.joy_now["joy1"]["buttons"][9] == 1:  # プラスボタン
-        #     self.is_run_ducted_fan = True
-
-        # if self.joy_now["joy1"]["buttons"][6] == 1 or self.joy_now["joy1"]["buttons"][7] == 1:
-        #     # 走行補助強制停止
-        #     self.state = 0
-        #     self.DCmotor_speed = [0] * len(self.DCmotor_speed)
-        #     self.BLmotor_speed = [0] * len(self.BLmotor_speed)
-
+    # def joy1_listener_callback(self, joy):
+    #     self.joy_now.update({  # 上書きOK
+    #         "joy1":
+    #         {"axes": list(joy.axes),
+    #          "buttons": list(joy.buttons)}
+    #     })
+    #     if len(self.joy_now["joy1"]["axes"]) == 6:
+    #         self.joy_now["joy1"] = convert_PS3_to_WiiU(self.joy_now["joy1"])
+    #     self.joy_past.setdefault(  # 初回のみ実行 上書き不可
+    #         "joy1",
+    #         {"axes": [0] * len(joy.axes), "buttons": [0] * len(joy.buttons)}
+    #     )
         # self.joy_past["joy1"] = self.joy_now["joy1"]
 
     def control_mecanum_wheels(self, direction, speed) -> list[int]:

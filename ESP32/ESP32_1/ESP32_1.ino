@@ -85,7 +85,7 @@ void setup() {
   // サーボモーターの設定
   krs.begin();  // サーボモータの通信初期設定
   krs.setStrc(0, 60);
-  krs.setSpd(0, 127);  // MAX127
+  krs.setSpd(0, 80);  // MAX127
 
   Serial.println("$1,1.2");
 }
@@ -244,7 +244,7 @@ void loop() {
 
       state_boolean_array[201] = true;
 
-krs.setPos(0, krs.degPos(int(intArray[9]))); // 対象の処理を実行
+      krs.setPos(0, krs.degPos(int(intArray[9]))); // 対象の処理を実行
       // サーボモーターの処理
       // if (shouldExecute) {
       //   unsigned long startTime_servo = millis(); // 処理開始時間を記録

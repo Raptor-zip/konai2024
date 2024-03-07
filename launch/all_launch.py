@@ -25,9 +25,14 @@ def generate_launch_description():
             Node(
                 package="joy",
                 executable="joy_node",
-                parameters=[{"device_id": 1}],
-                remappings=[("/joy", "/joy1")],
+                remappings=[("/joy", "/joy0")],
             ),
+            # Node(
+            #     package="joy",
+            #     executable="joy_node",
+            #     parameters=[{"device_id": 1}],
+            #     remappings=[("/joy", "/joy1")],
+            # ),
             Node(
                 package="konai2024_python",
                 executable="webserver",
