@@ -182,7 +182,7 @@ void Core0a_speaker(void *args) {
         ledcWriteTone(0, green);
         delay(100);
         ledcWriteTone(0, 0);
-        delay(800);
+        delay(700);
         break;
       default:
         Serial.println(firstTrueIndex);

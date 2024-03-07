@@ -84,7 +84,7 @@ except subprocess.CalledProcessError:
 
 def main():
     with ThreadPoolExecutor(max_workers=6) as executor:
-        executor.submit(sp_udp_reception)
+        # executor.submit(sp_udp_reception)
         # executor.submit(receive_udp_webserver)
         executor.submit(battery_alert)
         executor.submit(recept_serial)
@@ -234,8 +234,8 @@ def recept_serial():
             try:
                 received_message: str = each_micon_dict_values["serial_obj"].readline(
                 ).decode('utf-8')[:-2]  # \r\nを消す
-                print(
-                    f"\n                                                {each_micon_dict_key}から:{received_message}\n", flush=True)
+                # print(
+                    # f"\n                                                {each_micon_dict_key}から:{received_message}\n", flush=True)
                 if received_message[0] == "$":
                     # print(
                     # f"\n                                       {each_micon_dict_key}からz$:{received_message}\n", flush=True)
@@ -270,7 +270,7 @@ def recept_serial():
                     # デコードエラーが来たときの処理
                     elif received_message_array[1] == 5:
                         print(
-                            f"\n\n\n\n\n\nデコードエラー:{received_message_array[2]}\n\n\n\n\n\n", flush=True)
+                            f"\nデコードエラー:{received_message_array[2]}\n", flush=True)
 
                     # リセット命令を受信したときの処理
                     elif received_message_array[1] == 6:
@@ -330,7 +330,7 @@ def sp_udp_reception():
             reception_json.update(reception_json_temp)
         except Exception as e:
             print(
-                f"\n\n\n\n\n\n\n    スマホ からの受信に失敗: {e}\n\n\n\n\n\n\n", flush=True)
+                f"スマホ からの受信に失敗: {e}", flush=True)
 
 def receive_udp_webserver():
     global reception_json
@@ -366,6 +366,20 @@ def convert_PS3_to_WiiU(joy_before: dict):
     joy_after.setdefault("buttons", joy_before["buttons"])
     joy_after.setdefault("axes", [joy_before["axes"][0], joy_before["axes"]
                          [1], joy_before["axes"][3], joy_before["axes"][4]])
+    return joy_after
+
+
+def convert_PS4_to_WiiU(joy_before: dict):
+    joy_after: dict = {}
+    # print(joy_before,flush=True)
+    joy_after.setdefault("buttons", joy_before["buttons"])
+    joy_after["buttons"].insert(6,joy_before["axes"][4])
+    joy_after["buttons"].insert(7,joy_before["axes"][5])
+    joy_after.setdefault("axes", [joy_before["axes"][0], joy_before["axes"]
+                         [1], joy_before["axes"][2], joy_before["axes"][3]])
+    # L2 [4]
+    # R2 [5]
+    print(joy_after,flush=True)
     return joy_after
 
 
@@ -534,7 +548,6 @@ class MinimalSubscriber(Node):
                                       for speed in self.DCmotor_speed[:4]]
 
         # 回収機構のリミットスイッチの処理
-        print(sensors.limit_switch,flush=True)
         if sensors.limit_switch == True:
             self.DCmotor_speed[4] = 0
 
@@ -608,8 +621,10 @@ class MinimalSubscriber(Node):
             {"axes": list(joy.axes),
              "buttons": list(joy.buttons)}
         })
-        if len(self.joy_now["joy0"]["axes"]) == 6:
+        if len(self.joy_now["joy0"]["axes"]) == 6 and len(self.joy_now["joy0"]["buttons"]) == 17:
             self.joy_now["joy0"] = convert_PS3_to_WiiU(self.joy_now["joy0"])
+        elif len(self.joy_now["joy0"]["axes"]) == 6 and len(self.joy_now["joy0"]["buttons"]) == 16:
+            self.joy_now["joy0"] = convert_PS4_to_WiiU(self.joy_now["joy0"])
         # 各axesが0.3未満の場合に0に設定する
         for i in range(len(self.joy_now["joy0"]["axes"])):
             if abs(self.joy_now["joy0"]["axes"][i]) < 0.3:
