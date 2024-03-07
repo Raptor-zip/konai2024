@@ -25,7 +25,7 @@ from matplotlib import pyplot as plt  # 描画用ライブラリ
 
 class sensors:
     distance_sensors: list[int] = [-1, -1, -1, -1]
-
+    limit_switch:bool = False
 
 reception_json: dict = {
     "raw_angle": 0
@@ -262,6 +262,10 @@ def recept_serial():
                             int(received_message_array[3]),
                             int(received_message_array[4]),
                             int(received_message_array[5])]
+
+                    # 回収機構のリミットスイッチが来たときの処理
+                    elif received_message_array[1] == 7:
+                        sensors.limit_switch = bool(received_message_array[2])
 
                     # デコードエラーが来たときの処理
                     elif received_message_array[1] == 5:
@@ -528,6 +532,11 @@ class MinimalSubscriber(Node):
         if max_motor_speed > 255:
             self.DCmotor_speed[:4] = [int(speed * 255 / max_motor_speed)
                                       for speed in self.DCmotor_speed[:4]]
+
+        # 回収機構のリミットスイッチの処理
+        print(sensors.limit_switch,flush=True)
+        if sensors.limit_switch == True:
+            self.DCmotor_speed[4] = 0
 
         # 低速モードの処理
         if self.is_slow_speed == True:

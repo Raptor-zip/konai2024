@@ -53,6 +53,8 @@ void setup()
     xTaskCreatePinnedToCore(Core0a_calibrate_ducted_fan, "Core0a_calibrate_ducted_fan", 4096, NULL, 1, &thp[0], 0);
     xTaskCreatePinnedToCore(Core0b_read_distance_sensors, "Core0b_read_distance_sensors", 4096, NULL, 2, &thp[1], 0);
     pinMode(LED_BUILTIN, OUTPUT); // ESP32内蔵LED
+    pinMode(34, INPUT);
+    pinMode(35, INPUT);
     pinMode(23, OUTPUT);          // ブラシレスのリレー
     digitalWrite(23, LOW);        // ブラシレスのリレーをOFF
 
@@ -254,6 +256,9 @@ void loop()
     // }
 
     // Serial.println("$2,4," + String(distance_sensors_result_list[0]) + "," + String(distance_sensors_result_list[1]) + "," + String(distance_sensors_result_list[2]) + "," + String(distance_sensors_result_list[3]));
+
+    // 回収機構のリミットスイッチの状態を取得
+    Serial.println("$2,7,"+digitalRead(35));
 
     // 100ms以上パソコンからデータを受信できなかったら全てのモーターを強制停止
     if (millis() - last_receive_time > 100)
