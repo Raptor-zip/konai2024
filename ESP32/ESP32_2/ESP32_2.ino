@@ -254,7 +254,7 @@ void loop() {
     ducted_fan_1.detach();  // 接続解除
     // ducted_fan_2.detach();  // 接続解除
     digitalWrite(12, LOW);  // PWM停止
-    digitalWrite(13, LOW);  // PWM停止
+    // digitalWrite(13, LOW);  // PWM停止
     for (int i = 0; i < amount_motor - 1; i++) {
       digitalWrite(PIN_array[i].INA, HIGH);
       digitalWrite(PIN_array[i].INB, HIGH);

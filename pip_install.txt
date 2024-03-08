@@ -2,6 +2,7 @@
 
 # Python packages
 Flask
+flask_socketio
 socketIO-client
 json5
 playsound
