@@ -21,7 +21,7 @@ int16_t distance_sensors_result_list[sensor_count] = { -1, -1, -1, -1 };  // 使
 
 // ブラシレスモーター
 Servo ducted_fan_1;
-Servo ducted_fan_2;
+// Servo ducted_fan_2;
 boolean calibrate_ducted_fan_enabled_now = false;
 boolean calibrate_ducted_fan_enabled_old = false;
 boolean is_calibrating_ducted_fan = false;
@@ -113,8 +113,9 @@ void setup() {
   // ダクテッドファンの設定
   pinMode(12, OUTPUT);
   pinMode(13, OUTPUT);
+  digitalWrite(13, HIGH);
   ducted_fan_1.attach(12);
-  ducted_fan_2.attach(13);
+  // ducted_fan_2.attach(13);
 
   Serial.println("$2,1,2");
 }
@@ -125,16 +126,16 @@ void Core0a_calibrate_ducted_fan(void *args) {  // スレッド
     // digitalWrite(LED_BUILTIN, HIGH);
     if (calibrate_ducted_fan_enabled_now == true && calibrate_ducted_fan_enabled_old == false) {
       ducted_fan_1.attach(12);
-      ducted_fan_2.attach(13);
+      // ducted_fan_2.attach(13);
       digitalWrite(LED_BUILTIN, LOW);
       is_calibrating_ducted_fan = true;
       // Serial.println("ダクテッドファン キャリブレーション 最大");
       ducted_fan_1.writeMicroseconds(2000);
-      ducted_fan_2.writeMicroseconds(2000);
+      // ducted_fan_2.writeMicroseconds(2000);
       delay(2000);
       // Serial.println("ダクテッドファン キャリブレーション 最小");
       ducted_fan_1.writeMicroseconds(1000);
-      ducted_fan_2.writeMicroseconds(1000);
+      // ducted_fan_2.writeMicroseconds(1000);
       delay(2000);
       // Serial.println("ダクテッドファン キャリブレーション 完了");
       is_calibrating_ducted_fan = false;
@@ -193,6 +194,13 @@ void loop() {
       PWM(0, intArray[5]);
       PWM(1, intArray[6]);
 
+      // LEDテープの処理 射出時のアニメーションのトリガー
+      if(intArray[9] == 45){
+        digitalWrite(13, LOW);
+      }else{
+        digitalWrite(13, HIGH);
+      }
+
       if (intArray[10] == 1) {
         // digitalWrite(LED_BUILTIN, LOW);
         digitalWrite(23, HIGH);
@@ -203,7 +211,7 @@ void loop() {
           // Serial.println("false");
           // analogWrite(LED_BUILTIN, int(intArray[7]* (255/2000)));
           ducted_fan_1.writeMicroseconds(intArray[7]);
-          ducted_fan_2.writeMicroseconds(intArray[8]);
+          // ducted_fan_2.writeMicroseconds(intArray[8]);
         } else {
           // Serial.println("true");
         }
@@ -212,9 +220,9 @@ void loop() {
         calibrate_ducted_fan_enabled_now = false;
         digitalWrite(23, LOW);  // リレーオフ
         ducted_fan_1.detach();  // 接続解除
-        ducted_fan_2.detach();  // 接続解除
+        // ducted_fan_2.detach();  // 接続解除
         digitalWrite(12, LOW);  // PWM停止
-        digitalWrite(13, LOW);  // PWM停止
+        // digitalWrite(13, LOW);  // PWM停止
       }
       // analogWrite(LED_BUILTIN, abs(intArray[4]));
     } else {
@@ -244,7 +252,7 @@ void loop() {
     calibrate_ducted_fan_enabled_now = false;
     digitalWrite(23, LOW);  // リレーオフ
     ducted_fan_1.detach();  // 接続解除
-    ducted_fan_2.detach();  // 接続解除
+    // ducted_fan_2.detach();  // 接続解除
     digitalWrite(12, LOW);  // PWM停止
     digitalWrite(13, LOW);  // PWM停止
     for (int i = 0; i < amount_motor - 1; i++) {
