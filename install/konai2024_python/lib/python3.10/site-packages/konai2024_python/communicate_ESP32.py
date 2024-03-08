@@ -176,18 +176,18 @@ def connect_serial():
                     exclude_list: list[int] = []
 
                     for each_micon_dict in micon_dict.values():  # micon_dictの各値に対して #なんかきもいねまたmicon_dict参照してるのアホらしい
-                        if each_micon_dict["serial_obj"].in_waiting > 0:
-                            exclude_list.append(each_micon_dict["serial_id"])
-
-                        # try:
-                        #     # ポートがnoneじゃないか確認 絶対もっといい書き方ある！！
-                        #     # readlineだと消えちゃわないっすか？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？
-                        #     temp: str = each_micon_dict["serial_obj"].readline(
-                        #     )
+                        # if each_micon_dict["serial_obj"].in_waiting > 0:
                         #     exclude_list.append(each_micon_dict["serial_id"])
-                        # except Exception as e:
-                        #     # print(f"ポートがnoneのときに出るエラー。無視して次のポートを試行する:{e}", flush=True)
-                        #     pass
+
+                        try:
+                            # ポートがnoneじゃないか確認 絶対もっといい書き方ある！！
+                            # readlineだと消えちゃわないっすか？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？
+                            temp: str = each_micon_dict["serial_obj"].readline(
+                            )
+                            exclude_list.append(each_micon_dict["serial_id"])
+                        except Exception as e:
+                            # print(f"ポートがnoneのときに出るエラー。無視して次のポートを試行する:{e}", flush=True)
+                            pass
 
                     if i in exclude_list:
                         i += 1  # iが除外リストに含まれている場合、iをインクリメントする
@@ -203,8 +203,8 @@ def connect_serial():
                             micon_values["is_connected"] = True
                             i = -1  # Serialが正常に開かれた場合はループを抜ける
                         except Exception as e:
-                            # print(
-                            #     f"\n\n{micon_name}とSerial接続失敗: {e} \n\n", flush=True)
+                            print(
+                                f"\n\n{micon_name}とSerial接続失敗: {e} \n\n", flush=True)
                             if i < 7:
                                 i += 1  # 例外が発生した場合もiをインクリメントして次のポートを試す
                             else:
@@ -582,7 +582,7 @@ class MinimalSubscriber(Node):
 
 
         #   装填サーボの処理
-        if self.time_pushed_load_button != 0 and int(time.time() * 1000) - self.time_pushed_load_button > 1500:
+        if self.time_pushed_load_button != 0 and int(time.time() * 1000) - self.time_pushed_load_button > 700:
             # 1500msで0°に戻る
             self.servo_angle = 0
             self.time_pushed_load_button = 0
