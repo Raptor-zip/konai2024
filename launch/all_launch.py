@@ -16,12 +16,12 @@ def generate_launch_description():
                 output="screen",
                 # prefix="xterm -e",
             ),
-            Node(
-                package="joy",
-                executable="joy_node",
-                parameters=[{"device_id": 0}],
-                remappings=[("/joy", "/joy0")],
-            ),
+            # Node(
+            #     package="joy",
+            #     executable="joy_node",
+            #     parameters=[{"device_id": 0}],
+            #     remappings=[("/joy", "/joy0")],
+            # ),
             Node(
                 package="joy",
                 executable="joy_node",

@@ -667,6 +667,8 @@ class MinimalSubscriber(Node):
             self.joy_now["joy0"] = convert_PS3_to_WiiU(self.joy_now["joy0"])
         elif len(self.joy_now["joy0"]["axes"]) == 6 and len(self.joy_now["joy0"]["buttons"]) == 16:
             self.joy_now["joy0"] = convert_PS4_to_WiiU(self.joy_now["joy0"])
+        # 旋回が逆になるから無理やり合わせる
+        self.joy_now["joy0"]["axes"][0] = self.joy_now["joy0"]["axes"][0] * -1
         # 各axesが0.3未満の場合に0に設定する
         for i in range(len(self.joy_now["joy0"]["axes"])):
             if abs(self.joy_now["joy0"]["axes"][i]) < 0.3:

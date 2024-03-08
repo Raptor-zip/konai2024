@@ -205,7 +205,7 @@ def connect_serial():
                         except Exception as e:
                             print(
                                 f"\n\n{micon_name}とSerial接続失敗: {e} \n\n", flush=True)
-                            if i < 7:
+                            if i < 2:
                                 i += 1  # 例外が発生した場合もiをインクリメントして次のポートを試す
                             else:
                                 i = 0
@@ -213,7 +213,7 @@ def connect_serial():
                         print(
                             f"\n\n{micon_name}とSerial接続試行時 /dev/ttyUSB{i} の権限追加に失敗 {e} \n\n", flush=True)
 
-                    time.sleep(0.2)  # 0.2秒待って再試行
+                    time.sleep(0.1)  # 0.2秒待って再試行
         time.sleep(0.01)  # 無駄にCPUを使わないようにする
 
 
@@ -580,7 +580,6 @@ class MinimalSubscriber(Node):
             self.DCmotor_speed[:4] = [int(speed * 255 / max_motor_speed)
                                       for speed in self.DCmotor_speed[:4]]
 
-
         #   装填サーボの処理
         if self.time_pushed_load_button != 0 and int(time.time() * 1000) - self.time_pushed_load_button > 700:
             # 1500msで0°に戻る
@@ -748,6 +747,19 @@ class MinimalSubscriber(Node):
         if self.joy_past["joy0"]["buttons"][7] == 0 and self.joy_now["joy0"]["buttons"][7] == 1:
             self.time_pushed_load_button = int(time.time() * 1000) # エポックミリ秒
             self.servo_angle = 45
+
+        if self.joy_now["joy0"]["buttons"][8] == 1:
+            micon_dict = {
+    "ESP32_1": {"is_connected": False,  # パソコンと接続しているか
+                "number": 1,  # マイコンからデータ来るときに
+                "serial_id": None,
+                "serial_obj": None,
+                "reboot": False},
+    "ESP32_2": {"is_connected": False,  # パソコンと接続しているか
+                "number": 2,  # マイコンからデータ来るときに やっぱ消す！！！！！！！！！！！！！！！！！！！！！！！！！！
+                "serial_id": None,
+                "serial_obj": None,
+                "reboot": False}}
 
         # リセット
         # + / options
