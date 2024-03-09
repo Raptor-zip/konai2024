@@ -1,6 +1,7 @@
 source /opt/ros/humble/setup.bash
 sudo apt install python3-pip
 sudo apt install xterm
+sudo apt install net-tools
 pip install -r pip_install.txt
 sudo pip install -r pip install.txt
 colcon build

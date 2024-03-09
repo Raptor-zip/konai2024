@@ -32,6 +32,89 @@ reception_json: dict = {
     "raw_angle": 0
 }
 
+class controller:
+    joy0:dict = {}
+
+    def convert_PS3_to_WiiU(self,joy_before: dict) -> dict:
+        joy_after: dict = {"buttons": joy_before["buttons"],
+                        "axes": [joy_before["axes"][0], joy_before["axes"][1], joy_before["axes"][3], joy_before["axes"][4]]}
+        return joy_after
+
+
+    def convert_PS4_to_WiiU(self,joy_before: dict):
+        joy_after: dict = {"axes":[joy_before["axes"][0], joy_before["axes"][1], joy_before["axes"][2], joy_before["axes"][3]],
+                        "buttons": [
+                            joy_before["buttons"][0],
+                            joy_before["buttons"][1],
+                            joy_before["buttons"][3],
+                            joy_before["buttons"][2],
+                            joy_before["buttons"][9],
+                            joy_before["buttons"][10],
+                            joy_before["axes"][4],
+                            joy_before["axes"][5],
+                            joy_before["buttons"][4],
+                            joy_before["buttons"][6],
+                            joy_before["buttons"][5],
+                            joy_before["buttons"][7],
+                            joy_before["buttons"][8],
+                            joy_before["buttons"][11],
+                            joy_before["buttons"][12],
+                            joy_before["buttons"][13],
+                            joy_before["buttons"][14]]}
+        # リマッピングする
+        # print(joy_before,flush=True)
+
+        if joy_after["buttons"][6] == -1:
+            joy_after["buttons"][6] = 1
+        else:
+            joy_after["buttons"][6] = 0
+
+        if joy_after["buttons"][7] == -1:
+            joy_after["buttons"][7] = 1
+        else:
+            joy_after["buttons"][7] = 0
+        # joy_before["buttons"][15]はタッチパッドおしこみ
+
+        # L2 [4]
+        # R2 [5]
+        # print(joy_after,flush=True)
+        return joy_after
+
+
+    def convert_PS4_other_to_WiiU(self,joy_before: dict):
+        joy_after: dict = {"buttons": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}
+        # リマッピングする
+        # print(joy_before,flush=True)
+
+        joy_after["buttons"][:13] = joy_before["buttons"][:13]
+
+        if joy_before["axes"][7] < 0:
+            joy_after["buttons"][13] = 0
+            joy_after["buttons"][14] = 1
+        elif joy_before["axes"][7] > 0:
+            joy_after["buttons"][13] = 1
+            joy_after["buttons"][14] = 0
+        else:
+            joy_after["buttons"][13] = 0
+            joy_after["buttons"][14] = 0
+
+        if joy_before["axes"][6] < 0:
+            joy_after["buttons"][15] = 0
+            joy_after["buttons"][16] = 1
+        elif joy_before["axes"][6] > 0:
+            joy_after["buttons"][15] = 1
+            joy_after["buttons"][16] = 0
+        else:
+            joy_after["buttons"][15] = 0
+            joy_after["buttons"][16] = 0
+
+        joy_after.setdefault("axes", [joy_before["axes"][0], joy_before["axes"]
+                            [1], joy_before["axes"][3], joy_before["axes"][4]])
+        # L2 [2]
+        # R2 [5]
+        # print(joy_after,flush=True)
+        return joy_after
+
 micon_dict: dict[str, dict] = {
     "ESP32_1": {"is_connected": False,  # パソコンと接続しているか
                 "number": 1,  # マイコンからデータ来るときに
@@ -175,20 +258,27 @@ def connect_serial():
                         micon_values["serial_id"] = None
                     exclude_list: list[int] = []
 
-                    for each_micon_dict in micon_dict.values():  # micon_dictの各値に対して #なんかきもいねまたmicon_dict参照してるのアホらしい
+                    for each_micon_dict_values in micon_dict.values():  # micon_dictの各値に対して #なんかきもいねまたmicon_dict参照してるのアホらしい
                         # if each_micon_dict["serial_obj"].in_waiting > 0:
                         #     exclude_list.append(each_micon_dict["serial_id"])
 
                         try:
                             # ポートがnoneじゃないか確認 絶対もっといい書き方ある！！
                             # readlineだと消えちゃわないっすか？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？
-                            temp: str = each_micon_dict["serial_obj"].readline(
+                            temp: str = each_micon_dict_values["serial_obj"].readline(
                             )
-                            exclude_list.append(each_micon_dict["serial_id"])
+                            each_micon_dict_values["serial_obj"].write("a".encode()) # なるべく短い文字を送って送信テスト。readlineにするとESP32側がloopで送信しないといけないから不適切
+                            print("271",flush=True)
+                            exclude_list.append(each_micon_dict_values["serial_id"])
+                        except AttributeError as e: # 'NoneType' object has no attribute 'readline' このエラーのみを補足するようにして
+                            print(f"ポートがnoneのときに出るエラー。無視して次のポートを試行する:{e}", flush=True)
+                            pass
                         except Exception as e:
-                            # print(f"ポートがnoneのときに出るエラー。無視して次のポートを試行する:{e}", flush=True)
+                            print(f"書き込みがバグるときに出るエラー。マイコンは存在する:{e}", flush=True)
+                            exclude_list.append(each_micon_dict_values["serial_id"])
                             pass
 
+                    print(exclude_list,flush=True)
                     if i in exclude_list:
                         i += 1  # iが除外リストに含まれている場合、iをインクリメントする
                     try:
@@ -365,104 +455,6 @@ def battery_alert():
             temp = 0
         time.sleep(0.2)  # 無駄にCPUを使わないようにする
 
-
-def convert_PS3_to_WiiU(joy_before: dict) -> dict:
-    joy_after: dict = {"buttons": joy_before["buttons"],
-                       "axes": [joy_before["axes"][0], joy_before["axes"][1], joy_before["axes"][3], joy_before["axes"][4]]}
-    return joy_after
-
-
-def convert_PS4_to_WiiU(joy_before: dict):
-    joy_after: dict = {"buttons": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}
-    # リマッピングする
-    # print(joy_before,flush=True)
-
-    joy_after["buttons"][0] = joy_before["buttons"][0]
-    joy_after["buttons"][1] = joy_before["buttons"][1]
-    joy_after["buttons"][2] = joy_before["buttons"][3]
-    joy_after["buttons"][3] = joy_before["buttons"][2]
-    joy_after["buttons"][4] = joy_before["buttons"][9]
-    joy_after["buttons"][5] = joy_before["buttons"][10]
-    joy_after["buttons"][6] = joy_before["axes"][4]
-    if joy_after["buttons"][6] == -1:
-        joy_after["buttons"][6] = 1
-    else:
-        joy_after["buttons"][6] = 0
-    joy_after["buttons"][7] = joy_before["axes"][5]
-    if joy_after["buttons"][7] == -1:
-        joy_after["buttons"][7] = 1
-    else:
-        joy_after["buttons"][7] = 0
-    joy_after["buttons"][8] = joy_before["buttons"][4]
-    joy_after["buttons"][9] = joy_before["buttons"][6]
-    joy_after["buttons"][10] = joy_before["buttons"][5]
-    joy_after["buttons"][11] = joy_before["buttons"][7]
-    joy_after["buttons"][12] = joy_before["buttons"][8]
-    joy_after["buttons"][13] = joy_before["buttons"][11]
-    joy_after["buttons"][14] = joy_before["buttons"][12]
-    joy_after["buttons"][15] = joy_before["buttons"][13]
-    joy_after["buttons"][16] = joy_before["buttons"][14]
-    # joy_before["buttons"][15]はタッチパッドおしこみ
-
-
-
-    joy_after.setdefault("axes", [joy_before["axes"][0], joy_before["axes"]
-                         [1], joy_before["axes"][2], joy_before["axes"][3]])
-    # L2 [4]
-    # R2 [5]
-    # print(joy_after,flush=True)
-    return joy_after
-
-
-
-def convert_PS4_other_to_WiiU(joy_before: dict):
-    joy_after: dict = {"buttons": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}
-    # リマッピングする
-    # print(joy_before,flush=True)
-
-    joy_after["buttons"][0] = joy_before["buttons"][0]
-    joy_after["buttons"][1] = joy_before["buttons"][1]
-    joy_after["buttons"][2] = joy_before["buttons"][2]
-    joy_after["buttons"][3] = joy_before["buttons"][3]
-    joy_after["buttons"][4] = joy_before["buttons"][4]
-    joy_after["buttons"][5] = joy_before["buttons"][5]
-    joy_after["buttons"][6] = joy_before["buttons"][6]
-    joy_after["buttons"][7] = joy_before["buttons"][7]
-    joy_after["buttons"][8] = joy_before["buttons"][8]
-    joy_after["buttons"][9] = joy_before["buttons"][9]
-    joy_after["buttons"][10] = joy_before["buttons"][10]
-    joy_after["buttons"][11] = joy_before["buttons"][11]
-    joy_after["buttons"][12] = joy_before["buttons"][12]
-    if joy_before["axes"][7] < 0:
-        joy_after["buttons"][13] = 0
-        joy_after["buttons"][14] = 1
-    elif joy_before["axes"][7] > 0:
-        joy_after["buttons"][13] = 1
-        joy_after["buttons"][14] = 0
-    else:
-        joy_after["buttons"][13] = 0
-        joy_after["buttons"][14] = 0
-    if joy_before["axes"][6] < 0:
-        joy_after["buttons"][15] = 0
-        joy_after["buttons"][16] = 1
-    elif joy_before["axes"][6] > 0:
-        joy_after["buttons"][15] = 1
-        joy_after["buttons"][16] = 0
-    else:
-        joy_after["buttons"][15] = 0
-        joy_after["buttons"][16] = 0
-    # joy_before["buttons"][15]はタッチパッドおしこみ
-
-
-
-    joy_after.setdefault("axes", [joy_before["axes"][0], joy_before["axes"]
-                         [1], joy_before["axes"][3], joy_before["axes"][4]])
-    # L2 [2]
-    # R2 [5]
-    # print(joy_after,flush=True)
-    return joy_after
-
-
 def ros(args=None):
     rclpy.init(args=args)
 
@@ -623,6 +615,8 @@ class MinimalSubscriber(Node):
         self.DCmotor_speed[:4] = [speed + value for speed, value in zip(
             self.DCmotor_speed[:4], [front_left, front_right, rear_left, rear_right])]
 
+        self.DCmotor_speed[3] = self.DCmotor_speed[3] * 1.3
+
         # 255を超えた場合、比率を保ったまま255以下にする
         max_motor_speed = max(map(abs, self.DCmotor_speed[:4]))
         if max_motor_speed > 255:
@@ -713,11 +707,11 @@ class MinimalSubscriber(Node):
              "buttons": list(joy.buttons)}
         })
         if len(self.joy_now["joy0"]["axes"]) == 6 and len(self.joy_now["joy0"]["buttons"]) == 17:
-            self.joy_now["joy0"] = convert_PS3_to_WiiU(self.joy_now["joy0"])
+            self.joy_now["joy0"] = controller.convert_PS3_to_WiiU(self,self.joy_now["joy0"])
         elif len(self.joy_now["joy0"]["axes"]) == 6 and len(self.joy_now["joy0"]["buttons"]) == 16:
-            self.joy_now["joy0"] = convert_PS4_to_WiiU(self.joy_now["joy0"])
+            self.joy_now["joy0"] = controller.convert_PS4_to_WiiU(self,self.joy_now["joy0"])
         elif len(self.joy_now["joy0"]["axes"]) == 8 and len(self.joy_now["joy0"]["buttons"]) == 13:
-            self.joy_now["joy0"] = convert_PS4_other_to_WiiU(self.joy_now["joy0"])
+            self.joy_now["joy0"] = controller.convert_PS4_other_to_WiiU(self,self.joy_now["joy0"])
         # 旋回が逆になるから無理やり合わせる
         self.joy_now["joy0"]["axes"][0] = self.joy_now["joy0"]["axes"][0] * -1
         # 各axesが0.3未満の場合に0に設定する
@@ -797,7 +791,7 @@ class MinimalSubscriber(Node):
         # サーボの制御
         # self.servo_angle = int(self.joy_now["joy0"]["axes"][1]*174)
         # ZR装填 サーボ初期位置
-        if self.joy_past["joy0"]["buttons"][7] == 0 and self.joy_now["joy0"]["buttons"][7] == 1:
+        if self.joy_now["joy0"]["buttons"][7] == 1:
             self.time_pushed_load_button = int(time.time() * 1000) # エポックミリ秒
             self.servo_angle = 45
 
