@@ -564,6 +564,9 @@ class MinimalSubscriber(Node):
             "serial_id":micon_dict["ESP32_2"]["serial_id"]
             },}
 
+        battery_dict["battery_4cell"]["average_voltage"] = 10
+        battery_dict["battery_3cell"]["average_voltage"] = 10
+
 
         # temp_micon_dict:dict = micon_dict
         # print(temp_micon_dict["ESP32_1"],flush=True)

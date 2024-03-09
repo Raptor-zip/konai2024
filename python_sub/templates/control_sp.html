@@ -13,7 +13,7 @@
           <p>状態</p>
       <p id="status"></p>
 
-      <button type="button" onclick="startPeerConnection()">Start</button>
+      <button type="button" onclick="startPeerConnection()" class="button">Start</button>
       <textarea
         id="localSDP"
         cols="80"
@@ -21,18 +21,18 @@
         readonly="readonly"
       ></textarea>
       <textarea id="remoteSDP" cols="80" rows="20"></textarea>
-      <button type="button" onclick="setRemoteSdp();">Set</button>
-      <form action="javascript:sendMessage()">
+      <button type="button" onclick="setRemoteSdp();" class="button">Set</button>
+      <!-- <form action="javascript:sendMessage()">
         <input type="text" id="message" size="30" value="" />
         <input type="submit" value="Send" />
       </form>
-      <textarea id="history" cols="80" rows="10" readonly="readonly"></textarea>
+      <textarea id="history" cols="80" rows="10" readonly="readonly"></textarea> -->
       <p id="received_json"></p>
 
 
     <div class="container">
         <div id="robot" class="parents">
-            <div id="esp32_ip_value">192.168.-</div>
+            <!-- <div id="esp32_ip_value">192.168.-</div> -->
             <div class="grid_2columns">
                 <div>
                     <!-- <p>左前メカナム</p> -->
@@ -77,7 +77,6 @@
                     </div>
                 </div> -->
                 <div>
-                    <!-- <p></p> -->
                     <div class='gauge'>
                         <div id='servo_angle_gauge' class="gauge_gauge"></div>
                         <div id='servo_angle_char' class="gauge_char">排出蓋サーボ</div>
@@ -86,7 +85,7 @@
             </div>
 
             <div class="grid_2columns">
-                <div>
+                <!-- <div>
                     <p>サーボ温度</p>
                     <div class='gauge'>
                         <div id='servo_tmp_gauge' class="gauge_gauge"></div>
@@ -100,13 +99,13 @@
                         <div id='servo_cur_char' class="gauge_char">0°</div>
                     </div>
                 </div>
-                <div>
-                    <p>サーボ角度</p>
+                <div> -->
+                    <!-- <p>サーボ角度</p>
                     <div class='gauge'>
                         <div id='servo_deg_gauge' class="gauge_gauge"></div>
                         <div id='servo_deg_char' class="gauge_char">0°</div>
                     </div>
-                </div>
+                </div> -->
                 <!-- <div>
                     <p>角度</p>
                     <div class='gauge'>
@@ -116,12 +115,26 @@
                 </div> -->
 
                 <div>
-                    <p>バッテリー</p>
+                    <p>4セルバッテリー</p>
                     <div class='gauge'>
-                        <div id='battery_voltage_gauge' class="gauge_gauge"></div>
-                        <div id='battery_voltage_char' class="gauge_char">0V</div>
+                        <div id='battery_4cell_voltage_gauge' class="gauge_gauge"></div>
+                        <div id='battery_4cell_voltage_char' class="gauge_char">-V</div>
                     </div>
                 </div>
+
+
+                <div>
+                    <p>3セルバッテリー</p>
+                    <div class='gauge'>
+                        <div id='battery_3cell_voltage_gauge' class="gauge_gauge"></div>
+                        <div id='battery_3cell_voltage_char' class="gauge_char">-V</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="wifi_signal_strength">
+                <p>生のシリアルデータ</p>
+                <div id="serial_str"></div>
             </div>
 
 

@@ -6,6 +6,9 @@
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+      <link rel=stylesheet type=text/css href="{{ url_for('static',
+      filename='main.css') }}">
+      <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}" />
       <script
         src="https://cdn.socket.io/4.7.4/socket.io.min.js"
         integrity="sha384-Gr6Lu2Ajx28mzwyVR8CFkULdCU7kMlZ9UthllibdOSo6qAiN+yXNHqtgdTvFXMT4"
@@ -408,7 +411,7 @@
         });
 
         socket.on("send_control_data", function (json_str) {
-          console.log(json_str);
+          // console.log(json_str);
           control_dataChannel.send(json_str);
           console.log("送信");
         });
@@ -420,7 +423,13 @@
         状態:
         <input type="text" id="angle_status" value="" readonly="readonly" />
       </p>
-      <button type="button" onclick="angle_startPeerConnection()">Start</button>
+      <button
+        type="button"
+        onclick="angle_startPeerConnection()"
+        class="button"
+      >
+        Start
+      </button>
       <textarea
         id="angle_localSDP"
         cols="80"
@@ -428,7 +437,9 @@
         readonly="readonly"
       ></textarea>
       <textarea id="angle_remoteSDP" cols="80" rows="30"></textarea>
-      <button type="button" onclick="angle_setRemoteSdp();">Set</button>
+      <button type="button" onclick="angle_setRemoteSdp();" class="button">
+        Set
+      </button>
       <!-- <form action="javascript:sendMessage()">
         <input type="text" id="message" size="30" value="" />
         <input type="submit" value="Send" />
@@ -446,7 +457,11 @@
         状態:
         <input type="text" id="control_status" value="" readonly="readonly" />
       </p>
-      <button type="button" onclick="control_startPeerConnection()">
+      <button
+        type="button"
+        onclick="control_startPeerConnection()"
+        class="button"
+      >
         Start
       </button>
       <textarea
@@ -456,7 +471,9 @@
         readonly="readonly"
       ></textarea>
       <textarea id="control_remoteSDP" cols="80" rows="30"></textarea>
-      <button type="button" onclick="control_setRemoteSdp();">Set</button>
+      <button type="button" onclick="control_setRemoteSdp();" class="button">
+        Set
+      </button>
       <!-- <form action="javascript:sendMessage()">
         <input type="text" id="message" size="30" value="" />
         <input type="submit" value="Send" />

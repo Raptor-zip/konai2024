@@ -93,37 +93,39 @@ function update_info() {
     if ("esp32_ip" in json) {
         document.getElementById("esp32_ip_value").innerText = json["esp32_ip"];
     }
-    if ("battery_voltage" in json) {
+    if ("battery" in json) {
         // MAX13V MIN10V
-        if (json["battery_voltage"] > 1) {
-            document.getElementById("battery_voltage_char").innerText = json["battery_voltage"] + "V";
-            document.getElementById("battery_voltage_gauge").style.width = (json["battery_voltage"] - 10) / 0.03 + "%";
+        for (let i = 3; i < 2 + 3; i++) {
+            if (json["battery"]["battery_" + i + "cell"]["average_voltage"] > 1) {
+                document.getElementById("battery_" + i + "cell_voltage_char").innerText = json["battery"]["battery_" + i + "cell"]["average_voltage"] + "V";
+                document.getElementById("battery_" + i + "cell_voltage_gauge").style.width = (json["battery"]["battery_" + i + "cell"]["average_voltage"] - 9) / 0.03 + "%";
 
-            if (json["battery_voltage"] < 10) {
-                document.getElementById("battery_voltage_gauge").setAttribute("emergency", 1);
-                document.querySelector("html body").setAttribute("emergency", 1);
-                document.querySelectorAll(".parents").forEach(function (parentElement) {
-                    parentElement.setAttribute("emergency", 1);
-                });
-                // アラームが今なっているか検出
-                if (!alarm.paused) {
-                    console.log('音声が再生中です。');
+                if (json["battery"]["battery_" + i + "cell"]["average_voltage"] < 10) {
+                    // document.getElementById("battery_voltage_gauge").setAttribute("emergency", 1);
+                    // document.querySelector("html body").setAttribute("emergency", 1);
+                    // document.querySelectorAll(".parents").forEach(function (parentElement) {
+                    //     parentElement.setAttribute("emergency", 1);
+                    // });
+                    // アラームが今なっているか検出
+                    if (!alarm.paused) {
+                        console.log('音声が再生中です。');
+                    } else {
+                        console.log('音声は再生されていません。');
+                        alarm.play();
+                    }
                 } else {
-                    console.log('音声は再生されていません。');
-                    alarm.play();
+                    alarm.pause();
+                    // document.getElementById("battery_voltage_gauge").removeAttribute("emergency");
+                    // document.querySelector("html body").removeAttribute("emergency");
+                    // document.querySelectorAll(".parents").forEach(function (parentElement) {
+                    //     parentElement.removeAttribute("emergency");
+                    // });
                 }
             } else {
                 alarm.pause();
-                document.getElementById("battery_voltage_gauge").removeAttribute("emergency");
-                document.querySelector("html body").removeAttribute("emergency");
-                document.querySelectorAll(".parents").forEach(function (parentElement) {
-                    parentElement.removeAttribute("emergency");
-                });
+                document.getElementById("battery_" + i + "cell_voltage_char").innerText = "-V";
+                document.getElementById("battery_" + i + "cell_voltage_gauge").style.width = "0";
             }
-        } else {
-            alarm.pause();
-            document.getElementById("battery_voltage_char").innerText = "-V";
-            document.getElementById("battery_voltage_gauge").style.width = "0";
         }
     }
     if ("wifi_signal_strength" in json) {
@@ -131,7 +133,7 @@ function update_info() {
     }
     console.log(json["DCmotor_speed"][0]);
     if ("DCmotor_speed" in json) {
-        for (let i = 0; i < json["DCmotor_speed"].length; i++) {
+        for (let i = 0; i < json["DCmotor_speed"].length - 1; i++) {
             // document.getElementById("motor" + i + "_speed_char").innerText = Math.round(json["motor" + i + "_speed"]);
             document.getElementById("motor" + i + "_speed_gauge").style.width = json["DCmotor_speed"][i] / 5.1 + 50 + "%";
         }
@@ -140,37 +142,41 @@ function update_info() {
         // document.getElementById("servo_angle_char").innerText = Math.round(json["servo_angle"]);
         document.getElementById("servo_angle_gauge").style.width = json["servo_angle"] / 2.7 + 50 + "%";
     }
-    if ("servo_tmp" in json) {
-        if (json["servo_tmp"] != 999) {
-            document.getElementById("servo_tmp_char").innerText = 127 - json["servo_tmp"];
-            document.getElementById("servo_tmp_gauge").style.width = (127 - json["servo_tmp"]) / 1.27 + "%"; //(High)1～127(Low)
-        } else {
-            document.getElementById("servo_tmp_char").innerText = "サーボ未接続";
-            document.getElementById("servo_tmp_gauge").style.width = "0%";
-        }
-    }
-    if ("servo_cur" in json) {
-        if (json["servo_cur"] != 999) {
-            document.getElementById("servo_cur_char").innerText = json["servo_cur"];
-            document.getElementById("servo_cur_gauge").style.width = (json["servo_cur"] - 63) / 0.63 + 50 + "%"; // (CW)1～63、(CCW)64～127
-        } else {
-            document.getElementById("servo_cur_char").innerText = "サーボ未接続";
-            document.getElementById("servo_cur_gauge").style.width = "0%";
-        }
-    }
-    if ("servo_deg" in json) {
-        if (json["servo_deg"] != 999) {
-            document.getElementById("servo_deg_char").innerText = json["servo_deg"] + "°";
-            document.getElementById("servo_deg_gauge").style.width = json["servo_deg"] / 2.7 + 50 + "%";
-        } else {
-            document.getElementById("servo_deg_char").innerText = "サーボ未接続";
-            document.getElementById("servo_deg_gauge").style.width = "0%";
-        }
-    }
+    // if ("servo_tmp" in json) {
+    //     if (json["servo_tmp"] != 999) {
+    //         document.getElementById("servo_tmp_char").innerText = 127 - json["servo_tmp"];
+    //         document.getElementById("servo_tmp_gauge").style.width = (127 - json["servo_tmp"]) / 1.27 + "%"; //(High)1～127(Low)
+    //     } else {
+    //         document.getElementById("servo_tmp_char").innerText = "サーボ未接続";
+    //         document.getElementById("servo_tmp_gauge").style.width = "0%";
+    //     }
+    // }
+    // if ("servo_cur" in json) {
+    //     if (json["servo_cur"] != 999) {
+    //         document.getElementById("servo_cur_char").innerText = json["servo_cur"];
+    //         document.getElementById("servo_cur_gauge").style.width = (json["servo_cur"] - 63) / 0.63 + 50 + "%"; // (CW)1～63、(CCW)64～127
+    //     } else {
+    //         document.getElementById("servo_cur_char").innerText = "サーボ未接続";
+    //         document.getElementById("servo_cur_gauge").style.width = "0%";
+    //     }
+    // }
+    // if ("servo_deg" in json) {
+    //     if (json["servo_deg"] != 999) {
+    //         document.getElementById("servo_deg_char").innerText = json["servo_deg"] + "°";
+    //         document.getElementById("servo_deg_gauge").style.width = json["servo_deg"] / 2.7 + 50 + "%";
+    //     } else {
+    //         document.getElementById("servo_deg_char").innerText = "サーボ未接続";
+    //         document.getElementById("servo_deg_gauge").style.width = "0%";
+    //     }
+    // }
     // if ("angle_value" in json) {
     //     document.getElementById("angle_char").innerText = json["angle_value"] + "°";
     //     document.getElementById("angle_gauge").style.width = json["angle_value"] / 3.6 + "%";
     // }
+    if ("serial_str" in json) {
+        document.getElementById("serial_str").innerText = json["serial_str"]
+    }
+
     if ("start_time" in json && json["start_time"] != 0) {
         start_timer = new Date(json["start_time"] * 1000); // Unixエポック時間にするために1000倍する
     }
