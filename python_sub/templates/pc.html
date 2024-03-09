@@ -2,7 +2,7 @@
 <html lang="ja">
   <html>
     <head>
-      <title>PC側角度取得</title>
+      <title>PC WebRTCホスト</title>
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <meta http-equiv="X-UA-Compatible" content="ie=edge" />
@@ -76,6 +76,7 @@
               case "disconnected":
               case "failed":
                 document.getElementById("angle_status").value = "disconnected";
+                location.reload();
                 break;
               case "closed":
                 document.getElementById("angle_status").value = "closed";
@@ -126,6 +127,7 @@
               case "failed":
                 document.getElementById("control_status").value =
                   "disconnected";
+                location.reload();
                 break;
               case "closed":
                 document.getElementById("control_status").value = "closed";

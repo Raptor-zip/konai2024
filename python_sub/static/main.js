@@ -438,10 +438,10 @@ function setupDataChannel(dc) {
     dc.onmessage = function (evt) {
         // console.log("Data channel message:", evt.data);
         let msg = evt.data;
-        console.log(typeof (evt.data));
+        // console.log(typeof (evt.data));
         received_json = JSON.parse(evt.data);
         received_json = JSON.parse(received_json);
-        console.log(typeof (received_json));
+        // console.log(typeof (received_json));
         console.log(received_json);
         update_info();
         // document.getElementById("received_json").innerText = evt.data;

@@ -299,7 +299,7 @@ def connect_serial():
                             f"\n\n{micon_name}とSerial接続試行時 /dev/ttyUSB{i} の権限追加に失敗 {e} \n\n", flush=True)
 
                     time.sleep(0.1)  # 0.2秒待って再試行
-        time.sleep(0.01)  # 無駄にCPUを使わないようにする
+        time.sleep(0.1)  # 無駄にCPUを使わないようにする
 
 
 def location(depth=0):
@@ -332,10 +332,6 @@ def recept_serial():
                     received_message = received_message[1:]  # 先頭の$を除く
                     received_message_array: list = [convert_value(
                         x) for x in received_message.split(",")]  # 文字列を,で区切ってstr、int、floatに変換して配列に入れる
-
-                    # micon_dictのkeyを修正する
-                    if each_micon_dict_key != received_message_array[0]:
-                        micon_dict["ESP32_1"], micon_dict["ESP32_2"] = micon_dict["ESP32_2"], micon_dict["ESP32_1"]
 
                     # 送受信できているか確認するよう 通常時は送らない
                     if received_message_array[1] == 0:
@@ -521,6 +517,8 @@ class MinimalSubscriber(Node):
 
     count_print: int = 0
 
+    send_ESP32_data:str = ""
+
     def __init__(self):
         global reception_json
         super().__init__('command_subscriber')
@@ -555,27 +553,45 @@ class MinimalSubscriber(Node):
             self.kd = float(_json["d"])
 
     def timer_callback_0033(self):
-        global wifi_ssid, battery_dict
+        global wifi_ssid, battery_dict,micon_dict
+
+        temp_micon_dict:dict = {"ESP32_1":{
+            "is_connected":micon_dict["ESP32_1"]["is_connected"],
+            "serial_id":micon_dict["ESP32_1"]["serial_id"]
+            },
+            "ESP32_2":{
+            "is_connected":micon_dict["ESP32_2"]["is_connected"],
+            "serial_id":micon_dict["ESP32_2"]["serial_id"]
+            },}
+
+
+        # temp_micon_dict:dict = micon_dict
+        # print(temp_micon_dict["ESP32_1"],flush=True)
+        # print(temp_micon_dict["ESP32_1"]["serial_obj"],flush=True)
+        # print(temp_micon_dict["ESP32_1"]["serial_obj"].port,flush=True)
+        # temp_micon_dict["ESP32_1"].pop("serial_obj")
+        # temp_micon_dict["ESP32_2"].pop("serial_obj")
 
         msg = String()
         send_json: dict = {
             "state": self.state,
             "ubuntu_ssid": wifi_ssid,
-            # "ubuntu_ip": ipget.ipget().ipaddr("wlp2s0"),
-            "ubuntu_ip": "aiueo",
-            "esp32_ip": "/dev/ttyUSB0",
+            "ubuntu_ip": ipget.ipget().ipaddr("wlp2s0"),
+            # "ubuntu_ip": "aiueo",
             # "battery_voltage": battery_dict["average_voltage"],
             # "battery_voltage": 6,
+            "battery":battery_dict,
+            "limited_switch":sensors.limit_switch,
+            # "micon":micon_dict,
+            "micon": temp_micon_dict,
             "wifi_signal_strength": 0,  # wifiのウブンツの強度を読み取る
             "DCmotor_speed": [int(speed) for speed in self.DCmotor_speed],
             "BLmotor_speed": [int(speed) for speed in self.BLmotor_speed],
             "servo_angle": int(self.servo_angle),
-            "servo_tmp": None,
-            "servo_cur": None,
-            "servo_deg": None,
             "angle_value": self.current_angle,
             "start_time": self.start_time,
-            "joy": self.joy_now
+            "joy": self.joy_now,
+            "serial_str":self.send_ESP32_data
         }
         msg.data = json.dumps(send_json) # エンコード
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -669,7 +685,7 @@ class MinimalSubscriber(Node):
                 self.BLmotor_speed = [0] * len(self.BLmotor_speed)
                 print("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",flush=True)
 
-        send_ESP32_data: list[int] = [
+        self.send_ESP32_data: list[int] = [
             int(self.state),  # 0 状態
             int(self.DCmotor_speed[0]),  # 1 メカナム
             int(self.DCmotor_speed[1]),  # 2 メカナム
@@ -697,9 +713,9 @@ class MinimalSubscriber(Node):
         micon_dict["ESP32_1"]["reboot"] = False
         micon_dict["ESP32_2"]["reboot"] = False
 
-        json_str: str = ','.join(map(str, send_ESP32_data)) + "\n"
+        json_str: str = ','.join(map(str, self.send_ESP32_data)) + "\n"
         if self.count_print % 15 == 0:  # 15回に1回実行
-            print(send_ESP32_data, flush=True)
+            print(self.send_ESP32_data, flush=True)
             pass
         self.count_print += 1
         for each_micon_dict_key, each_micon_dict_values in micon_dict.items():
