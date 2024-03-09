@@ -167,21 +167,17 @@ void Core0b_read_distance_sensors(void *args) {
 }
 
 void loop() {
-
   stopTime = micros();
   // Serial.println(stopTime - startTime);
   // Serial.println("us");
 
   startTime = micros();
 
-  // analogWrite(0, motor1_speed);
   if (Serial.available() > 0) {
     // read the incoming byte:
     startTime = micros();
     incomingStrings = Serial.readStringUntil('\n');
-    // Serial.print("I received: ");
-    // Serial.println(incomingStrings);
-    if (incomingStrings.length() > 3) {
+    if (incomingStrings.length() > 5) {
       const int maxElements = 15;  // 配列の最大要素数 多分ぴったりだとうまく行かない気がする
       int intArray[maxElements];   // 整数の配列
       int count = parseStringToArray(incomingStrings, intArray, maxElements);
@@ -229,7 +225,6 @@ void loop() {
       }
       // analogWrite(LED_BUILTIN, abs(intArray[4]));
     } else {
-      Serial.println("シリアル通信エラー105");
       Serial.println("$2,5," + String(incomingStrings));
     }
   }

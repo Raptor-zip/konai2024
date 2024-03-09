@@ -324,14 +324,18 @@ def recept_serial():
             try:
                 received_message: str = each_micon_dict_values["serial_obj"].readline(
                 ).decode('utf-8')[:-2]  # \r\nを消す
-                # print(
-                    # f"\n                                                {each_micon_dict_key}から:{received_message}\n", flush=True)
+                print(
+                    f"\n                                                {each_micon_dict_key}から:{received_message}\n", flush=True)
                 if received_message[0] == "$":
                     # print(
                     # f"\n                                       {each_micon_dict_key}からz$:{received_message}\n", flush=True)
                     received_message = received_message[1:]  # 先頭の$を除く
                     received_message_array: list = [convert_value(
                         x) for x in received_message.split(",")]  # 文字列を,で区切ってstr、int、floatに変換して配列に入れる
+
+                    # micon_dictのkeyを修正する
+                    if each_micon_dict_key != received_message_array[0]:
+                        micon_dict["ESP32_1"], micon_dict["ESP32_2"] = micon_dict["ESP32_2"], micon_dict["ESP32_1"]
 
                     # 送受信できているか確認するよう 通常時は送らない
                     if received_message_array[1] == 0:
@@ -371,7 +375,7 @@ def recept_serial():
                     # デコードエラーが来たときの処理
                     elif received_message_array[1] == 5:
                         print(
-                            f"\nデコードエラー:{received_message_array[2]}\n", flush=True)
+                            f"\nESP32_{received_message_array[0]}デコードエラー:{received_message_array[2]}\n", flush=True)
 
                     # リセット命令を受信したときの処理
                     elif received_message_array[1] == 6:
@@ -631,7 +635,7 @@ class MinimalSubscriber(Node):
             self.DCmotor_speed[:4] = [int(speed * 255 / max_motor_speed)
                                       for speed in self.DCmotor_speed[:4]]
 
-        self.DCmotor_speed[3] = min(255,self.DCmotor_speed[3] * 1.3)
+        self.DCmotor_speed[3] = max(min(255,self.DCmotor_speed[3] * 1.3),-255)
 
         #   装填サーボの処理
         if self.time_pushed_load_button != 0 and int(time.time() * 1000) - self.time_pushed_load_button > 700:

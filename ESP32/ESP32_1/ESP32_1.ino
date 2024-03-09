@@ -11,7 +11,7 @@
 
 const byte EN_PIN = 2;
 const long BAUDRATE = 115200;
-const int TIMEOUT = 15;  // 通信できてないか確認用にわざと遅めに設定
+const int TIMEOUT = 15;  // [ms] 遅いとタイムアウトするまで待たないといけないからやばい
 
 // サーボの設定
 IcsHardSerialClass krs(&Serial2, EN_PIN, BAUDRATE, TIMEOUT);  // インスタンス＋ENピン(2番ピン)およびUARTの指定
@@ -109,8 +109,8 @@ void Core0a_speaker(void *args) {
     delay(1);
     // 最初にtrueになるインデックスを見つける
     int firstTrueIndex = findFirstTrueIndex(state_boolean_array);
-    Serial.print("スピーカー");
-    Serial.println(firstTrueIndex);
+    // Serial.print("スピーカー");
+    // Serial.println(firstTrueIndex);
     switch (firstTrueIndex) {
       case 1:
         ledcWriteTone(0, red);
@@ -202,17 +202,15 @@ void loop() {
     // read the incoming byte:
     startTime = micros();
     incomingStrings = Serial.readStringUntil('\n');
-    // Serial.print("I received: ");
-    // Serial.println(incomingStrings);
     if (incomingStrings.length() > 5) {
-      const int maxElements = 10;  // 配列の最大要素数
+      const int maxElements = 15;  // 配列の最大要素数
       int intArray[maxElements];   // 整数の配列
       int count = parseStringToArray(incomingStrings, intArray, maxElements);
       last_receive_time = millis();
 
       // 再起動するかの処理
       if (intArray[11] == 1) {
-        Serial.println("$2,6");
+        Serial.println("$1,6");
         delay(200);
         ESP.restart();
       }
@@ -247,7 +245,7 @@ void loop() {
 
       state_boolean_array[201] = true;
 
-      krs.setPos(0, krs.degPos(int(intArray[9]))); // 対象の処理を実行
+      krs.setPos(0, krs.degPos(int(intArray[9]))); // 対象の処理を実行 ！！！タイムアウトさせとくと、Serial受信(Serial2じゃなくて)と干渉して、途中までしか受信できなくなった
       // サーボモーターの処理
       // if (shouldExecute) {
       //   unsigned long startTime_servo = millis(); // 処理開始時間を記録
@@ -258,7 +256,6 @@ void loop() {
       //   }
       // }
     } else {
-      Serial.println("シリアル通信エラー105");
       Serial.println("$1,5," + String(incomingStrings));
     }
   }

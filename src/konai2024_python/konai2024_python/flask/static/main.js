@@ -111,7 +111,7 @@ socket.on('json_receive', function (json) {
     if ("wifi_signal_strength" in json) {
         document.getElementById("wifi_signal_strength_value").innerText = json["wifi_signal_strength"];
     }
-    console.log(json["DCmotor_speed"][0]);
+    // console.log(json["DCmotor_speed"][0]);
     if ("DCmotor_speed" in json) {
         for (let i = 0; i < json["DCmotor_speed"].length; i++) {
             // document.getElementById("motor" + i + "_speed_char").innerText = Math.round(json["motor" + i + "_speed"]);
