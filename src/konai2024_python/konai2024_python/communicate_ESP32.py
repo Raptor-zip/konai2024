@@ -831,6 +831,10 @@ class MinimalSubscriber(Node):
             # 座標リセット
                 coordinates = [[1, 1], [2, 2]]
 
+        if self.joy_past["joy0"]["buttons"][10] == 0 and self.joy_now["joy0"]["buttons"][10] == 1:  # PS/homeボタン
+            # タイマースタート
+            self.start_time = time.time()
+
         # ダクテッドファン
         if self.joy_now["joy0"]["buttons"][13] == 1 and self.joy_past["joy0"]["buttons"][13] == 0:
             # ↑
@@ -910,6 +914,9 @@ class MinimalSubscriber(Node):
         else:
             self.DCmotor_speed[4] = 0
 
+        if self.joy_past["joy1"]["buttons"][10] == 0 and self.joy_now["joy1"]["buttons"][10] == 1:  # PS/homeボタン
+            # タイマースタート
+            self.start_time = time.time()
 
         self.joy_past["joy1"] = self.joy_now["joy1"]
 
