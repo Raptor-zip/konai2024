@@ -3,6 +3,8 @@
 メカナムホイール4輪
 バッテリー電圧取得
 ステータススピーカー
+
+内蔵LED使おうとするとサーボのENピンとかぶってバグる
 */
 #include <Wire.h>  // 現状I2C使ってないけどw
 #include <IcsHardSerialClass.h>
@@ -18,8 +20,6 @@ bool shouldExecute = true; // グローバル変数として処理を実行す�
 TaskHandle_t thp[3];  // マルチスレッドのタスクハンドル格納用
 
 String incomingStrings = "";  // for incoming serial data
-
-// #define LED_BUILTIN 2
 
 unsigned long last_receive_time = 0;           // 最後にESP32_2から受信したmillis
 unsigned long startTime, stopTime = 0;         // プログラムの遅延を確認するためにmicros
@@ -210,7 +210,10 @@ void loop() {
       int count = parseStringToArray(incomingStrings, intArray, maxElements);
       last_receive_time = millis();
 
-      if (intArray[12] == 1) {
+      // 再起動するかの処理
+      if (intArray[11] == 1) {
+        Serial.println("$2,6");
+        delay(200);
         ESP.restart();
       }
 

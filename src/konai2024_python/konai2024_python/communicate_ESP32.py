@@ -264,21 +264,16 @@ def connect_serial():
 
                         try:
                             # ポートがnoneじゃないか確認 絶対もっといい書き方ある！！
-                            # readlineだと消えちゃわないっすか？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？？
-                            temp: str = each_micon_dict_values["serial_obj"].readline(
-                            )
-                            each_micon_dict_values["serial_obj"].write("a".encode()) # なるべく短い文字を送って送信テスト。readlineにするとESP32側がloopで送信しないといけないから不適切
-                            print("271",flush=True)
+                            each_micon_dict_values["serial_obj"].write("a".encode()) # なるべく短い文字を送って送信テスト。readlineにするとESP32側がloopで送信しないといけないし、しないにしてもtimeoutまで待たないといけないから不適切
                             exclude_list.append(each_micon_dict_values["serial_id"])
                         except AttributeError as e: # 'NoneType' object has no attribute 'readline' このエラーのみを補足するようにして
-                            print(f"ポートがnoneのときに出るエラー。無視して次のポートを試行する:{e}", flush=True)
+                            # print(f"ポートがnoneのときに出るエラー。無視して次のポートを試行する:{e}", flush=True)
                             pass
                         except Exception as e:
-                            print(f"書き込みがバグるときに出るエラー。マイコンは存在する:{e}", flush=True)
+                            # print(f"書き込みがバグるときに出るエラー。マイコンは存在する:{e}", flush=True)
                             exclude_list.append(each_micon_dict_values["serial_id"])
                             pass
 
-                    print(exclude_list,flush=True)
                     if i in exclude_list:
                         i += 1  # iが除外リストに含まれている場合、iをインクリメントする
                     try:
@@ -338,12 +333,27 @@ def recept_serial():
                     received_message_array: list = [convert_value(
                         x) for x in received_message.split(",")]  # 文字列を,で区切ってstr、int、floatに変換して配列に入れる
 
+                    # 送受信できているか確認するよう 通常時は送らない
+                    if received_message_array[1] == 0:
+                        print(f"\n\n\n\n\n折り返された{received_message}\n\n\n\n\n",flush=True)
+
+                    # マイコンのsetupの開始と完了を検知
+                    elif received_message_array[1] == 1:
+                    #    micon_dictとかにstatusとしていれたい
+                        if received_message_array[2] == 1:
+                            print(f"\n\n\n\n\nESP32_{received_message_array[0]} setup開始\n\n\n\n\n",flush=True)
+                        elif received_message_array[2] == 2:
+                            print(f"\n\n\n\n\nESP32_{received_message_array[0]} setup完了\n\n\n\n\n",flush=True)
+                        else:
+                            print("\n\n\n\n\nエラー\n\n\n\n\n",flush=True)
+
                     # バッテリーの処理
-                    if received_message_array[1] == 2:  # 4セルバッテリー
+                    elif received_message_array[1] == 2:  # 4セルバッテリー
                         battery_dict["battery_4cell"]["voltage_history"].insert(
                             0, received_message_array[2])  # listの先頭にボルト追加
                         # 先頭から7個以降を削除 だいたい2秒の平均
                         battery_dict["battery_4cell"]["voltage_history"] = battery_dict["battery_4cell"]["voltage_history"][:6]
+
                     elif received_message_array[1] == 3:  # 3セルバッテリー
                         battery_dict["battery_3cell"]["voltage_history"].insert(
                             0, received_message_array[2])  # listの先頭にボルト追加
@@ -358,10 +368,6 @@ def recept_serial():
                             int(received_message_array[4]),
                             int(received_message_array[5])]
 
-                    # 回収機構のリミットスイッチが来たときの処理
-                    elif received_message_array[1] == 7:
-                        sensors.limit_switch = bool(received_message_array[2])
-
                     # デコードエラーが来たときの処理
                     elif received_message_array[1] == 5:
                         print(
@@ -371,6 +377,10 @@ def recept_serial():
                     elif received_message_array[1] == 6:
                         print(
                             f"\n\n\n\n\n\nESP32_{received_message_array[0]}をソフトウェアリセットします\n\n\n\n\n", flush=True)
+
+                    # 回収機構のリミットスイッチが来たときの処理
+                    elif received_message_array[1] == 7:
+                        sensors.limit_switch = bool(received_message_array[2])
 
                 else:
                     # デバッグ用メッセージ
@@ -615,13 +625,13 @@ class MinimalSubscriber(Node):
         self.DCmotor_speed[:4] = [speed + value for speed, value in zip(
             self.DCmotor_speed[:4], [front_left, front_right, rear_left, rear_right])]
 
-        self.DCmotor_speed[3] = self.DCmotor_speed[3] * 1.3
-
         # 255を超えた場合、比率を保ったまま255以下にする
         max_motor_speed = max(map(abs, self.DCmotor_speed[:4]))
         if max_motor_speed > 255:
             self.DCmotor_speed[:4] = [int(speed * 255 / max_motor_speed)
                                       for speed in self.DCmotor_speed[:4]]
+
+        self.DCmotor_speed[3] = min(255,self.DCmotor_speed[3] * 1.3)
 
         #   装填サーボの処理
         if self.time_pushed_load_button != 0 and int(time.time() * 1000) - self.time_pushed_load_button > 700:
@@ -684,7 +694,7 @@ class MinimalSubscriber(Node):
         micon_dict["ESP32_2"]["reboot"] = False
 
         json_str: str = ','.join(map(str, send_ESP32_data)) + "\n"
-        if self.count_print % 10 == 0:  # 10回に1回実行
+        if self.count_print % 15 == 0:  # 15回に1回実行
             print(send_ESP32_data, flush=True)
             pass
         self.count_print += 1
@@ -731,11 +741,11 @@ class MinimalSubscriber(Node):
 
         # Bボタン
         if self.joy_past["joy0"]["buttons"][0] == 0 and self.joy_now["joy0"]["buttons"][0] == 1:
-            self.BLmotor_speed[0] = min(1500,max(1000,self.BLmotor_speed[0] - 10))
+            self.BLmotor_speed[0] = 1100
 
         # Aボタン
         if self.joy_past["joy0"]["buttons"][1] == 0 and self.joy_now["joy0"]["buttons"][1] == 1:
-            self.BLmotor_speed[0] = max(1000,min(1500,self.BLmotor_speed[0] + 10))
+            self.BLmotor_speed[0] = 1500
 
         if self.joy_now["joy0"]["buttons"][2] == 1:  # Xボタン
             # 0°に旋回
@@ -821,16 +831,22 @@ class MinimalSubscriber(Node):
             # 座標リセット
                 coordinates = [[1, 1], [2, 2]]
 
+        # ダクテッドファン
+        if self.joy_now["joy0"]["buttons"][13] == 1 and self.joy_past["joy0"]["buttons"][13] == 0:
+            # ↑
+            self.BLmotor_speed[0] = max(1000,min(1500,self.BLmotor_speed[0] + 10))
+        elif self.joy_now["joy0"]["buttons"][14] == 1 and self.joy_past["joy0"]["buttons"][14] == 0:
+            # ↓
+            self.BLmotor_speed[0] = min(1500,max(1000,self.BLmotor_speed[0] - 10))
+
         # 回収モーター
-        # 左ジョイスティック 回収機構 展開
-        if self.joy_now["joy0"]["buttons"][14] == 1 and self.joy_now["joy0"]["buttons"][16] == 0:
+        if self.joy_now["joy0"]["buttons"][15] == 1:
+            # 左ジョイスティック 回収機構 展開
             self.DCmotor_speed[4] = -255
-        # 右ジョイスティック 回収機構 巻取り
-        if self.joy_now["joy0"]["buttons"][14] == 0 and self.joy_now["joy0"]["buttons"][16] == 1:
+        elif self.joy_now["joy0"]["buttons"][16] == 1:
+            # 右ジョイスティック 回収機構 巻取り
             self.DCmotor_speed[4] = 255
-        if self.joy_now["joy0"]["buttons"][14] == 0 and self.joy_now["joy0"]["buttons"][16] == 0:
-            self.DCmotor_speed[4] = 0
-        if self.joy_now["joy0"]["buttons"][14] == 1 and self.joy_now["joy0"]["buttons"][16] == 1:
+        else:
             self.DCmotor_speed[4] = 0
 
         if self.joy_past["joy0"]["buttons"][11] == 0 and self.joy_now["joy0"]["buttons"][11] == 1:

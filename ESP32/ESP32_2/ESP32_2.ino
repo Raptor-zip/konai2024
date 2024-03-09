@@ -54,6 +54,7 @@ void setup() {
   xTaskCreatePinnedToCore(Core0a_calibrate_ducted_fan, "Core0a_calibrate_ducted_fan", 4096, NULL, 1, &thp[0], 0);
   xTaskCreatePinnedToCore(Core0b_read_distance_sensors, "Core0b_read_distance_sensors", 4096, NULL, 2, &thp[1], 0);
   pinMode(LED_BUILTIN, OUTPUT);  // ESP32内蔵LED
+  digitalWrite(LED_BUILTIN, HIGH);
   pinMode(34, INPUT);
   pinMode(35, INPUT);
   pinMode(23, OUTPUT);    // ブラシレスのリレー
@@ -127,7 +128,7 @@ void Core0a_calibrate_ducted_fan(void *args) {  // スレッド
     if (calibrate_ducted_fan_enabled_now == true && calibrate_ducted_fan_enabled_old == false) {
       ducted_fan_1.attach(12);
       // ducted_fan_2.attach(13);
-      digitalWrite(LED_BUILTIN, LOW);
+      // digitalWrite(LED_BUILTIN, LOW);
       is_calibrating_ducted_fan = true;
       // Serial.println("ダクテッドファン キャリブレーション 最大");
       ducted_fan_1.writeMicroseconds(2000);
@@ -186,8 +187,10 @@ void loop() {
       int count = parseStringToArray(incomingStrings, intArray, maxElements);
       last_receive_time = millis();
 
-      // リスタートするかの処理
+      // 再起動するかの処理
       if (intArray[12] == 1) {
+        Serial.println("$2,6");
+        delay(200);
         ESP.restart();
       }
 
