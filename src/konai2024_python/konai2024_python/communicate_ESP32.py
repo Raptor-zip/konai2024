@@ -172,6 +172,7 @@ def main():
         # executor.submit(receive_udp_webserver)
         executor.submit(battery_alert)
         executor.submit(recept_serial)
+        executor.submit(recept_serial_2)
         executor.submit(connect_serial)
         # executor.submit(odometry)
         # executor.submit(graph)
@@ -320,80 +321,81 @@ def recept_serial():
             return value  # その他の場合は文字列として返す
 
     while True:
-        for each_micon_dict_key, each_micon_dict_values in micon_dict.items():
-            try:
-                received_message: str = each_micon_dict_values["serial_obj"].readline(
-                ).decode('utf-8')[:-2]  # \r\nを消す
-                print(
-                    f"\n                                                {each_micon_dict_key}から:{received_message}\n", flush=True)
-                if received_message[0] == "$":
-                    # print(
-                    # f"\n                                       {each_micon_dict_key}からz$:{received_message}\n", flush=True)
-                    received_message = received_message[1:]  # 先頭の$を除く
-                    received_message_array: list = [convert_value(
-                        x) for x in received_message.split(",")]  # 文字列を,で区切ってstr、int、floatに変換して配列に入れる
+        each_micon_dict_key = "ESP32_1"
+        each_micon_dict_values = micon_dict["ESP32_1"]
+        try:
+            received_message: str = each_micon_dict_values["serial_obj"].readline(
+            ).decode('utf-8')[:-2]  # \r\nを消す
+            print(
+                f"\n                                                {each_micon_dict_key}から:{received_message}\n", flush=True)
+            if received_message[0] == "$":
+                # print(
+                # f"\n                                       {each_micon_dict_key}からz$:{received_message}\n", flush=True)
+                received_message = received_message[1:]  # 先頭の$を除く
+                received_message_array: list = [convert_value(
+                    x) for x in received_message.split(",")]  # 文字列を,で区切ってstr、int、floatに変換して配列に入れる
 
-                    # 送受信できているか確認するよう 通常時は送らない
-                    if received_message_array[1] == 0:
-                        print(f"\n\n\n\n\n折り返された{received_message}\n\n\n\n\n",flush=True)
+                # 送受信できているか確認するよう 通常時は送らない
+                if received_message_array[1] == 0:
+                    print(f"\n\n\n\n\n折り返された{received_message}\n\n\n\n\n",flush=True)
 
-                    # マイコンのsetupの開始と完了を検知
-                    elif received_message_array[1] == 1:
-                    #    micon_dictとかにstatusとしていれたい
-                        if received_message_array[2] == 1:
-                            print(f"\n\n\n\n\nESP32_{received_message_array[0]} setup開始\n\n\n\n\n",flush=True)
-                        elif received_message_array[2] == 2:
-                            print(f"\n\n\n\n\nESP32_{received_message_array[0]} setup完了\n\n\n\n\n",flush=True)
-                        else:
-                            print("\n\n\n\n\nエラー\n\n\n\n\n",flush=True)
+                # マイコンのsetupの開始と完了を検知
+                elif received_message_array[1] == 1:
+                #    micon_dictとかにstatusとしていれたい
+                    if received_message_array[2] == 1:
+                        print(f"\n\n\n\n\nESP32_{received_message_array[0]} setup開始\n\n\n\n\n",flush=True)
+                    elif received_message_array[2] == 2:
+                        print(f"\n\n\n\n\nESP32_{received_message_array[0]} setup完了\n\n\n\n\n",flush=True)
+                    else:
+                        print("\n\n\n\n\nエラー\n\n\n\n\n",flush=True)
 
-                    # バッテリーの処理
-                    elif received_message_array[1] == 2:  # 4セルバッテリー
-                        battery_dict["battery_4cell"]["voltage_history"].insert(
-                            0, received_message_array[2])  # listの先頭にボルト追加
-                        # 先頭から7個以降を削除 だいたい2秒の平均
-                        battery_dict["battery_4cell"]["voltage_history"] = battery_dict["battery_4cell"]["voltage_history"][:6]
+                # バッテリーの処理
+                elif received_message_array[1] == 2:  # 4セルバッテリー
+                    battery_dict["battery_4cell"]["voltage_history"].insert(
+                        0, received_message_array[2])  # listの先頭にボルト追加
+                    # 先頭から7個以降を削除 だいたい2秒の平均
+                    battery_dict["battery_4cell"]["voltage_history"] = battery_dict["battery_4cell"]["voltage_history"][:6]
 
-                    elif received_message_array[1] == 3:  # 3セルバッテリー
-                        battery_dict["battery_3cell"]["voltage_history"].insert(
-                            0, received_message_array[2])  # listの先頭にボルト追加
-                        # 先頭から7個以降を削除 だいたい2秒の平均
-                        battery_dict["battery_3cell"]["voltage_history"] = battery_dict["battery_3cell"]["voltage_history"][:6]
+                elif received_message_array[1] == 3:  # 3セルバッテリー
+                    battery_dict["battery_3cell"]["voltage_history"].insert(
+                        0, received_message_array[2])  # listの先頭にボルト追加
+                    # 先頭から7個以降を削除 だいたい2秒の平均
+                    battery_dict["battery_3cell"]["voltage_history"] = battery_dict["battery_3cell"]["voltage_history"][:6]
 
-                    # 距離センサーのデータが来たときの処理
-                    elif received_message_array[1] == 4:
-                        sensors.distance_sensors = [
-                            int(received_message_array[2]),
-                            int(received_message_array[3]),
-                            int(received_message_array[4]),
-                            int(received_message_array[5])]
+                # 距離センサーのデータが来たときの処理
+                elif received_message_array[1] == 4:
+                    sensors.distance_sensors = [
+                        int(received_message_array[2]),
+                        int(received_message_array[3]),
+                        int(received_message_array[4]),
+                        int(received_message_array[5])]
 
-                    # デコードエラーが来たときの処理
-                    elif received_message_array[1] == 5:
-                        print(
-                            f"\nESP32_{received_message_array[0]}デコードエラー:{received_message_array[2]}\n", flush=True)
+                # デコードエラーが来たときの処理
+                elif received_message_array[1] == 5:
+                    print(
+                        f"\nESP32_{received_message_array[0]}デコードエラー:{received_message_array[2]}\n", flush=True)
 
-                    # リセット命令を受信したときの処理
-                    elif received_message_array[1] == 6:
-                        print(
-                            f"\n\n\n\n\n\nESP32_{received_message_array[0]}をソフトウェアリセットします\n\n\n\n\n", flush=True)
+                # リセット命令を受信したときの処理
+                elif received_message_array[1] == 6:
+                    print(
+                        f"\n\n\n\n\n\nESP32_{received_message_array[0]}をソフトウェアリセットします\n\n\n\n\n", flush=True)
 
-                    # 回収機構のリミットスイッチが来たときの処理
-                    elif received_message_array[1] == 7:
-                        sensors.limit_switch = bool(received_message_array[2])
+                # 回収機構のリミットスイッチが来たときの処理
+                elif received_message_array[1] == 7:
+                    sensors.limit_switch = bool(received_message_array[2])
 
-                else:
-                    # デバッグ用メッセージ
-                    # print(
-                    #     f"\n                                       {each_micon_dict_key}から!:{received_message}\n", flush=True)
-                    pass
-
-            except UnicodeDecodeError as e:
-                print(f"{each_micon_dict_key}から受信時のデコードエラー:{e}", flush=True)
-            except Exception as e:
-                # print(f"{each_micon_dict_key}への接続失敗 読み取り試行時:{e}", flush=True)
-                # each_micon_dict_values["is_connected"] = False
+            else:
+                # デバッグ用メッセージ
+                # print(
+                #     f"\n                                       {each_micon_dict_key}から!:{received_message}\n", flush=True)
                 pass
+
+        except UnicodeDecodeError as e:
+            print(f"{each_micon_dict_key}から受信時のデコードエラー:{e}", flush=True)
+        except Exception as e:
+            # print(f"{each_micon_dict_key}への接続失敗 読み取り試行時:{e}", flush=True)
+            # each_micon_dict_values["is_connected"] = False
+            pass
         # バッテリー保護
         # どこでこれを動作させるべきか考える！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
         if battery_dict != {}:
@@ -434,79 +436,80 @@ def recept_serial_2():
             return value  # その他の場合は文字列として返す
 
     while True:
-        for each_micon_dict_key, each_micon_dict_values in micon_dict.items():
-            try:
-                received_message: str = each_micon_dict_values["serial_obj"].readline(
-                ).decode('utf-8')[:-2]  # \r\nを消す
-                print(
-                    f"\n                                                {each_micon_dict_key}から:{received_message}\n", flush=True)
-                if received_message[0] == "$":
-                    # print(
-                    # f"\n                                       {each_micon_dict_key}からz$:{received_message}\n", flush=True)
-                    received_message = received_message[1:]  # 先頭の$を除く
-                    received_message_array: list = [convert_value(
-                        x) for x in received_message.split(",")]  # 文字列を,で区切ってstr、int、floatに変換して配列に入れる
+        each_micon_dict_key = "ESP32_2"
+        each_micon_dict_values = micon_dict["ESP32_2"]
+        try:
+            received_message: str = each_micon_dict_values["serial_obj"].readline(
+            ).decode('utf-8')[:-2]  # \r\nを消す
+            print(
+                f"\n                                                {each_micon_dict_key}から:{received_message}\n", flush=True)
+            if received_message[0] == "$":
+                # print(
+                # f"\n                                       {each_micon_dict_key}からz$:{received_message}\n", flush=True)
+                received_message = received_message[1:]  # 先頭の$を除く
+                received_message_array: list = [convert_value(
+                    x) for x in received_message.split(",")]  # 文字列を,で区切ってstr、int、floatに変換して配列に入れる
 
-                    # 送受信できているか確認するよう 通常時は送らない
-                    if received_message_array[1] == 0:
-                        print(f"\n\n\n\n\n折り返された{received_message}\n\n\n\n\n",flush=True)
+                # 送受信できているか確認するよう 通常時は送らない
+                if received_message_array[1] == 0:
+                    print(f"\n\n\n\n\n折り返された{received_message}\n\n\n\n\n",flush=True)
 
-                    # マイコンのsetupの開始と完了を検知
-                    elif received_message_array[1] == 1:
-                    #    micon_dictとかにstatusとしていれたい
-                        if received_message_array[2] == 1:
-                            print(f"\n\n\n\n\nESP32_{received_message_array[0]} setup開始\n\n\n\n\n",flush=True)
-                        elif received_message_array[2] == 2:
-                            print(f"\n\n\n\n\nESP32_{received_message_array[0]} setup完了\n\n\n\n\n",flush=True)
-                        else:
-                            print("\n\n\n\n\nエラー\n\n\n\n\n",flush=True)
+                # マイコンのsetupの開始と完了を検知
+                elif received_message_array[1] == 1:
+                #    micon_dictとかにstatusとしていれたい
+                    if received_message_array[2] == 1:
+                        print(f"\n\n\n\n\nESP32_{received_message_array[0]} setup開始\n\n\n\n\n",flush=True)
+                    elif received_message_array[2] == 2:
+                        print(f"\n\n\n\n\nESP32_{received_message_array[0]} setup完了\n\n\n\n\n",flush=True)
+                    else:
+                        print("\n\n\n\n\nエラー\n\n\n\n\n",flush=True)
 
-                    # バッテリーの処理
-                    elif received_message_array[1] == 2:  # 4セルバッテリー
-                        battery_dict["battery_4cell"]["voltage_history"].insert(
-                            0, received_message_array[2])  # listの先頭にボルト追加
-                        # 先頭から7個以降を削除 だいたい2秒の平均
-                        battery_dict["battery_4cell"]["voltage_history"] = battery_dict["battery_4cell"]["voltage_history"][:6]
+                # バッテリーの処理
+                elif received_message_array[1] == 2:  # 4セルバッテリー
+                    battery_dict["battery_4cell"]["voltage_history"].insert(
+                        0, received_message_array[2])  # listの先頭にボルト追加
+                    # 先頭から7個以降を削除 だいたい2秒の平均
+                    battery_dict["battery_4cell"]["voltage_history"] = battery_dict["battery_4cell"]["voltage_history"][:6]
 
-                    elif received_message_array[1] == 3:  # 3セルバッテリー
-                        battery_dict["battery_3cell"]["voltage_history"].insert(
-                            0, received_message_array[2])  # listの先頭にボルト追加
-                        # 先頭から7個以降を削除 だいたい2秒の平均
-                        battery_dict["battery_3cell"]["voltage_history"] = battery_dict["battery_3cell"]["voltage_history"][:6]
+                elif received_message_array[1] == 3:  # 3セルバッテリー
+                    battery_dict["battery_3cell"]["voltage_history"].insert(
+                        0, received_message_array[2])  # listの先頭にボルト追加
+                    # 先頭から7個以降を削除 だいたい2秒の平均
+                    battery_dict["battery_3cell"]["voltage_history"] = battery_dict["battery_3cell"]["voltage_history"][:6]
 
-                    # 距離センサーのデータが来たときの処理
-                    elif received_message_array[1] == 4:
-                        sensors.distance_sensors = [
-                            int(received_message_array[2]),
-                            int(received_message_array[3]),
-                            int(received_message_array[4]),
-                            int(received_message_array[5])]
+                # 距離センサーのデータが来たときの処理
+                elif received_message_array[1] == 4:
+                    sensors.distance_sensors = [
+                        int(received_message_array[2]),
+                        int(received_message_array[3]),
+                        int(received_message_array[4]),
+                        int(received_message_array[5])]
 
-                    # デコードエラーが来たときの処理
-                    elif received_message_array[1] == 5:
-                        print(
-                            f"\nESP32_{received_message_array[0]}デコードエラー:{received_message_array[2]}\n", flush=True)
+                # デコードエラーが来たときの処理
+                elif received_message_array[1] == 5:
+                    print(
+                        f"\nESP32_{received_message_array[0]}デコードエラー:{received_message_array[2]}\n", flush=True)
 
-                    # リセット命令を受信したときの処理
-                    elif received_message_array[1] == 6:
-                        print(
-                            f"\n\n\n\n\n\nESP32_{received_message_array[0]}をソフトウェアリセットします\n\n\n\n\n", flush=True)
+                # リセット命令を受信したときの処理
+                elif received_message_array[1] == 6:
+                    print(
+                        f"\n\n\n\n\n\nESP32_{received_message_array[0]}をソフトウェアリセットします\n\n\n\n\n", flush=True)
 
-                    # 回収機構のリミットスイッチが来たときの処理
-                    elif received_message_array[1] == 7:
-                        sensors.limit_switch = bool(received_message_array[2])
+                # 回収機構のリミットスイッチが来たときの処理
+                elif received_message_array[1] == 7:
+                    sensors.limit_switch = bool(received_message_array[2])
 
-                else:
-                    # デバッグ用メッセージ
-                    # print(
-                    #     f"\n                                       {each_micon_dict_key}から!:{received_message}\n", flush=True)
-                    pass
+            else:
+                # デバッグ用メッセージ
+                # print(
+                #     f"\n                                       {each_micon_dict_key}から!:{received_message}\n", flush=True)
+                pass
 
-            except UnicodeDecodeError as e:
-                print(f"{each_micon_dict_key}から受信時のデコードエラー:{e}", flush=True)
-            except Exception as e:
-                # print(f"{each_micon_dict_key}への接続失敗 読み取り試行時:{e}", flush=True)
-                # each_micon_dict_values["is_connected"] = False
+        except UnicodeDecodeError as e:
+            print(f"{each_micon_dict_key}から受信時のデコードエラー:{e}", flush=True)
+        except Exception as e:
+            # print(f"{each_micon_dict_key}への接続失敗 読み取り試行時:{e}", flush=True)
+            # each_micon_dict_values["is_connected"] = False
                 pass
         # バッテリー保護
         # どこでこれを動作させるべきか考える！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
