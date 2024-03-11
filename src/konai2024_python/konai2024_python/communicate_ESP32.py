@@ -421,6 +421,119 @@ def recept_serial():
         time.sleep(0.002)  # これないとCPU使用率が増える
 
 
+def recept_serial_2():
+    global micon_dict, serial_reception_text, battery_dict
+
+    # 自動的にstr、int、floatに変換する 動的型付けになっているので安全ではない
+    def convert_value(value):
+        if value.isdigit():  # 整数値の場合
+            return int(value)
+        try:
+            return float(value)  # 浮動小数点数の場合
+        except ValueError:
+            return value  # その他の場合は文字列として返す
+
+    while True:
+        for each_micon_dict_key, each_micon_dict_values in micon_dict.items():
+            try:
+                received_message: str = each_micon_dict_values["serial_obj"].readline(
+                ).decode('utf-8')[:-2]  # \r\nを消す
+                print(
+                    f"\n                                                {each_micon_dict_key}から:{received_message}\n", flush=True)
+                if received_message[0] == "$":
+                    # print(
+                    # f"\n                                       {each_micon_dict_key}からz$:{received_message}\n", flush=True)
+                    received_message = received_message[1:]  # 先頭の$を除く
+                    received_message_array: list = [convert_value(
+                        x) for x in received_message.split(",")]  # 文字列を,で区切ってstr、int、floatに変換して配列に入れる
+
+                    # 送受信できているか確認するよう 通常時は送らない
+                    if received_message_array[1] == 0:
+                        print(f"\n\n\n\n\n折り返された{received_message}\n\n\n\n\n",flush=True)
+
+                    # マイコンのsetupの開始と完了を検知
+                    elif received_message_array[1] == 1:
+                    #    micon_dictとかにstatusとしていれたい
+                        if received_message_array[2] == 1:
+                            print(f"\n\n\n\n\nESP32_{received_message_array[0]} setup開始\n\n\n\n\n",flush=True)
+                        elif received_message_array[2] == 2:
+                            print(f"\n\n\n\n\nESP32_{received_message_array[0]} setup完了\n\n\n\n\n",flush=True)
+                        else:
+                            print("\n\n\n\n\nエラー\n\n\n\n\n",flush=True)
+
+                    # バッテリーの処理
+                    elif received_message_array[1] == 2:  # 4セルバッテリー
+                        battery_dict["battery_4cell"]["voltage_history"].insert(
+                            0, received_message_array[2])  # listの先頭にボルト追加
+                        # 先頭から7個以降を削除 だいたい2秒の平均
+                        battery_dict["battery_4cell"]["voltage_history"] = battery_dict["battery_4cell"]["voltage_history"][:6]
+
+                    elif received_message_array[1] == 3:  # 3セルバッテリー
+                        battery_dict["battery_3cell"]["voltage_history"].insert(
+                            0, received_message_array[2])  # listの先頭にボルト追加
+                        # 先頭から7個以降を削除 だいたい2秒の平均
+                        battery_dict["battery_3cell"]["voltage_history"] = battery_dict["battery_3cell"]["voltage_history"][:6]
+
+                    # 距離センサーのデータが来たときの処理
+                    elif received_message_array[1] == 4:
+                        sensors.distance_sensors = [
+                            int(received_message_array[2]),
+                            int(received_message_array[3]),
+                            int(received_message_array[4]),
+                            int(received_message_array[5])]
+
+                    # デコードエラーが来たときの処理
+                    elif received_message_array[1] == 5:
+                        print(
+                            f"\nESP32_{received_message_array[0]}デコードエラー:{received_message_array[2]}\n", flush=True)
+
+                    # リセット命令を受信したときの処理
+                    elif received_message_array[1] == 6:
+                        print(
+                            f"\n\n\n\n\n\nESP32_{received_message_array[0]}をソフトウェアリセットします\n\n\n\n\n", flush=True)
+
+                    # 回収機構のリミットスイッチが来たときの処理
+                    elif received_message_array[1] == 7:
+                        sensors.limit_switch = bool(received_message_array[2])
+
+                else:
+                    # デバッグ用メッセージ
+                    # print(
+                    #     f"\n                                       {each_micon_dict_key}から!:{received_message}\n", flush=True)
+                    pass
+
+            except UnicodeDecodeError as e:
+                print(f"{each_micon_dict_key}から受信時のデコードエラー:{e}", flush=True)
+            except Exception as e:
+                # print(f"{each_micon_dict_key}への接続失敗 読み取り試行時:{e}", flush=True)
+                # each_micon_dict_values["is_connected"] = False
+                pass
+        # バッテリー保護
+        # どこでこれを動作させるべきか考える！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
+        if battery_dict != {}:
+            for each_battery in battery_dict.values():
+                if each_battery["voltage_history"] != []:
+                    each_battery["average_voltage"] = round(
+                        sum(each_battery["voltage_history"]) / len(each_battery["voltage_history"]), 2)
+                    cell_voltage: float = round(
+                        each_battery["average_voltage"] / each_battery["cell_number"], 2)
+
+                    if cell_voltage < 1:
+                        each_battery["state"] = "not_exit"
+                    elif cell_voltage < 3:
+                        each_battery["state"] = "much_low"
+                    elif cell_voltage < 3.5:
+                        each_battery["state"] = "low"
+                    elif cell_voltage < 4.3:
+                        each_battery["state"] = "normal"
+                    else:
+                        each_battery["state"] = "abnormality"
+
+        # serial_reception_text.insert(0, line)
+        # if len(serial_reception_text) > 100:
+        #     del serial_reception_text[-1]
+        time.sleep(0.002)  # これないとCPU使用率が増える
+
 def sp_udp_reception():
     global reception_json
     # UDPソケットの作成
@@ -564,10 +677,6 @@ class MinimalSubscriber(Node):
             "serial_id":micon_dict["ESP32_2"]["serial_id"]
             },}
 
-        battery_dict["battery_4cell"]["average_voltage"] = 10
-        battery_dict["battery_3cell"]["average_voltage"] = 10
-
-
         # temp_micon_dict:dict = micon_dict
         # print(temp_micon_dict["ESP32_1"],flush=True)
         # print(temp_micon_dict["ESP32_1"]["serial_obj"],flush=True)
@@ -654,7 +763,7 @@ class MinimalSubscriber(Node):
             self.DCmotor_speed[:4] = [int(speed * 255 / max_motor_speed)
                                       for speed in self.DCmotor_speed[:4]]
 
-        self.DCmotor_speed[3] = max(min(255,self.DCmotor_speed[3] * 1.3),-255)
+        self.DCmotor_speed[3] = max(min(255,self.DCmotor_speed[3] * 1.5),-255)
 
         #   装填サーボの処理
         if self.time_pushed_load_button != 0 and int(time.time() * 1000) - self.time_pushed_load_button > 700:
@@ -920,20 +1029,20 @@ class MinimalSubscriber(Node):
             self.servo_angle = 45
 
         # ダクテッドファン
-        if self.joy_now["joy1"]["buttons"][13] == 1 and self.joy_past["joy1"]["buttons"][13] == 0:
-            # ↑
-            self.BLmotor_speed[0] = max(1000,min(1500,self.BLmotor_speed[0] + 10))
-        elif self.joy_now["joy1"]["buttons"][14] == 1 and self.joy_past["joy1"]["buttons"][14] == 0:
-            # ↓
-            self.BLmotor_speed[0] = min(1500,max(1000,self.BLmotor_speed[0] - 10))
+        # if self.joy_now["joy1"]["buttons"][13] == 1 and self.joy_past["joy1"]["buttons"][13] == 0:
+        #     # ↑
+        #     self.BLmotor_speed[0] = max(1000,min(1500,self.BLmotor_speed[0] + 10))
+        # elif self.joy_now["joy1"]["buttons"][14] == 1 and self.joy_past["joy1"]["buttons"][14] == 0:
+        #     # ↓
+        #     self.BLmotor_speed[0] = min(1500,max(1000,self.BLmotor_speed[0] - 10))
 
         # 回収モーター
         if self.joy_now["joy1"]["buttons"][15] == 1:
             # 左ジョイスティック 回収機構 展開
-            self.DCmotor_speed[4] = -200
+            self.DCmotor_speed[4] = -255
         elif self.joy_now["joy1"]["buttons"][16] == 1:
             # 右ジョイスティック 回収機構 巻取り
-            self.DCmotor_speed[4] = 200
+            self.DCmotor_speed[4] = 255
         else:
             self.DCmotor_speed[4] = 0
 

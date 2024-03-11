@@ -84,8 +84,9 @@ void setup() {
 
   // サーボモーターの設定
   krs.begin();  // サーボモータの通信初期設定
-  krs.setStrc(0, 60);
-  krs.setSpd(0, 80);  // MAX127
+  delay(1000);
+  // krs.setStrc(0, 60);
+  krs.setSpd(0, 10);  // MAX127
 
   Serial.println("$1,1.2");
 }
