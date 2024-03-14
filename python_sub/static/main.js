@@ -350,7 +350,7 @@ window.onload = function () {
 
 socket.on("send_control_pc_localSDP", function (json) {
     console.log(json);
-    document.getElementById("remoteSDP").value = json["pc_localSDP"];
+    document.getElementById("remoteSDP").value = json;
     setRemoteSdp();
 });
 

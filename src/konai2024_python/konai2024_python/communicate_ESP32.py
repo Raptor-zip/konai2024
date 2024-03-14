@@ -16,7 +16,7 @@ import time
 import serial
 import ipget  # IPアドレス取得用
 import socket  # UDP通信用
-import asyncio # 非同期関数を実行するため
+import asyncio  # 非同期関数を実行するため
 import math
 import evdev
 from matplotlib import pyplot as plt  # 描画用ライブラリ
@@ -26,41 +26,42 @@ from matplotlib import pyplot as plt  # 描画用ライブラリ
 
 class sensors:
     distance_sensors: list[int] = [-1, -1, -1, -1]
-    limit_switch:bool = False
+    limit_switch: bool = False
+
 
 reception_json: dict = {
     "raw_angle": 0
 }
 
-class controller:
-    joy0:dict = {}
 
-    def convert_PS3_to_WiiU(self,joy_before: dict) -> dict:
+class controller:
+    joy0: dict = {}
+
+    def convert_PS3_to_WiiU(self, joy_before: dict) -> dict:
         joy_after: dict = {"buttons": joy_before["buttons"],
-                        "axes": [joy_before["axes"][0], joy_before["axes"][1], joy_before["axes"][3], joy_before["axes"][4]]}
+                           "axes": [joy_before["axes"][0], joy_before["axes"][1], joy_before["axes"][3], joy_before["axes"][4]]}
         return joy_after
 
-
-    def convert_PS4_to_WiiU(self,joy_before: dict):
-        joy_after: dict = {"axes":[joy_before["axes"][0], joy_before["axes"][1], joy_before["axes"][2], joy_before["axes"][3]],
-                        "buttons": [
-                            joy_before["buttons"][0],
-                            joy_before["buttons"][1],
-                            joy_before["buttons"][3],
-                            joy_before["buttons"][2],
-                            joy_before["buttons"][9],
-                            joy_before["buttons"][10],
-                            joy_before["axes"][4],
-                            joy_before["axes"][5],
-                            joy_before["buttons"][4],
-                            joy_before["buttons"][6],
-                            joy_before["buttons"][5],
-                            joy_before["buttons"][7],
-                            joy_before["buttons"][8],
-                            joy_before["buttons"][11],
-                            joy_before["buttons"][12],
-                            joy_before["buttons"][13],
-                            joy_before["buttons"][14]]}
+    def convert_PS4_to_WiiU(self, joy_before: dict):
+        joy_after: dict = {"axes": [joy_before["axes"][0], joy_before["axes"][1], joy_before["axes"][2], joy_before["axes"][3]],
+                           "buttons": [
+            joy_before["buttons"][0],
+            joy_before["buttons"][1],
+            joy_before["buttons"][3],
+            joy_before["buttons"][2],
+            joy_before["buttons"][9],
+            joy_before["buttons"][10],
+            joy_before["axes"][4],
+            joy_before["axes"][5],
+            joy_before["buttons"][4],
+            joy_before["buttons"][6],
+            joy_before["buttons"][5],
+            joy_before["buttons"][7],
+            joy_before["buttons"][8],
+            joy_before["buttons"][11],
+            joy_before["buttons"][12],
+            joy_before["buttons"][13],
+            joy_before["buttons"][14]]}
         # リマッピングする
         # print(joy_before,flush=True)
 
@@ -80,9 +81,9 @@ class controller:
         # print(joy_after,flush=True)
         return joy_after
 
-
-    def convert_PS4_other_to_WiiU(self,joy_before: dict):
-        joy_after: dict = {"buttons": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}
+    def convert_PS4_other_to_WiiU(self, joy_before: dict):
+        joy_after: dict = {"buttons": [
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}
         # リマッピングする
         # print(joy_before,flush=True)
 
@@ -109,11 +110,12 @@ class controller:
             joy_after["buttons"][16] = 0
 
         joy_after.setdefault("axes", [joy_before["axes"][0], joy_before["axes"]
-                            [1], joy_before["axes"][3], joy_before["axes"][4]])
+                                      [1], joy_before["axes"][3], joy_before["axes"][4]])
         # L2 [2]
         # R2 [5]
         # print(joy_after,flush=True)
         return joy_after
+
 
 micon_dict: dict[str, dict] = {
     "ESP32_1": {"is_connected": False,  # パソコンと接続しているか
@@ -170,7 +172,8 @@ def main():
     with ThreadPoolExecutor(max_workers=6) as executor:
         # executor.submit(sp_udp_reception)
         # executor.submit(receive_udp_webserver)
-        executor.submit(battery_alert)
+        executor.submit(receive_udp_webrtc)
+        # executor.submit(battery_alert)
         executor.submit(recept_serial)
         executor.submit(recept_serial_2)
         executor.submit(connect_serial)
@@ -265,14 +268,18 @@ def connect_serial():
 
                         try:
                             # ポートがnoneじゃないか確認 絶対もっといい書き方ある！！
-                            each_micon_dict_values["serial_obj"].write("a".encode()) # なるべく短い文字を送って送信テスト。readlineにするとESP32側がloopで送信しないといけないし、しないにしてもtimeoutまで待たないといけないから不適切
-                            exclude_list.append(each_micon_dict_values["serial_id"])
-                        except AttributeError as e: # 'NoneType' object has no attribute 'readline' このエラーのみを補足するようにして
+                            # なるべく短い文字を送って送信テスト。readlineにするとESP32側がloopで送信しないといけないし、しないにしてもtimeoutまで待たないといけないから不適切
+                            each_micon_dict_values["serial_obj"].write(
+                                "a".encode())
+                            exclude_list.append(
+                                each_micon_dict_values["serial_id"])
+                        except AttributeError as e:  # 'NoneType' object has no attribute 'readline' このエラーのみを補足するようにして
                             # print(f"ポートがnoneのときに出るエラー。無視して次のポートを試行する:{e}", flush=True)
                             pass
                         except Exception as e:
                             # print(f"書き込みがバグるときに出るエラー。マイコンは存在する:{e}", flush=True)
-                            exclude_list.append(each_micon_dict_values["serial_id"])
+                            exclude_list.append(
+                                each_micon_dict_values["serial_id"])
                             pass
 
                     if i in exclude_list:
@@ -337,17 +344,20 @@ def recept_serial():
 
                 # 送受信できているか確認するよう 通常時は送らない
                 if received_message_array[1] == 0:
-                    print(f"\n\n\n\n\n折り返された{received_message}\n\n\n\n\n",flush=True)
+                    print(
+                        f"\n\n\n\n\n折り返された{received_message}\n\n\n\n\n", flush=True)
 
                 # マイコンのsetupの開始と完了を検知
                 elif received_message_array[1] == 1:
-                #    micon_dictとかにstatusとしていれたい
+                    #    micon_dictとかにstatusとしていれたい
                     if received_message_array[2] == 1:
-                        print(f"\n\n\n\n\nESP32_{received_message_array[0]} setup開始\n\n\n\n\n",flush=True)
+                        print(
+                            f"\n\n\n\n\nESP32_{received_message_array[0]} setup開始\n\n\n\n\n", flush=True)
                     elif received_message_array[2] == 2:
-                        print(f"\n\n\n\n\nESP32_{received_message_array[0]} setup完了\n\n\n\n\n",flush=True)
+                        print(
+                            f"\n\n\n\n\nESP32_{received_message_array[0]} setup完了\n\n\n\n\n", flush=True)
                     else:
-                        print("\n\n\n\n\nエラー\n\n\n\n\n",flush=True)
+                        print("\n\n\n\n\nエラー\n\n\n\n\n", flush=True)
 
                 # バッテリーの処理
                 elif received_message_array[1] == 2:  # 4セルバッテリー
@@ -452,17 +462,20 @@ def recept_serial_2():
 
                 # 送受信できているか確認するよう 通常時は送らない
                 if received_message_array[1] == 0:
-                    print(f"\n\n\n\n\n折り返された{received_message}\n\n\n\n\n",flush=True)
+                    print(
+                        f"\n\n\n\n\n折り返された{received_message}\n\n\n\n\n", flush=True)
 
                 # マイコンのsetupの開始と完了を検知
                 elif received_message_array[1] == 1:
-                #    micon_dictとかにstatusとしていれたい
+                    #    micon_dictとかにstatusとしていれたい
                     if received_message_array[2] == 1:
-                        print(f"\n\n\n\n\nESP32_{received_message_array[0]} setup開始\n\n\n\n\n",flush=True)
+                        print(
+                            f"\n\n\n\n\nESP32_{received_message_array[0]} setup開始\n\n\n\n\n", flush=True)
                     elif received_message_array[2] == 2:
-                        print(f"\n\n\n\n\nESP32_{received_message_array[0]} setup完了\n\n\n\n\n",flush=True)
+                        print(
+                            f"\n\n\n\n\nESP32_{received_message_array[0]} setup完了\n\n\n\n\n", flush=True)
                     else:
-                        print("\n\n\n\n\nエラー\n\n\n\n\n",flush=True)
+                        print("\n\n\n\n\nエラー\n\n\n\n\n", flush=True)
 
                 # バッテリーの処理
                 elif received_message_array[1] == 2:  # 4セルバッテリー
@@ -510,7 +523,7 @@ def recept_serial_2():
         except Exception as e:
             # print(f"{each_micon_dict_key}への接続失敗 読み取り試行時:{e}", flush=True)
             # each_micon_dict_values["is_connected"] = False
-                pass
+            pass
         # バッテリー保護
         # どこでこれを動作させるべきか考える！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
         if battery_dict != {}:
@@ -537,21 +550,22 @@ def recept_serial_2():
         #     del serial_reception_text[-1]
         time.sleep(0.002)  # これないとCPU使用率が増える
 
-def sp_udp_reception():
-    global reception_json
-    # UDPソケットの作成
-    sp_udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sp_udp_socket.bind(('127.0.0.1', 5010))
-    sp_udp_socket.settimeout(0.1)  # タイムアウトを0.1秒に設定
-    while True:
-        try:
-            message, cli_addr = sp_udp_socket.recvfrom(1024)
-            # print(f"Received: {message.decode('utf-8')}", flush=True)
-            reception_json_temp = json.loads(message.decode('utf-8'))
-            reception_json.update(reception_json_temp)
-        except Exception as e:
-            print(
-                f"スマホ からの受信に失敗: {e}", flush=True)
+# def sp_udp_reception():
+#     global reception_json
+#     # UDPソケットの作成
+#     sp_udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+#     sp_udp_socket.bind(('127.0.0.1', 5010))
+#     sp_udp_socket.settimeout(0.1)  # タイムアウトを0.1秒に設定
+#     while True:
+#         try:
+#             message, cli_addr = sp_udp_socket.recvfrom(1024)
+#             # print(f"Received: {message.decode('utf-8')}", flush=True)
+#             reception_json_temp = json.loads(message.decode('utf-8'))
+#             reception_json.update(reception_json_temp)
+#         except Exception as e:
+#             print(
+#                 f"スマホ からの受信に失敗: {e}", flush=True)
+
 
 def receive_udp_webserver():
     global reception_json
@@ -569,17 +583,43 @@ def receive_udp_webserver():
             print(
                 f"\n\n\n\n\n\n\n    Webserver からの受信に失敗: {e}\n\n\n\n\n\n\n", flush=True)
 
-def battery_alert():
+
+def receive_udp_webrtc():
     global reception_json
-    temp = 0
+    # UDPソケットの作成
+    udp_socket_webserver = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    udp_socket_webserver.bind(('127.0.0.1', 5007))
+    udp_socket_webserver.settimeout(1.0)  # タイムアウトを1秒に設定
     while True:
-        if reception_json["battery_voltage"] < 10 and reception_json["battery_voltage"] > 5:
-            temp += 1
-            if temp > 3:
+        try:
+            message, cli_addr = udp_socket_webserver.recvfrom(1024)
+            # print(f"Received: {message.decode('utf-8')}", flush=True)
+            reception_json_temp = json.loads(message.decode('utf-8'))
+            reception_json.update({"raw_angle": int(reception_json_temp)})
+            print(reception_json, flush=True)
+        except Exception as e:
+            print(
+                f"\n\n\n\n\n\n\n    webrtc からの受信に失敗: {e}\n\n\n\n\n\n\n", flush=True)
+
+
+def battery_alert():
+    global battery_dict
+    while True:
+        for each_battery_dict_key, each_battery_dict_value in battery_dict.items():
+            if each_battery_dict_value["state"] == "low":
                 playsound.playsound("battery_alert.mp3")
-        else:
-            temp = 0
+
+            elif each_battery_dict_value["state"] == "much_low":
+                # 音声読み上げでやりたいけど妥協
+                playsound.playsound("battery_alert.mp3")
+            elif each_battery_dict_value["state"] == "abnormality":
+                playsound.playsound("battery_alert.mp3")
+# 1:low
+# 2:much_low
+# 3:not_exit
+# 4:abnormality
         time.sleep(0.2)  # 無駄にCPUを使わないようにする
+
 
 def ros(args=None):
     rclpy.init(args=args)
@@ -598,12 +638,12 @@ class MinimalSubscriber(Node):
     BLmotor_speed: list[int] = [0, 0]  # 射出用ダクテッドファンと仰角調整用GM6020
     servo_angle: int = 0
     is_run_ducted_fan: bool = False
-    is_slow_speed:bool = False
+    is_slow_speed: bool = False
 
-    time_pushed_load_button:int = 0 # 装填ボタンが押された時間
+    time_pushed_load_button: int = 0  # 装填ボタンが押された時間
 
     # Initialize PID parameters dict型にしたい！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
-    kp: float = 0.02  # Proportional gain 基本要素として必須。これをベースに、必要に応じて他の項を追加する
+    kp: float = 0.01  # Proportional gain 基本要素として必須。これをベースに、必要に応じて他の項を追加する
     ki: float = 0  # Integral gain 出力が目標値に留まるのを邪魔する、何らかの作用がシステムに働く場合に追加する
     kd: float = 0  # Derivative gain システムに振動を抑制する要素が十分にない場合に追加する
 
@@ -633,7 +673,7 @@ class MinimalSubscriber(Node):
 
     count_print: int = 0
 
-    send_ESP32_data:str = ""
+    send_ESP32_data: str = ""
 
     def __init__(self):
         global reception_json
@@ -669,16 +709,16 @@ class MinimalSubscriber(Node):
             self.kd = float(_json["d"])
 
     def timer_callback_0033(self):
-        global wifi_ssid, battery_dict,micon_dict
+        global wifi_ssid, battery_dict, micon_dict
 
-        temp_micon_dict:dict = {"ESP32_1":{
-            "is_connected":micon_dict["ESP32_1"]["is_connected"],
-            "serial_id":micon_dict["ESP32_1"]["serial_id"]
-            },
-            "ESP32_2":{
-            "is_connected":micon_dict["ESP32_2"]["is_connected"],
-            "serial_id":micon_dict["ESP32_2"]["serial_id"]
-            },}
+        temp_micon_dict: dict = {"ESP32_1": {
+            "is_connected": micon_dict["ESP32_1"]["is_connected"],
+            "serial_id": micon_dict["ESP32_1"]["serial_id"]
+        },
+            "ESP32_2": {
+            "is_connected": micon_dict["ESP32_2"]["is_connected"],
+            "serial_id": micon_dict["ESP32_2"]["serial_id"]
+        }, }
 
         # temp_micon_dict:dict = micon_dict
         # print(temp_micon_dict["ESP32_1"],flush=True)
@@ -695,8 +735,8 @@ class MinimalSubscriber(Node):
             # "ubuntu_ip": "aiueo",
             # "battery_voltage": battery_dict["average_voltage"],
             # "battery_voltage": 6,
-            "battery":battery_dict,
-            "limited_switch":sensors.limit_switch,
+            "battery": battery_dict,
+            "limited_switch": sensors.limit_switch,
             # "micon":micon_dict,
             "micon": temp_micon_dict,
             "wifi_signal_strength": 0,  # wifiのウブンツの強度を読み取る
@@ -706,9 +746,9 @@ class MinimalSubscriber(Node):
             "angle_value": self.current_angle,
             "start_time": self.start_time,
             "joy": self.joy_now,
-            "serial_str":self.send_ESP32_data
+            "serial_str": self.send_ESP32_data
         }
-        msg.data = json.dumps(send_json) # エンコード
+        msg.data = json.dumps(send_json)  # エンコード
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.sendto(json.dumps(msg.data).encode(
             'utf-8'), ('127.0.0.1', 5002))
@@ -766,7 +806,8 @@ class MinimalSubscriber(Node):
             self.DCmotor_speed[:4] = [int(speed * 255 / max_motor_speed)
                                       for speed in self.DCmotor_speed[:4]]
 
-        self.DCmotor_speed[3] = max(min(255,self.DCmotor_speed[3] * 1.5),-255)
+        self.DCmotor_speed[3] = max(
+            min(255, self.DCmotor_speed[3] * 1.5), -255)
 
         #   装填サーボの処理
         if self.time_pushed_load_button != 0 and int(time.time() * 1000) - self.time_pushed_load_button > 700:
@@ -798,7 +839,8 @@ class MinimalSubscriber(Node):
                 # 3セルで動かすものは ブラシレスモーター
                 self.is_run_ducted_fan = False  # リレーを非通電状態に
                 self.BLmotor_speed = [0] * len(self.BLmotor_speed)
-                print("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",flush=True)
+                print(
+                    "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n", flush=True)
 
         self.send_ESP32_data: list[int] = [
             int(self.state),  # 0 状態
@@ -852,11 +894,14 @@ class MinimalSubscriber(Node):
              "buttons": list(joy.buttons)}
         })
         if len(self.joy_now["joy0"]["axes"]) == 6 and len(self.joy_now["joy0"]["buttons"]) == 17:
-            self.joy_now["joy0"] = controller.convert_PS3_to_WiiU(self,self.joy_now["joy0"])
+            self.joy_now["joy0"] = controller.convert_PS3_to_WiiU(
+                self, self.joy_now["joy0"])
         elif len(self.joy_now["joy0"]["axes"]) == 6 and len(self.joy_now["joy0"]["buttons"]) == 16:
-            self.joy_now["joy0"] = controller.convert_PS4_to_WiiU(self,self.joy_now["joy0"])
+            self.joy_now["joy0"] = controller.convert_PS4_to_WiiU(
+                self, self.joy_now["joy0"])
         elif len(self.joy_now["joy0"]["axes"]) == 8 and len(self.joy_now["joy0"]["buttons"]) == 13:
-            self.joy_now["joy0"] = controller.convert_PS4_other_to_WiiU(self,self.joy_now["joy0"])
+            self.joy_now["joy0"] = controller.convert_PS4_other_to_WiiU(
+                self, self.joy_now["joy0"])
         # 旋回が逆になるから無理やり合わせる
         self.joy_now["joy0"]["axes"][0] = self.joy_now["joy0"]["axes"][0] * -1
         # 各axesが0.3未満の場合に0に設定する
@@ -937,26 +982,26 @@ class MinimalSubscriber(Node):
         # self.servo_angle = int(self.joy_now["joy0"]["axes"][1]*174)
         # ZR装填 サーボ初期位置
         if self.joy_now["joy0"]["buttons"][7] == 1:
-            self.time_pushed_load_button = int(time.time() * 1000) # エポックミリ秒
+            self.time_pushed_load_button = int(time.time() * 1000)  # エポックミリ秒
             self.servo_angle = 45
 
         if self.joy_now["joy0"]["buttons"][8] == 1:
             micon_dict = {
-    "ESP32_1": {"is_connected": False,  # パソコンと接続しているか
-                "number": 1,  # マイコンからデータ来るときに
-                "serial_id": None,
-                "serial_obj": None,
-                "reboot": False},
-    "ESP32_2": {"is_connected": False,  # パソコンと接続しているか
-                "number": 2,  # マイコンからデータ来るときに やっぱ消す！！！！！！！！！！！！！！！！！！！！！！！！！！
-                "serial_id": None,
-                "serial_obj": None,
-                "reboot": False}}
+                "ESP32_1": {"is_connected": False,  # パソコンと接続しているか
+                            "number": 1,  # マイコンからデータ来るときに
+                            "serial_id": None,
+                            "serial_obj": None,
+                            "reboot": False},
+                "ESP32_2": {"is_connected": False,  # パソコンと接続しているか
+                            "number": 2,  # マイコンからデータ来るときに やっぱ消す！！！！！！！！！！！！！！！！！！！！！！！！！！
+                            "serial_id": None,
+                            "serial_obj": None,
+                            "reboot": False}}
 
         # リセット
         # + / options
         if self.joy_now["joy0"]["buttons"][9] == 1:
-        # if self.joy_now["joy0"]["buttons"][4] == 1 and self.joy_now["joy0"]["buttons"][5] == 1:
+            # if self.joy_now["joy0"]["buttons"][4] == 1 and self.joy_now["joy0"]["buttons"][5] == 1:
             # 角度リセット
             if reception_json["raw_angle"] < 0:
                 # マイナスのとき
@@ -973,10 +1018,12 @@ class MinimalSubscriber(Node):
         # ダクテッドファン
         if self.joy_now["joy0"]["buttons"][13] == 1 and self.joy_past["joy0"]["buttons"][13] == 0:
             # ↑
-            self.BLmotor_speed[0] = max(1000,min(1500,self.BLmotor_speed[0] + 10))
+            self.BLmotor_speed[0] = max(
+                1000, min(1500, self.BLmotor_speed[0] + 10))
         elif self.joy_now["joy0"]["buttons"][14] == 1 and self.joy_past["joy0"]["buttons"][14] == 0:
             # ↓
-            self.BLmotor_speed[0] = min(1500,max(1000,self.BLmotor_speed[0] - 10))
+            self.BLmotor_speed[0] = min(
+                1500, max(1000, self.BLmotor_speed[0] - 10))
 
         # 回収モーター
         # if self.joy_now["joy0"]["buttons"][15] == 1:
@@ -998,7 +1045,6 @@ class MinimalSubscriber(Node):
             micon_dict["ESP32_2"]["reboot"] = True
             # 送信後に False に戻す
 
-
         self.joy_past["joy0"] = self.joy_now["joy0"]
 
     def joy1_listener_callback(self, joy):
@@ -1009,11 +1055,14 @@ class MinimalSubscriber(Node):
              "buttons": list(joy.buttons)}
         })
         if len(self.joy_now["joy1"]["axes"]) == 6 and len(self.joy_now["joy1"]["buttons"]) == 17:
-            self.joy_now["joy1"] = controller.convert_PS3_to_WiiU(self,self.joy_now["joy1"])
+            self.joy_now["joy1"] = controller.convert_PS3_to_WiiU(
+                self, self.joy_now["joy1"])
         elif len(self.joy_now["joy1"]["axes"]) == 6 and len(self.joy_now["joy1"]["buttons"]) == 16:
-            self.joy_now["joy1"] = controller.convert_PS4_to_WiiU(self,self.joy_now["joy1"])
+            self.joy_now["joy1"] = controller.convert_PS4_to_WiiU(
+                self, self.joy_now["joy1"])
         elif len(self.joy_now["joy1"]["axes"]) == 8 and len(self.joy_now["joy1"]["buttons"]) == 13:
-            self.joy_now["joy1"] = controller.convert_PS4_other_to_WiiU(self,self.joy_now["joy1"])
+            self.joy_now["joy1"] = controller.convert_PS4_other_to_WiiU(
+                self, self.joy_now["joy1"])
         # 旋回が逆になるから無理やり合わせる
         self.joy_now["joy1"]["axes"][0] = self.joy_now["joy1"]["axes"][0] * -1
         # 各axesが0.3未満の場合に0に設定する
@@ -1028,7 +1077,7 @@ class MinimalSubscriber(Node):
         # サーボの制御
         # R装填 サーボ初期位置
         if self.joy_now["joy1"]["buttons"][5] == 1:
-            self.time_pushed_load_button = int(time.time() * 1000) # エポックミリ秒
+            self.time_pushed_load_button = int(time.time() * 1000)  # エポックミリ秒
             self.servo_angle = 45
 
         # ダクテッドファン

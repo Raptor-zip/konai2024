@@ -11,6 +11,9 @@
         integrity="sha384-Gr6Lu2Ajx28mzwyVR8CFkULdCU7kMlZ9UthllibdOSo6qAiN+yXNHqtgdTvFXMT4"
         crossorigin="anonymous"
       ></script>
+      <link rel=stylesheet type=text/css href="{{ url_for('static',
+      filename='main.css') }}">
+      <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}" />
       <script type="text/javascript">
         let state = {
           raw_angle: 0,
@@ -70,12 +73,16 @@
         // ページ読み込み時に呼び出す関数
         window.onload = function () {
           document.getElementById("status").innerText = "closed";
-          startPeerConnection(); // STARTボタンを押す
+          // startPeerConnection(); // STARTボタンを押す
         };
 
         socket.on("send_angle_pc_localSDP", function (json) {
           console.log(json);
-          document.getElementById("remoteSDP").value = json["pc_localSDP"];
+          if (typeof json == "string") {
+            document.getElementById("remoteSDP").value = json;
+          } else {
+            document.getElementById("remoteSDP").value = json["pc_localSDP"];
+          }
           setRemoteSdp();
         });
 
@@ -96,8 +103,14 @@
               // Vanilla ICE では，全てのICE candidate を含んだ SDP を相手に通知する
               // （SDP は pc.localDescription.sdp で取得できる）
               // 今回は手動でシグナリングするため textarea に SDP を表示する
+              let json_str = {
+                sdp: pc.localDescription.sdp.replace(/\r\n/g, "\r\n"),
+                type: "answer",
+              };
+              // document.getElementById("localSDP").value =
+              //   pc.localDescription.sdp;
               document.getElementById("localSDP").value =
-                pc.localDescription.sdp;
+                JSON.stringify(json_str);
               socket.emit("angle_sp_localSDP", pc.localDescription.sdp);
               document.getElementById("status").innerText = "Vanilla ICE ready";
             }
@@ -272,20 +285,19 @@
       <p>状態</p>
       <p id="status"></p>
 
-      <button type="button" onclick="startPeerConnection()">Start</button>
-      <textarea
-        id="localSDP"
-        cols="80"
-        rows="20"
-        readonly="readonly"
-      ></textarea>
-      <textarea id="remoteSDP" cols="80" rows="20"></textarea>
-      <button type="button" onclick="setRemoteSdp();">Set</button>
-      <form action="javascript:sendMessage()">
+      <button type="button" onclick="startPeerConnection()" class="button">
+        Start
+      </button>
+      <textarea id="localSDP" readonly="readonly"></textarea>
+      <textarea id="remoteSDP"></textarea>
+      <button type="button" onclick="setRemoteSdp();" class="button">
+        Set
+      </button>
+      <!-- <form action="javascript:sendMessage()">
         <input type="text" id="message" size="30" value="" />
         <input type="submit" value="Send" />
       </form>
-      <textarea id="history" cols="80" rows="10" readonly="readonly"></textarea>
+      <textarea id="history" readonly="readonly"></textarea>-->
       <h1 id="red" style="color: #ff0000; font-size: 100px"></h1>
     </body>
   </html>
