@@ -45,6 +45,8 @@
 /* Private variables ---------------------------------------------------------*/
 CAN_HandleTypeDef hcan;
 
+TIM_HandleTypeDef htim1;
+
 UART_HandleTypeDef huart2;
 DMA_HandleTypeDef hdma_usart2_tx;
 DMA_HandleTypeDef hdma_usart2_rx;
@@ -60,6 +62,7 @@ static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_CAN_Init(void);
+static void MX_TIM1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -77,7 +80,7 @@ uint8_t sdBuff[100];
 float motor_speed[4];
 
 char temp_str[byte_number];
-int16_t values[byte_number]; // ?��?大15個�??���?��?を持つint16の配�??��を作�??
+int16_t values[byte_number]; // ??��?��?大15個�???��?��?��??��?��?を持つint16の配�???��?��を作�??
 
 #define DATANUM 20
 uint8_t serialData[DATANUM] = {};
@@ -91,8 +94,8 @@ int index_temp;
 #define TRUE        (1)
 #define FALSE       (0)
 
-uint8_t flagRcved;              /* 受信完了フラグ */
-uint16_t rcvLength;             /* 受信データ数 */
+uint8_t flagRcved;              /* 受信完�?フラグ */
+uint16_t rcvLength;             /* 受信�?ータ数 */
 uint8_t rcvBuffer[BUFF_SIZE];   /* 受信バッファ */
 uint8_t sndBuffer[BUFF_SIZE];   /* 送信バッファ */
 
@@ -113,7 +116,7 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-    flagRcved = TRUE;           /* 受信完了フラグ設定 */
+    flagRcved = TRUE;           /* 受信完�?フラグ設�? */
 	HAL_GPIO_TogglePin(BUILDIN_LED_GPIO_Port, BUILDIN_LED_Pin);
 }
 /* USER CODE END 0 */
@@ -149,6 +152,7 @@ int main(void)
   MX_DMA_Init();
   MX_USART2_UART_Init();
   MX_CAN_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
 	Easy_CAN6_Start(&ecan, &hcan, 2);
 	for (int i = 0; i < 4; i++) {
@@ -191,10 +195,10 @@ int main(void)
 //
 //	    do
 //	    {
-//	      /* 受信割り込み開始 */
+//	      /* 受信割り込み開�? */
 //	      HAL_UART_Receive_IT(&huart2, rcvBuffer, 1);
 //
-//	      /* 受信割り込み終了待ち */
+//	      /* 受信割り込み終�?�?ち */
 //	      while (flagRcved == FALSE)
 //	      {
 //	          ;
@@ -205,12 +209,12 @@ int main(void)
 //	      flagRcved = FALSE;
 //	    } while ((rcvBuffer[0] != CHAR_CR) && (rcvLength < BUFF_SIZE));
 //
-//	    /* 受信した内容を送信 */
+//	    /* 受信した�?容を�?�信 */
 //	    HAL_UART_Transmit_IT(&huart2, sndBuffer, rcvLength);
 //	    rcvLength = 0;
 
-		// TODO 今�??��場合だと?��?送られてくる?��?字数が決まってな?��?と?��?けな?��? 短くなると?��?けな?��? ?��?から�?��??��?��??
-		// TODO 受信したも�??��は、毎回[0]からメモリに書き込んだほ?��?がい?��?
+		// TODO 今�???��?��場合だと??��?��?送られてくる??��?��?字数が決まってな??��?��?と??��?��?けな??��?��? 短くなると??��?��?けな??��?��? ??��?��?から?��??��?��???��?��??��?��??
+		// TODO 受信したも�???��?��は、毎回[0]からメモリに書き込んだほ??��?��?がい??��?��?
 //		strncpy(temp_str, (char*) UART2_RX_Buffer, byte_number);
 //
 //		char *token = strtok(temp_str, ",");
@@ -218,8 +222,8 @@ int main(void)
 //		int i = 0;
 //
 //		while (token != NULL && i < byte_number) {
-////			values[i] = atoi(token); // ?��?ト�??��クンをint16に変換して配�??��に格?��?
-//			token = strtok(NULL, ","); // 次のト�??��クンを取?��?
+////			values[i] = atoi(token); // ??��?��?ト�???��?��クンをint16に変換して配�???��?��に格??��?��?
+//			token = strtok(NULL, ","); // 次のト�???��?��クンを取??��?��?
 //			i++;
 //		}
 //
@@ -231,7 +235,7 @@ int main(void)
 		CyberGear_ControlSpeed(&my_cyber[3], (float)motor_speed[3]);
 
 //		char send_str[byte_number];
-//		sprintf(send_str, "%d\n", _temp); // _tempを文字�??��に変換して改行コードを追?��?
+//		sprintf(send_str, "%d\n", _temp); // _tempを文字�???��?��に変換して改行コードを追??��?��?
 //
 //		HAL_UART_Transmit_DMA(&huart2, (uint8_t*) send_str, strlen(send_str));
 //
@@ -249,6 +253,7 @@ void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
 
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
@@ -274,6 +279,12 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_TIM1;
+  PeriphClkInit.Tim1ClockSelection = RCC_TIM1CLK_HCLK;
+  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
   }
@@ -313,6 +324,76 @@ static void MX_CAN_Init(void)
   /* USER CODE BEGIN CAN_Init 2 */
 
   /* USER CODE END CAN_Init 2 */
+
+}
+
+/**
+  * @brief TIM1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM1_Init(void)
+{
+
+  /* USER CODE BEGIN TIM1_Init 0 */
+
+  /* USER CODE END TIM1_Init 0 */
+
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+  TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig = {0};
+
+  /* USER CODE BEGIN TIM1_Init 1 */
+
+  /* USER CODE END TIM1_Init 1 */
+  htim1.Instance = TIM1;
+  htim1.Init.Prescaler = 0;
+  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim1.Init.Period = 65535;
+  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim1.Init.RepetitionCounter = 0;
+  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_PWM_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterOutputTrigger2 = TIM_TRGO2_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
+  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
+  sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
+  sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
+  sBreakDeadTimeConfig.DeadTime = 0;
+  sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
+  sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
+  sBreakDeadTimeConfig.BreakFilter = 0;
+  sBreakDeadTimeConfig.Break2State = TIM_BREAK2_DISABLE;
+  sBreakDeadTimeConfig.Break2Polarity = TIM_BREAK2POLARITY_HIGH;
+  sBreakDeadTimeConfig.Break2Filter = 0;
+  sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
+  if (HAL_TIMEx_ConfigBreakDeadTime(&htim1, &sBreakDeadTimeConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM1_Init 2 */
+
+  /* USER CODE END TIM1_Init 2 */
+  HAL_TIM_MspPostInit(&htim1);
 
 }
 
