@@ -20,7 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'communicate_ESP32 = konai2024_python.communicate_ESP32:main',
+            'main = konai2024_python.main:main',
             'webserver = konai2024_python.webserver:main',
         ],
     },

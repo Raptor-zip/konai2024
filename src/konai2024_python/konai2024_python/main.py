@@ -288,7 +288,7 @@ def connect_serial():
             # STM32を接続しない
             micon_dict["STM32"]["is_connected"] = True
             if micon_values["is_connected"] == False:
-                _candidates_port_tuple:tuple[str] = [f"/dev/ttyUSB{i}" for i in range(3)] + [f"/dev/ttyACM{i}" for i in range(3)]
+                _candidates_port_list:list[str] = [f"/dev/ttyUSB{i}" for i in range(3)] + [f"/dev/ttyACM{i}" for i in range(3)]
                 # MEMO COMポートも将来的にはできるようにする
                 i:int = 0
                 print(f"{micon_name}とシリアル接続を試行", flush=True)
@@ -320,26 +320,24 @@ def connect_serial():
                         i += 1  # iが除外リストに含まれている場合、iをインクリメントする
                     try:
                         subprocess.run(
-                            f"sudo -S chmod 777 {_candidates_port_tuple[i]}".split(), input=("robocon471" + '\n').encode())
+                            f"sudo -S chmod 777 {_candidates_port_list[i]}".split(), input=("robocon471" + '\n').encode())
                         try:
-                            micon_values["serial_obj"] = serial.Serial(_candidates_port_tuple[i], 921600, timeout=1)
-                            # micon_values["serial_obj"] = serial.Serial(
-                            #     f'/dev/ttyUSB{i}', 921600, timeout=1)
+                            micon_values["serial_obj"] = serial.Serial(_candidates_port_list[i], 500000, timeout=1)
                             micon_values["serial_id"] = i
                             print(
-                                f"{micon_name}とSerial接続成功 {_candidates_port_tuple[i]}", flush=True)
+                                f"{micon_name}とSerial接続成功 {_candidates_port_list[i]}", flush=True)
                             micon_values["is_connected"] = True
                             i = -1  # Serialが正常に開かれた場合はループを抜ける
                         except Exception as e:
                             print(
                                 f"\n\n{micon_name}とSerial接続失敗: {e} \n\n", flush=True)
-                            if i < len(_candidates_port_tuple) - 1:
+                            if i < len(_candidates_port_list) - 1:
                                 i += 1  # 例外が発生した場合もiをインクリメントして次のポートを試す
                             else:
                                 i = 0
                     except Exception as e:
                         print(
-                            f"\n\n{micon_name}とSerial接続試行時 {_candidates_port_tuple[i]} の権限追加に失敗 {e} \n\n", flush=True)
+                            f"\n\n{micon_name}とSerial接続試行時 {_candidates_port_list[i]} の権限追加に失敗 {e} \n\n", flush=True)
 
                     time.sleep(0.1)  # 0.2秒待って再試行
         time.sleep(0.1)  # 無駄にCPUを使わないようにする
@@ -363,11 +361,12 @@ def recept_serial():
             return value  # その他の場合は文字列として返す
 
     while True:
-        each_micon_dict_key = "ESP32"
-        each_micon_dict_values = micon_dict["ESP32"]
+        each_micon_dict_key:str = "ESP32"
+        each_micon_dict_values:dict = micon_dict["ESP32"]
         try:
             received_message: str = each_micon_dict_values["serial_obj"].readline(
             ).decode('utf-8')[:-2]  # \r\nを消す
+            # print("kitayo", flush=True)
             print(
                 f"\n                                                {each_micon_dict_key}から:{received_message}\n", flush=True)
             if received_message[0] == "$":
@@ -438,12 +437,12 @@ def recept_serial():
         except UnicodeDecodeError as e:
             print(f"{each_micon_dict_key}から受信時のデコードエラー:{e}", flush=True)
         except Exception as e:
-            # print(f"{each_micon_dict_key}への接続失敗 読み取り試行時:{e}", flush=True)
-            # each_micon_dict_values["is_connected"] = False
+            print(f"{each_micon_dict_key}への接続失敗 読み取り試行時:{e}", flush=True)
+            each_micon_dict_values["is_connected"] = False
             pass
         # バッテリー保護
         # どこでこれを動作させるべきか考える！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
-        if battery_dict != {}:
+        if battery.battery_dict != {}:
             for each_battery in battery.battery_dict.values():
                 if each_battery["voltage_history"] != []:
                     each_battery["average_voltage"] = round(
@@ -691,6 +690,8 @@ class MinimalSubscriber(Node):
 
     send_ESP32_data: str = ""
 
+    uart_prev_count:int = 0
+
     def __init__(self):
         global reception_json
         super().__init__('command_subscriber')
@@ -890,23 +891,27 @@ class MinimalSubscriber(Node):
             if micon_dict_values["reboot"] == True:
                 micon_dict_values["reboot"] = False
 
-        # データの作成
-        target_angle = 32768  # ターゲット角度 (0～65535)
-        target_velocity = 16384  # 目標角速度 (0～65535)
-        Kp = 24576  # Kp (0～65535)
-        Kd = 40960  # Kd (0～65535)
+        self.uart_prev_count:bytes = (self.uart_prev_count + 1) & 0xFF # 0から255までの値を繰り返す
 
-        # データをバイト列にパック
-        data = target_angle.to_bytes(2, byteorder='big') + \
-            target_velocity.to_bytes(2, byteorder='big') + \
-            Kp.to_bytes(2, byteorder='big') + \
-            Kd.to_bytes(2, byteorder='big')
+        data_tuple:tuple = (self.uart_prev_count,-32767,16384,-24576,255)
 
-        print(data,flush=True)
+        data = bytearray()
+        for x in data_tuple:
+            data.extend(x.to_bytes(2, byteorder='big', signed=True))
+
+        # data = bytearray([0x10, 0x20])
+
+        # crc16_bytes:bytes = crc16(data, 0, len(data)).to_bytes(2, byteorder='big')
+        crc16_bytes:bytes = crc16(data, 0, len(data))
+        data.extend(crc16_bytes.to_bytes(2, byteorder='big'))
+        print(hex(crc16_bytes),flush=True)
+        # data.extend(crc16_bytes)
+        # print(hex(crc16(data, 0, len(data))),flush=True)
 
         json_str: str = ','.join(map(str, self.send_ESP32_data)) + "\n"
         if self.count_print % 15 == 0:  # 15回に1回実行
             print(self.send_ESP32_data, flush=True)
+            print(data,flush=True)
             pass
         self.count_print += 1
         for each_micon_dict_key, each_micon_dict_values in micon_dict.items():
@@ -1283,6 +1288,32 @@ def convert_to_binary(boolean_value: bool) -> int:
     else:
         return 0
     
+
+
+
+
+
+def crc16(data : bytearray, offset , length):
+    # CRC-16/CCITT-FALSE 
+    # define CRC16_CCITT_FALSE_POLYNOME  0x1021
+    # define CRC16_CCITT_FALSE_INITIAL   0xFFFF
+    # define CRC16_CCITT_FALSE_XOR_OUT   0x0000
+    # define CRC16_CCITT_FALSE_REV_IN    false
+    # define CRC16_CCITT_FALSE_REV_OUT   false
+    # https://stackoverflow.com/questions/35205702/calculating-crc16-in-python
+    if data is None or offset < 0 or offset > len(data)- 1 and offset+length > len(data):
+        return 0
+    crc = 0xFFFF
+    for i in range(0, length):
+        crc ^= data[offset + i] << 8
+        for j in range(0,8):
+            if (crc & 0x8000) > 0:
+                crc =(crc << 1) ^ 0x1021
+            else:
+                crc = crc << 1
+    return crc & 0xFFFF
+
+
 
 
 if __name__ == '__main__':

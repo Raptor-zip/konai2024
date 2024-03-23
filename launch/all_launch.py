@@ -12,7 +12,7 @@ def generate_launch_description():
         [
             Node(
                 package="konai2024_python",
-                executable="communicate_ESP32",
+                executable="main",
                 output="screen",
                 # prefix="xterm -e",
             ),
