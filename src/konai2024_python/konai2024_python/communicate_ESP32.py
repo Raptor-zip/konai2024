@@ -727,11 +727,16 @@ class MinimalSubscriber(Node):
         # temp_micon_dict["ESP32_1"].pop("serial_obj")
         # temp_micon_dict["ESP32_2"].pop("serial_obj")
 
+        try:
+            _ubuntu_ip:str = ipget.ipget().ipaddr("wlp2s0")
+        except ValueError as e:
+            _ubuntu_ip:str = "WiFiエラー"
+
         msg = String()
         send_json: dict = {
             "state": self.state,
             "ubuntu_ssid": wifi_ssid,
-            "ubuntu_ip": ipget.ipget().ipaddr("wlp2s0"),
+            "ubuntu_ip": _ubuntu_ip,
             # "ubuntu_ip": "aiueo",
             # "battery_voltage": battery_dict["average_voltage"],
             # "battery_voltage": 6,
@@ -869,6 +874,20 @@ class MinimalSubscriber(Node):
 
         micon_dict["ESP32_1"]["reboot"] = False
         micon_dict["ESP32_2"]["reboot"] = False
+
+        # データの作成
+        target_angle = 32768  # ターゲット角度 (0～65535)
+        target_velocity = 16384  # 目標角速度 (0～65535)
+        Kp = 24576  # Kp (0～65535)
+        Kd = 40960  # Kd (0～65535)
+
+        # データをバイト列にパック
+        data = target_angle.to_bytes(2, byteorder='big') + \
+            target_velocity.to_bytes(2, byteorder='big') + \
+            Kp.to_bytes(2, byteorder='big') + \
+            Kd.to_bytes(2, byteorder='big')
+
+        print(data,flush=True)
 
         json_str: str = ','.join(map(str, self.send_ESP32_data)) + "\n"
         if self.count_print % 15 == 0:  # 15回に1回実行
