@@ -13,7 +13,7 @@ def generate_launch_description():
             Node(
                 package="konai2024_python",
                 executable="main",
-                output="screen",
+                output="both",
                 # prefix="xterm -e",
             ),
             Node(

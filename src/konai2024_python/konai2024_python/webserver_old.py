@@ -46,7 +46,7 @@ def main():
 def publish(args=None):
     rclpy.init(args=args)
 
-    minimal_subscriber = MinimalSubscriber()
+    minimal_subscriber = ROS2MainNode()
 
     rclpy.spin(minimal_subscriber)
 
@@ -54,7 +54,7 @@ def publish(args=None):
     rclpy.shutdown()
 
 
-class MinimalSubscriber(Node):
+class ROS2MainNode(Node):
     def __init__(self):
         print("Subscriber", flush=True)
         super().__init__('command_subscriber')
