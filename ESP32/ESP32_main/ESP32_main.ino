@@ -14,9 +14,9 @@ Flipsky VESC 1台
 #include <VL53L1X.h>     // 距離センサー VL53L1Xを制御する
 
 // 全般
-TaskHandle_t thp[6];  // マルチスレッドのタスクハンドル格納用
+TaskHandle_t thp[2];  // マルチスレッドのタスクハンドル格納用
 String incomingStrings = "";  // for incoming serial data
-const uint8_t maxElements = 15;  // 配列の最大要素数 多分ぴったりだとうまく行かない気がする
+const uint8_t maxElements = 20;  // 配列の最大要素数 多分ぴったりだとうまく行かない気がする
 unsigned long last_receive_time = 0;             // 最後にパソコンから受信したmillis
 unsigned long startTime, stopTime = 0;           // プログラムの遅延を確認するためにmicros
 
@@ -28,7 +28,7 @@ VescUart UART;
 // HardwareSerial Serial1(0);
 
 // サーボモーター
-const byte EN_PIN = 2; // HACK このbyte型なに？
+const byte EN_PIN = 23; // HACK このbyte型なに？
 const long BAUDRATE = 115200; // TODO 速くする？ノイズも怖いけど
 const int TIMEOUT = 15;  // TODO [ms] 遅いとタイムアウトするまで待たないといけないからやばい
 IcsHardSerialClass krs(&Serial2, EN_PIN, BAUDRATE, TIMEOUT);  // インスタンス＋ENピン(2番ピン)およびUARTの指定
@@ -50,7 +50,6 @@ uint8_t can_read_distance_sensors_list[sensor_count] = {};                // 使
 int16_t distance_sensors_result_list[sensor_count] = { -1 };  // 使える距離センサーのリスト0〜3
 
 // ブラシレスモーター
-#define RELAY_PIN 23
 Servo ducted_fan;
 const uint8_t BLmotor_Pin[1] = {12};
 
@@ -81,10 +80,7 @@ void setup() {
   pinMode(LED_BUILTIN, OUTPUT);  // ESP32内蔵LED
   digitalWrite(LED_BUILTIN, HIGH);   // ESP32内蔵LED
 
-  pinMode(RELAY_PIN, OUTPUT);    // ブラシレスのリレー
-  digitalWrite(RELAY_PIN, LOW);  // ブラシレスのリレーをOFF
-
-  Serial.begin(921600);
+  Serial.begin(500000);
   // Serial.setRxBufferSize(512); // 送受信バッファサイズを変更。デフォルト:256バイト 変更しても効果ないきがする
   while (!Serial) {
     ;  // シリアル通信ポートが正常に接続されるまで抜け出さない
@@ -104,8 +100,8 @@ void setup() {
   // サーボモーターの初期化
   krs.begin();  // サーボモータの通信初期設定
   delay(100);
-  krs.setStrc(0, 60);
-  krs.setSpd(0, 80);  // MAX127
+  krs.setStrc(0, 127);
+  krs.setSpd(0, 20);  // MAX127
 
   // 距離センサーの処理
   pinMode( PIN_SER, OUTPUT );
@@ -185,6 +181,8 @@ void loop() {
 
   startTime = micros();
 
+  Serial.println("ループ来てるよ");
+
   if (Serial.available() > 0) {
     // read the incoming byte:
     startTime = micros();
@@ -204,7 +202,8 @@ void loop() {
       PWM(0, intArray[5]);
       PWM(1, intArray[6]);
 
-      krs.setPos(0, krs.degPos(int(intArray[9]))); // 対象の処理を実行 ！！！タイムアウトさせとくと、Serial受信(Serial2じゃなくて)と干渉して、途中までしか受信できなくなった intで囲む必要ない
+      krs.setPos(0, krs.degPos(int(intArray[8]))); // 対象の処理を実行 ！！！タイムアウトさせとくと、Serial受信(Serial2じゃなくて)と干渉して、途中までしか受信できなくなった intで囲む必要ない
+      krs.setPos(1, krs.degPos(int(intArray[9]))); // 対象の処理を実行 ！！！タイムアウトさせとくと、Serial受信(Serial2じゃなくて)と干渉して、途中までしか受信できなくなった intで囲む必要ない
       // LEDテープの処理 射出時のアニメーションのトリガー
       if(intArray[9] == 45){
         digitalWrite(COMMUNICATE_LED_PIN, LOW);
@@ -214,18 +213,16 @@ void loop() {
 
       if (intArray[10] == 1) {
         // digitalWrite(LED_BUILTIN, LOW);
-        digitalWrite(RELAY_PIN, HIGH);
           // analogWrite(LED_BUILTIN, int(intArray[7]* (255/2000))); // デバッグ時に内蔵LEDを光らせる
-          ducted_fan.writeMicroseconds(intArray[7]);
+          // ducted_fan.writeMicroseconds(intArray[7]);
           // ducted_fan_2.writeMicroseconds(intArray[8]);
 
-          UART.setRPM(float(intArray[8]),0); // 連続して送らないとタイムアウトで勝手に切れる 安全装置ナイス
+          UART.setRPM(float(intArray[15]),0); // 連続して送らないとタイムアウトで勝手に切れる 安全装置ナイス
       } else {
         // digitalWrite(LED_BUILTIN, HIGH);
-        digitalWrite(RELAY_PIN, LOW);  // リレーオフ
         
-        ducted_fan.detach();  // 接続解除
-        digitalWrite(BLmotor_Pin[0], LOW);  // ブラシレスモーターのPWM停止
+        // ducted_fan.detach();  // 接続解除
+        // digitalWrite(BLmotor_Pin[0], LOW);  // ブラシレスモーターのPWM停止
 
         // ducted_fan_2.detach();  // 接続解除
         // digitalWrite(13, LOW);  // PWM停止
@@ -263,7 +260,6 @@ void loop() {
 
   // 100ms以上パソコンからデータを受信できなかったら全てのモーターを強制停止(WatchdogTimerみたいな)
   if (millis() - last_receive_time > 100) {
-    digitalWrite(RELAY_PIN, LOW);  // リレーオフ
     ducted_fan.detach();  // 接続解除
     digitalWrite(BLmotor_Pin[0], LOW);  // PWM停止
     // ducted_fan_2.detach();  // 接続解除

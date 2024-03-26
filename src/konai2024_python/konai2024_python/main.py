@@ -27,10 +27,10 @@ def main():
     with ThreadPoolExecutor(max_workers=6) as executor:
         # executor.submit(sp_udp_reception)
         # executor.submit(receive_udp_webserver)
-        executor.submit(receive_udp_webrtc)
+        # executor.submit(receive_udp_webrtc)
         # executor.submit(battery.battery_alert)
         executor.submit(recept_serial)
-        executor.submit(recept_serial_2)
+        # executor.submit(recept_serial_2)
         executor.submit(connect_serial)
         # executor.submit(odometry)
         # executor.submit(graph)
@@ -436,9 +436,9 @@ def recept_serial():
 
         except UnicodeDecodeError as e:
             print(f"{each_micon_dict_key}から受信時のデコードエラー:{e}", flush=True)
-        except Exception as e:
-            print(f"{each_micon_dict_key}への接続失敗 読み取り試行時:{e}", flush=True)
-            each_micon_dict_values["is_connected"] = False
+        # except Exception as e:
+        #     print(f"{each_micon_dict_key}への接続失敗 読み取り試行時:{e}", flush=True)
+        #     each_micon_dict_values["is_connected"] = False
             pass
         # バッテリー保護
         # どこでこれを動作させるべきか考える！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
@@ -651,8 +651,8 @@ class MinimalSubscriber(Node):
     state: int = 0
     DCmotor_speed: list[int] = [0, 0, 0, 0, 0, 0]  # 原則% 符号あり
     BLmotor_speed: list[int] = [0, 0]  # 射出用ダクテッドファンと仰角調整用GM6020
-    servo_angle: int = 0
-    is_run_ducted_fan: bool = False
+    VESC_rpm: list[int] = [0] # VESC
+    servo_angle: list[int] = [0,0]
     is_slow_speed: bool = False
 
     time_pushed_load_button: int = 0  # 装填ボタンが押された時間
@@ -764,7 +764,7 @@ class MinimalSubscriber(Node):
             "wifi_signal_strength": 0,  # wifiのウブンツの強度を読み取る
             "DCmotor_speed": [int(speed) for speed in self.DCmotor_speed],
             "BLmotor_speed": [int(speed) for speed in self.BLmotor_speed],
-            "servo_angle": int(self.servo_angle),
+            "servo_angle": [int(angle) for angle in self.servo_angle],
             "angle_value": self.current_angle,
             "start_time": self.start_time,
             "joy": self.joy_now,
@@ -834,7 +834,7 @@ class MinimalSubscriber(Node):
         #   装填サーボの処理
         if self.time_pushed_load_button != 0 and int(time.time() * 1000) - self.time_pushed_load_button > 700:
             # 1500msで0°に戻る
-            self.servo_angle = 0
+            self.servo_angle[0] = 0
             self.time_pushed_load_button = 0
 
         # 回収機構のリミットスイッチの処理
@@ -857,7 +857,6 @@ class MinimalSubscriber(Node):
             self.DCmotor_speed = [0] * len(self.DCmotor_speed)
         if battery.battery_dict["battery_3cell"]["state"] == "much_low" or battery.battery_dict["battery_3cell"]["state"] == "abnormality":
             # 3セルで動かすものは ブラシレスモーター
-            self.is_run_ducted_fan = False  # リレーを非通電状態に
             self.BLmotor_speed = [0] * len(self.BLmotor_speed)
             print(
                 "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n", flush=True)
@@ -871,10 +870,12 @@ class MinimalSubscriber(Node):
             int(self.DCmotor_speed[4]),  # 5 回収装填
             int(self.DCmotor_speed[5]),  # 6 回収装填
             int(self.BLmotor_speed[0]),  # 7 ダクテッドファン
-            int(self.BLmotor_speed[1]),  # 8 ダクテッドファン2
-            int(self.servo_angle),  # 9 サーボ
+            # int(self.BLmotor_speed[1]),  # 8 ダクテッドファン2
+            int(self.servo_angle[0]),  # 8 サーボ
+            int(self.servo_angle[1]),  # 9 サーボ
             # 10 ダクテッドファンのリレー 0 or 1
-            int(convert_to_binary(self.is_run_ducted_fan)),
+            # int(convert_to_binary(self.is_run_ducted_fan)),
+            1,
             # 11 ESP32_1を再起動するか 0 or 1
             int(convert_to_binary(micon_dict["ESP32"]["reboot"])),
             # 12 ESP32_2を再起動するか 0 or 1
@@ -885,6 +886,7 @@ class MinimalSubscriber(Node):
             # 14 3セルリポバッテリーのstate
             int(battery.convert_battery_state_to_binary(battery,
                 battery.battery_dict["battery_3cell"]["state"])),
+            int(self.VESC_rpm[0])   # 15 VESC
         ]
 
         for micon_dict_key, micon_dict_values in micon_dict.items():
@@ -904,27 +906,29 @@ class MinimalSubscriber(Node):
         # crc16_bytes:bytes = crc16(data, 0, len(data)).to_bytes(2, byteorder='big')
         crc16_bytes:bytes = crc16(data, 0, len(data))
         data.extend(crc16_bytes.to_bytes(2, byteorder='big'))
-        print(hex(crc16_bytes),flush=True)
+        # print(hex(crc16_bytes),flush=True)
         # data.extend(crc16_bytes)
         # print(hex(crc16(data, 0, len(data))),flush=True)
 
         json_str: str = ','.join(map(str, self.send_ESP32_data)) + "\n"
         if self.count_print % 15 == 0:  # 15回に1回実行
             print(self.send_ESP32_data, flush=True)
-            print(data,flush=True)
+            # print(data,flush=True)
             pass
         self.count_print += 1
-        for each_micon_dict_key, each_micon_dict_values in micon_dict.items():
-            try:
-                # each_micon_dict_values["serial_obj"].write(
-                #     json_str.encode())
-                each_micon_dict_values["serial_obj"].write(data)
-                # print(f"{each_micon_dict_key}への送信成功", flush=True)
-            except Exception as e:
-                # print(
-                #     f"{each_micon_dict_key}への送信に失敗: {e}", flush=True)
-                each_micon_dict_values["is_connected"] = False
-                # 片方のマイコンが途切れたときに、詰まるから、このやり方よくない 非同期にするか、connect_serialを並行処理でずっとwhileしといて、bool変数がTrueになったら接続処理するとか
+        # for each_micon_dict_key, each_micon_dict_values in micon_dict.items():
+        each_micon_dict_key = "ESP32"
+        each_micon_dict_values = micon_dict["ESP32"]
+        try:
+            each_micon_dict_values["serial_obj"].write(
+                json_str.encode())
+            # each_micon_dict_values["serial_obj"].write(data)
+            # print(f"{each_micon_dict_key}への送信成功", flush=True)
+        except Exception as e:
+            print(
+                f"{each_micon_dict_key}への送信に失敗: {e}", flush=True)
+            each_micon_dict_values["is_connected"] = False
+            # TODO 片方のマイコンが途切れたときに、詰まるから、このやり方よくない 非同期にするか、connect_serialを並行処理でずっとwhileしといて、bool変数がTrueになったら接続処理するとか
 
     def joy0_listener_callback(self, joy):
         global reception_json, coordinates, exclude_list, micon_dict
@@ -961,19 +965,31 @@ class MinimalSubscriber(Node):
 
         # Bボタン
         if self.joy_past["joy0"]["buttons"][0] == 0 and self.joy_now["joy0"]["buttons"][0] == 1:
-            self.BLmotor_speed[0] = 1100
+            self.VESC_rpm[0] = 14000
+            self.servo_angle[1] = 0
 
         # Aボタン
         if self.joy_past["joy0"]["buttons"][1] == 0 and self.joy_now["joy0"]["buttons"][1] == 1:
-            self.BLmotor_speed[0] = 1500
+            self.VESC_rpm[0] = 21000
+            self.servo_angle[1] = -10
 
-        if self.joy_now["joy0"]["buttons"][2] == 1:  # Xボタン
+        # Xボタン
+        if self.joy_now["joy0"]["buttons"][2] == 1:  
+            self.VESC_rpm[0] = 30000
+            self.servo_angle[1] = -20
+
+        # Yボタン
+        if self.joy_now["joy0"]["buttons"][3] == 1:  
+            self.VESC_rpm[0] = 35000
+            self.servo_angle[1] = -40
+
+        # if self.joy_now["joy0"]["buttons"][2] == 1:  # Xボタン
             # 0°に旋回
-            self.state = 1
-            self.turn_start_time = time.time()
-            self.angle_when_turn = []
-            self.time_when_turn = []
-            self.angle_control_count = 0
+            # self.state = 1
+            # self.turn_start_time = time.time()
+            # self.angle_when_turn = []
+            # self.time_when_turn = []
+            # self.angle_control_count = 0
         # if self.joy_now["joy0"]["buttons"][1] == 1:  # Aボタン
         #     # 90°に旋回
         #     self.state = 2
@@ -988,13 +1004,13 @@ class MinimalSubscriber(Node):
         #     self.angle_when_turn = []
         #     self.time_when_turn = []
         #     self.angle_control_count = 0
-        if self.joy_now["joy0"]["buttons"][3] == 1:  # Yボタン
-            # 270°に旋回
-            self.state = 4
-            self.turn_start_time = time.time()
-            self.angle_when_turn = []
-            self.time_when_turn = []
-            self.angle_control_count = 0
+        # if self.joy_now["joy0"]["buttons"][3] == 1:  # Yボタン
+        #     # 270°に旋回
+        #     self.state = 4
+        #     self.turn_start_time = time.time()
+        #     self.angle_when_turn = []
+        #     self.time_when_turn = []
+        #     self.angle_control_count = 0
 
         # Rボタン
         if self.joy_now["joy0"]["buttons"][4] == 1:
@@ -1002,6 +1018,7 @@ class MinimalSubscriber(Node):
             self.state = 0
             self.DCmotor_speed = [0] * len(self.DCmotor_speed)
             self.BLmotor_speed = [0] * len(self.BLmotor_speed)
+            self.VESC_rpm = [0] * len(self.VESC_rpm)
 
         # Lボタン
         if self.joy_now["joy0"]["buttons"][5] == 1:
@@ -1012,18 +1029,18 @@ class MinimalSubscriber(Node):
 
         # ダクテッドのリレー
         # ZL
-        if self.joy_past["joy0"]["buttons"][6] == 0 and self.joy_now["joy0"]["buttons"][6] == 1:
-            if self.is_run_ducted_fan == True:
-                self.is_run_ducted_fan = False
-            else:
-                self.is_run_ducted_fan = True
+        # if self.joy_past["joy0"]["buttons"][6] == 0 and self.joy_now["joy0"]["buttons"][6] == 1:
+        #     if self.is_run_ducted_fan == True:
+        #         self.is_run_ducted_fan = False
+        #     else:
+        #         self.is_run_ducted_fan = True
 
         # サーボの制御
         # self.servo_angle = int(self.joy_now["joy0"]["axes"][1]*174)
         # ZR装填 サーボ初期位置
         if self.joy_now["joy0"]["buttons"][7] == 1:
             self.time_pushed_load_button = int(time.time() * 1000)  # エポックミリ秒
-            self.servo_angle = 45
+            self.servo_angle[0] = 45
 
         if self.joy_now["joy0"]["buttons"][8] == 1:
             micon_dict = {
@@ -1077,12 +1094,12 @@ class MinimalSubscriber(Node):
 
         if self.joy_past["joy0"]["buttons"][11] == 0 and self.joy_now["joy0"]["buttons"][11] == 1:
             # ESP32_1のソフトウェアリセット
-            micon_dict["ESP32_1"]["reboot"] = True
+            micon_dict["ESP32"]["reboot"] = True
             # 送信後に False に戻す
 
         if self.joy_past["joy0"]["buttons"][12] == 0 and self.joy_now["joy0"]["buttons"][12] == 1:
             # ESP32_2のソフトウェアリセット
-            micon_dict["ESP32_2"]["reboot"] = True
+            micon_dict["STM32"]["reboot"] = True
             # 送信後に False に戻す
 
         self.joy_past["joy0"] = self.joy_now["joy0"]
@@ -1118,7 +1135,7 @@ class MinimalSubscriber(Node):
         # R装填 サーボ初期位置
         if self.joy_now["joy1"]["buttons"][5] == 1:
             self.time_pushed_load_button = int(time.time() * 1000)  # エポックミリ秒
-            self.servo_angle = 45
+            self.servo_angle[0] = 45
 
         # ダクテッドファン
         # if self.joy_now["joy1"]["buttons"][13] == 1 and self.joy_past["joy1"]["buttons"][13] == 0:
