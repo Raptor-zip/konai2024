@@ -59,7 +59,7 @@ def location(depth=0):
 
 def main():
     with ThreadPoolExecutor(max_workers=6) as executor:
-        # executor.submit(sp_udp_reception)
+        # executor.submit(receive_udp_sp)
         # executor.submit(receive_udp_webserver)
         # executor.submit(receive_udp_webrtc)
         # executor.submit(battery.battery_alert)
@@ -91,8 +91,41 @@ def main():
         future.result()         # 全てのタスクが終了するまで待つ
 
 
-class sensors:
+class DeviceControl:
+    DCmotor:dict ={
+        "motor1":{
+            "is_allowed_to_run": True,
+            "duty":0,
+            "duty_min":-256,
+            "duty_max":256
+        },
+
+        "motor2":{
+            "is_allowed_to_run": True,
+            "duty":0,
+            "duty_min":-256,
+            "duty_max":256
+        }
+    }
+
+    BLmotor:dict = {
+        "motor1":{
+            "is_allowed_to_run": False,
+            "speed":0,
+            "speed_min":1000,
+            "speed_max":2000
+        }
+    }
+
+    solenoid:dict = {
+        "solenoid1":{
+            "is_allowed_to_run": False,
+            "is_open":False
+        }
+    }
+
     distance_sensors: list[int] = [-1, -1, -1, -1]
+
     limit_switch: bool = False
 
 
@@ -231,7 +264,7 @@ class battery:
         elif battery_state_str == None:
             return 5
         else:
-            print("エラー battery_stateが既定のものではない", flush=True)
+            logger.error("battery_stateが既定のものではない")
             return -1
         
     def battery_alert(self):
@@ -259,7 +292,7 @@ class Serial:
 
         while True:
             for micon_name, micon_values in micon_dict.items():
-                # micon_dict["STM32"]["is_connected"] = True # TODO これなおす
+                micon_dict["STM32"]["is_connected"] = True # TODO これなおす
                 if micon_values["is_connected"]:
                     continue
 
@@ -269,6 +302,7 @@ class Serial:
 
                 if not available_ports:
                     logger.critical(f"{micon_name}がUSBに接続されていない")
+                    # ROS2MainNode.get_logger().error(f"{micon_name}がUSBに接続されていない")
                     continue
 
                 for port in available_ports:
@@ -278,8 +312,10 @@ class Serial:
                         micon_values["serial_port"] = port
                         micon_values["is_connected"] = True
                         logger.info(f"{micon_name}とSerial接続成功 {port}")
+                        # ROS2MainNode.get_logger().info(f"{micon_name}とSerial接続成功 {port}")
                     except Exception as e:
                         logger.critical(f"{micon_name}とSerial接続失敗: {e}")
+                        # ROS2MainNode.get_logger().error(f"{micon_name}とSerial接続失敗: {e}")
 
                 time.sleep(0.1)
 
@@ -289,6 +325,8 @@ class Serial:
 
         while True:
             each_micon_dict_values:dict = micon_dict[micon_id]
+            # logger.info(f"{location()}")
+            # ROS2MainNode.get_logger().error(f"{location()}")
             if each_micon_dict_values["serial_obj"] is not None:
                 try:
                     received_bytes: bytes = each_micon_dict_values["serial_obj"].readline()
@@ -298,12 +336,14 @@ class Serial:
                     # continue
                 except Exception as e:
                     logger.error(f"{micon_id}への接続失敗 読み取り試行時:{e}")
+                    # ROS2MainNode.get_logger().error(f"{micon_id}への接続失敗 読み取り試行時:{e}")
                     continue
+                # ROS2MainNode.get_logger().error(f"{micon_id}から:{received_bytes}")
                 logger.info(f"{micon_id}から:{received_bytes}")
                 self.received_command(received_bytes, micon_id)
             else:
                 each_micon_dict_values["is_connected"] = False
-                time.sleep(0.1)  # 無駄にCPUを使わないようにする
+                time.sleep(0.01)  # 無駄にCPUを使わないようにする
 
 
     def received_command(self, received_message: bytes, each_micon_dict_key: str) -> None:
@@ -315,6 +355,9 @@ class Serial:
                 return float(value)  # 浮動小数点数の場合
             except ValueError:
                 return value  # その他の場合は文字列として返す
+
+        logger.info(f"{each_micon_dict_key}から:{received_message}")
+        # ROS2MainNode.get_logger().error(f"{each_micon_dict_key}から:{received_message}")
 
         try:
             received_message: str = received_message.decode('utf-8')[:-2]  # \r\nを消す
@@ -360,7 +403,7 @@ class Serial:
 
             # 距離センサーのデータが来たときの処理
             elif received_message_array[1] == 4:
-                sensors.distance_sensors = [
+                DeviceControl.distance_sensors = [
                     int(received_message_array[2]),
                     int(received_message_array[3]),
                     int(received_message_array[4]),
@@ -377,8 +420,8 @@ class Serial:
                     f"\n\n\n\n\n\nESP32_{received_message_array[0]}をソフトウェアリセットします\n\n\n\n\n", flush=True)
 
             # 回収機構のリミットスイッチが来たときの処理
-            elif received_message_array[1] == 7:
-                sensors.limit_switch = bool(received_message_array[2])
+            # elif received_message_array[1] == 7:
+            #     DeviceControl.limit_switch = bool(received_message_array[2])
 
         else:
             # デバッグ用メッセージ
@@ -410,57 +453,6 @@ class Serial:
                 else:
                     each_battery["state"] = "abnormality"
 
-# def sp_udp_reception():
-#     global reception_json
-#     # UDPソケットの作成
-#     sp_udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-#     sp_udp_socket.bind(('127.0.0.1', 5010))
-#     sp_udp_socket.settimeout(0.1)  # タイムアウトを0.1秒に設定
-#     while True:
-#         try:
-#             message, cli_addr = sp_udp_socket.recvfrom(1024)
-#             # print(f"Received: {message.decode('utf-8')}", flush=True)
-#             reception_json_temp = json.loads(message.decode('utf-8'))
-#             reception_json.update(reception_json_temp)
-#         except Exception as e:
-#             print(
-#                 f"スマホ からの受信に失敗: {e}", flush=True)
-
-
-def receive_udp_webserver():
-    global reception_json
-    # UDPソケットの作成
-    udp_socket_webserver = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    udp_socket_webserver.bind(('127.0.0.1', 5003))
-    udp_socket_webserver.settimeout(1.0)  # タイムアウトを1秒に設定
-    while True:
-        try:
-            message, cli_addr = udp_socket_webserver.recvfrom(1024)
-            # print(f"Received: {message.decode('utf-8')}", flush=True)
-            reception_json_temp = json.loads(message.decode('utf-8'))
-            reception_json.update(reception_json_temp)
-        except Exception as e:
-            print(
-                f"\n\n\n\n\n\n\n    Webserver からの受信に失敗: {e}\n\n\n\n\n\n\n", flush=True)
-
-
-def receive_udp_webrtc():
-    global reception_json
-    # UDPソケットの作成
-    udp_socket_webserver = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    udp_socket_webserver.bind(('127.0.0.1', 5007))
-    udp_socket_webserver.settimeout(1.0)  # タイムアウトを1秒に設定
-    while True:
-        try:
-            message, cli_addr = udp_socket_webserver.recvfrom(1024)
-            # print(f"Received: {message.decode('utf-8')}", flush=True)
-            reception_json_temp = json.loads(message.decode('utf-8'))
-            reception_json.update({"raw_angle": int(reception_json_temp)})
-            print(reception_json, flush=True)
-        except Exception as e:
-            print(
-                f"\n\n\n\n\n\n\n    webrtc からの受信に失敗: {e}\n\n\n\n\n\n\n", flush=True)
-
 
 def ros(args=None):
     rclpy.init(args=args)
@@ -475,11 +467,15 @@ def ros(args=None):
 
 class ROS2MainNode(Node):
     state: int = 0
-    CyberGear_speed:list[int] = [0,0,0,0] # rpm -30〜30
-    DCmotor_speed: list[int] = [0, 0]  # 原則% 符号あり
+    CyberGear_speed:list[float] = [0,0,0,0] # rpm -30〜30
+    DCmotor_speed: list[int] = [0, 0]  # -256〜256 符号あり
     BLmotor_speed: list[int] = [0]  # 射出用ダクテッドファンと仰角調整用GM6020
     VESC_rpm: list[int] = [0] # VESC
+    VESC_adjust: list[int] = [0]
+    VESC_raw: list[int] = [0]
     servo_angle: list[int] = [0,0]
+    servo_adjust: list[int] = [0,0]
+    servo_raw: list[int] = [0,0]
     is_slow_speed: bool = False
 
     time_pushed_load_button: int = 0  # 装填ボタンが押された時間
@@ -513,7 +509,7 @@ class ROS2MainNode(Node):
 
     def __init__(self):
         global reception_json
-        super().__init__('command_subscriber')
+        super().__init__('main')
         self.publisher_ESP32_to_Webserver = self.create_publisher(
             String, 'ESP32_to_Webserver', 10)
         self.subscription = self.create_subscription(
@@ -577,7 +573,7 @@ class ROS2MainNode(Node):
             # "battery_voltage": battery_dict["average_voltage"],
             # "battery_voltage": 6,
             "battery": battery.battery_dict,
-            "limited_switch": sensors.limit_switch,
+            "limited_switch": DeviceControl.limit_switch,
             # "micon":micon_dict,
             "micon": temp_micon_dict,
             "wifi_signal_strength": 0,  # wifiのウブンツの強度を読み取る
@@ -625,7 +621,8 @@ class ROS2MainNode(Node):
             # 手動旋回と自動旋回を合わせる
             turn_minus1to1 += controller.joy_now["joy0"]["axes"][0]
         else:
-            logger.critical(f"joy0の読み取りに失敗")
+            # logger.critical(f"joy0の読み取りに失敗")
+            self.get_logger().error("joy0の読み取りに失敗")
 
         self.CyberGear_speed[:4] = [
             turn_minus1to1 * 30 * -1,
@@ -644,25 +641,31 @@ class ROS2MainNode(Node):
         # 絶対値が30を超えた場合、比率を保ったまま30以下にする
         max_motor_speed = max(map(abs, self.CyberGear_speed[:4]))
         if max_motor_speed > 30:
-            self.CyberGear_speed[:4] = [int(speed * 30 / max_motor_speed)
+            self.CyberGear_speed[:4] = [speed * 30 / max_motor_speed
                                       for speed in self.CyberGear_speed[:4]]
+            
+        # VESC
+        self.VESC_rpm[0] = self.VESC_raw[0] + self.VESC_adjust[0]
 
         # 低速モードの処理
         if self.is_slow_speed:
-            self.CyberGear_speed[:4] = [int(speed * 0.3)
+            self.CyberGear_speed[:4] = [speed * 0.3
                                       for speed in self.CyberGear_speed[:4]]
 
         # モータースピードが絶対値16未満の値を削除 (ジョイコンの戻りが悪いときでもブレーキを利かすため)
         self.DCmotor_speed = [
             0 if abs(i) < 16 else i for i in self.DCmotor_speed]
         self.CyberGear_speed = [
-            0 if abs(i) < 16 else i for i in self.CyberGear_speed]
+            0 if abs(i) < 1 else i for i in self.CyberGear_speed]
         
         #   装填サーボの処理
         if self.time_pushed_load_button != 0 and int(time.time() * 1000) - self.time_pushed_load_button > 700:
             # 1500msで0°に戻る
-            self.servo_angle[0] = 0
+            self.servo_raw[0] = 0
             self.time_pushed_load_button = 0
+
+        self.servo_angle[0] = self.servo_raw[0] + self.servo_adjust[0]
+        self.servo_angle[1] = self.servo_raw[1] + self.servo_adjust[1]
 
         # バッテリー保護
         # if battery.battery_dict["battery_4cell"]["state"] == "much_low" or battery.battery_dict["battery_4cell"]["state"] == "abnormality":
@@ -674,17 +677,18 @@ class ROS2MainNode(Node):
         #     self.BLmotor_speed = [0] * len(self.BLmotor_speed)
         #     logger.critical(f"3セルバッテリーが危険:{battery.battery_dict['battery_3cell']['state']}")
 
+        # TODO MIN MAXの処理を追加する
         self.send_ESP32_data: list[int] = [
             int(self.state),  # 0 状態
-            int(self.CyberGear_speed[0]),  # 1 sメカナム
-            int(self.CyberGear_speed[1]),  # 2 メカナム
-            int(self.CyberGear_speed[2]),  # 3 メカナム
-            int(self.CyberGear_speed[3]),  # 4 メカナム
+            float(self.CyberGear_speed[0]),  # 1 sメカナム
+            float(self.CyberGear_speed[1]),  # 2 メカナム
+            float(self.CyberGear_speed[2]),  # 3 メカナム
+            float(self.CyberGear_speed[3]),  # 4 メカナム
             int(self.DCmotor_speed[0]),  # 5 回収装填
             int(self.DCmotor_speed[1]),  # 6 回収装填
             int(self.BLmotor_speed[0]),  # 7 ダクテッドファン
-            int(self.servo_angle[0]),  # 8 サーボ
-            int(self.servo_angle[1]),  # 9 サーボ
+            int(max(min(self.servo_angle[0], 135), -135)),  # 8 サーボ
+            int(max(min(self.servo_angle[1], 135), -135)),  # 9 サーボ
             1, # 10
             # 11 ESP32_1を再起動するか 0 or 1
             int(convert_to_binary(micon_dict["ESP32"]["reboot"])),
@@ -696,7 +700,7 @@ class ROS2MainNode(Node):
             # 14 3セルリポバッテリーのstate
             int(battery.convert_battery_state_to_binary(battery,
                 battery.battery_dict["battery_3cell"]["state"])),
-            int(self.VESC_rpm[0])   # 15 VESC
+            int(max(min(self.VESC_rpm[0], 40000), 0))   # 15 VESC
         ]
 
         for micon_dict_key, micon_dict_values in micon_dict.items():
@@ -722,7 +726,7 @@ class ROS2MainNode(Node):
 
         json_str: str = ','.join(map(str, self.send_ESP32_data)) + "\n"
         if self.count_print % 15 == 0:  # 15回に1回実行
-            logger.info(json_str.encode())
+            self.get_logger().info(json_str.encode())
             # print(self.send_ESP32_data, flush=True)
             # print(data,flush=True)
             pass
@@ -737,7 +741,6 @@ class ROS2MainNode(Node):
                 # print(f"{each_micon_dict_key}への送信成功", flush=True)
             except Exception as e:
                 # logger.critical(f"{each_micon_dict_key}への送信に失敗: {e}")
-                self.get_logger().debug('My log message %d' % (4))
                 each_micon_dict_values["is_connected"] = False
                 # TODO 片方のマイコンが途切れたときに、詰まるから、このやり方よくない 非同期にするか、connect_serialを並行処理でずっとwhileしといて、bool変数がTrueになったら接続処理するとか
 
@@ -778,23 +781,27 @@ class ROS2MainNode(Node):
 
         # Bボタン
         if controller.joy_past["joy0"]["buttons"][0] == 0 and controller.joy_now["joy0"]["buttons"][0] == 1:
-            self.VESC_rpm[0] = 14000
-            self.servo_angle[1] = 0
+            self.VESC_raw[0] = 16000
+            if self.servo_raw[0] < 10:
+                self.servo_raw[1] = -60
 
         # Aボタン
         if controller.joy_past["joy0"]["buttons"][1] == 0 and controller.joy_now["joy0"]["buttons"][1] == 1:
-            self.VESC_rpm[0] = 21000
-            self.servo_angle[1] = -10
+            self.VESC_raw[0] = 21000
+            if self.servo_raw[0] < 10:
+                self.servo_raw[1] = -40
 
         # Xボタン
         if controller.joy_now["joy0"]["buttons"][2] == 1:  
-            self.VESC_rpm[0] = 30000
-            self.servo_angle[1] = -20
+            self.VESC_raw[0] = 30000
+            if self.servo_raw[0] < 10:
+                self.servo_raw[1] = -35
 
         # Yボタン
         if controller.joy_now["joy0"]["buttons"][3] == 1:  
-            self.VESC_rpm[0] = 35000
-            self.servo_angle[1] = -40
+            self.VESC_raw[0] = 32500 # TODO なぜかマイナス
+            if self.servo_raw[0] < 10:
+                self.servo_raw[1] = -30
 
         # if controller.joy_now["joy0"]["buttons"][2] == 1:  # Xボタン
             # 0°に旋回
@@ -833,6 +840,11 @@ class ROS2MainNode(Node):
             self.DCmotor_speed = [0] * len(self.DCmotor_speed)
             self.BLmotor_speed = [0] * len(self.BLmotor_speed)
             self.VESC_rpm = [0] * len(self.VESC_rpm)
+            self.VESC_adjust = [0] * len(self.VESC_adjust)
+            self.VESC_raw = [0] * len(self.VESC_raw)
+            self.servo_angle = [0] * len(self.servo_angle)
+            self.servo_adjust = [0] * len(self.servo_adjust)
+            self.servo_raw = [0] * len(self.servo_raw)
 
         # Lボタン
         if controller.joy_now["joy0"]["buttons"][5] == 1:
@@ -854,7 +866,7 @@ class ROS2MainNode(Node):
         # ZR装填 サーボ初期位置
         if controller.joy_now["joy0"]["buttons"][7] == 1:
             self.time_pushed_load_button = int(time.time() * 1000)  # エポックミリ秒
-            self.servo_angle[0] = 45
+            self.servo_raw[0] = abs(self.servo_raw[1]) + 12
 
         # if controller.joy_now["joy0"]["buttons"][8] == 1:
         #     micon_dict = {
@@ -886,15 +898,24 @@ class ROS2MainNode(Node):
             # タイマースタート
             self.start_time = time.time()
 
-        # ダクテッドファン
+        # VESC
         if controller.joy_now["joy0"]["buttons"][13] == 1 and controller.joy_past["joy0"]["buttons"][13] == 0:
             # ↑
-            self.BLmotor_speed[0] = max(
-                1000, min(1500, self.BLmotor_speed[0] + 10))
+            self.VESC_adjust[0] += 500
+            # self.VESC_rpm[0] = min(32500, max(0, self.VESC_rpm[0] + 500))
+            # self.BLmotor_speed[0] = max(
+            #     1000, min(1500, self.BLmotor_speed[0] + 10))
         elif controller.joy_now["joy0"]["buttons"][14] == 1 and controller.joy_past["joy0"]["buttons"][14] == 0:
             # ↓
-            self.BLmotor_speed[0] = min(
-                1500, max(1000, self.BLmotor_speed[0] - 10))
+            self.VESC_adjust[0] += -500
+            # self.VESC_rpm[0] = min(32500, max(0, self.VESC_rpm[0] - 500))
+            # self.BLmotor_speed[0] = min(
+            #     1500, max(1000, self.BLmotor_speed[0] - 10))
+
+        if controller.joy_now["joy0"]["buttons"][15] == 1 and controller.joy_past["joy0"]["buttons"][15] == 0:
+            self.servo_raw[1] += 5
+        elif controller.joy_now["joy0"]["buttons"][16] == 1 and controller.joy_past["joy0"]["buttons"][16] == 0:
+            self.servo_raw[1] += -5
 
         # 回収モーター
         # if controller.joy_now["joy0"]["buttons"][15] == 1:
@@ -949,7 +970,7 @@ class ROS2MainNode(Node):
         # R装填 サーボ初期位置
         if controller.joy_now["joy1"]["buttons"][5] == 1:
             self.time_pushed_load_button = int(time.time() * 1000)  # エポックミリ秒
-            self.servo_angle[0] = 45
+            self.servo_raw[0] = 45
 
         # ダクテッドファン
         # if controller.joy_now["joy1"]["buttons"][13] == 1 and controller.joy_past["joy1"]["buttons"][13] == 0:
@@ -975,21 +996,21 @@ class ROS2MainNode(Node):
 
         controller.joy_past["joy1"] = controller.joy_now["joy1"]
 
-    def control_mecanum_wheels(self, direction, speed) -> list[int]:
+    def control_mecanum_wheels(self, direction:float, speed:float) -> list[float]:
         # ラジアンに変換
         angle: float = direction * 2.0 * math.pi
 
-        # 回転数を255から-255の範囲に変換
-        front_left = math.sin(angle + math.pi / 4.0) * 255
-        front_right = math.cos(angle + math.pi / 4.0) * 255
-        rear_left = math.cos(angle + math.pi / 4.0) * 255
-        rear_right = math.sin(angle + math.pi / 4.0) * 255
-        adjust = 255 / max([abs(front_left), abs(front_right),
+        # 回転数を-30から30の範囲に変換
+        front_left:float = math.sin(angle + math.pi / 4.0) * 30
+        front_right:float = math.cos(angle + math.pi / 4.0) * 30
+        rear_left:float = math.cos(angle + math.pi / 4.0) * 30
+        rear_right:float = math.sin(angle + math.pi / 4.0) * 30
+        adjust = 30 / max([abs(front_left), abs(front_right),
                            abs(rear_left), abs(rear_right)])
-        front_left = int(front_left * adjust * speed)
-        front_right = int(front_right * adjust * speed)
-        rear_left = int(rear_left * adjust * speed)
-        rear_right = int(rear_right * adjust * speed)
+        front_left = front_left * adjust * speed
+        front_right = front_right * adjust * speed
+        rear_left = rear_left * adjust * speed
+        rear_right = rear_right * adjust * speed
 
         return front_left, front_right, rear_left, rear_right
 
@@ -1140,6 +1161,59 @@ def crc16(data : bytearray, offset , length):
             else:
                 crc = crc << 1
     return crc & 0xFFFF
+
+
+
+# def receive_udp_sp():
+#     global reception_json
+#     # UDPソケットの作成
+#     sp_udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+#     sp_udp_socket.bind(('127.0.0.1', 5010))
+#     sp_udp_socket.settimeout(0.1)  # タイムアウトを0.1秒に設定
+#     while True:
+#         try:
+#             message, cli_addr = sp_udp_socket.recvfrom(1024)
+#             # print(f"Received: {message.decode('utf-8')}", flush=True)
+#             reception_json_temp = json.loads(message.decode('utf-8'))
+#             reception_json.update(reception_json_temp)
+#         except Exception as e:
+#             print(
+#                 f"スマホ からの受信に失敗: {e}", flush=True)
+
+
+def receive_udp_webserver():
+    global reception_json
+    # UDPソケットの作成
+    udp_socket_webserver = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    udp_socket_webserver.bind(('127.0.0.1', 5003))
+    udp_socket_webserver.settimeout(1.0)  # タイムアウトを1秒に設定
+    while True:
+        try:
+            message, cli_addr = udp_socket_webserver.recvfrom(1024)
+            # print(f"Received: {message.decode('utf-8')}", flush=True)
+            reception_json_temp = json.loads(message.decode('utf-8'))
+            reception_json.update(reception_json_temp)
+        except Exception as e:
+            print(
+                f"\n\n\n\n\n\n\n    Webserver からの受信に失敗: {e}\n\n\n\n\n\n\n", flush=True)
+
+
+def receive_udp_webrtc():
+    global reception_json
+    # UDPソケットの作成
+    udp_socket_webserver = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    udp_socket_webserver.bind(('127.0.0.1', 5007))
+    udp_socket_webserver.settimeout(1.0)  # タイムアウトを1秒に設定
+    while True:
+        try:
+            message, cli_addr = udp_socket_webserver.recvfrom(1024)
+            # print(f"Received: {message.decode('utf-8')}", flush=True)
+            reception_json_temp = json.loads(message.decode('utf-8'))
+            reception_json.update({"raw_angle": int(reception_json_temp)})
+            print(reception_json, flush=True)
+        except Exception as e:
+            print(
+                f"\n\n\n\n\n\n\n    webrtc からの受信に失敗: {e}\n\n\n\n\n\n\n", flush=True)
 
 
 
