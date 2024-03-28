@@ -53,11 +53,11 @@ try:
 except subprocess.CalledProcessError:
     wifi_ssid = "エラー"
 
-def location(depth=0):
+def location(depth:int=0) -> tuple:
     frame = inspect.currentframe().f_back
     return os.path.basename(frame.f_code.co_filename), frame.f_code.co_name, frame.f_lineno
 
-def main():
+def main() -> None:
     with ThreadPoolExecutor(max_workers=6) as executor:
         # executor.submit(receive_udp_sp)
         # executor.submit(receive_udp_webserver)
@@ -85,8 +85,6 @@ def main():
 # こういう感じに動作させる
 
         executor.submit(lambda: Serial.connect_serial(Serial()))
-        # executor.submit(odometry)
-        # executor.submit(graph)
         future = executor.submit(ros)
         future.result()         # 全てのタスクが終了するまで待つ
 
@@ -143,7 +141,7 @@ class controller:
                            "axes": [joy_before["axes"][0], joy_before["axes"][1], joy_before["axes"][3], joy_before["axes"][4]]}
         return joy_after
 
-    def convert_PS4_to_WiiU(self, joy_before: dict):
+    def convert_PS4_to_WiiU(self, joy_before: dict) -> dict:
         joy_after: dict = {"axes": [joy_before["axes"][0], joy_before["axes"][1], joy_before["axes"][2], joy_before["axes"][3]],
                            "buttons": [
             joy_before["buttons"][0],
@@ -182,7 +180,7 @@ class controller:
         # print(joy_after,flush=True)
         return joy_after
 
-    def convert_PS4_other_to_WiiU(self, joy_before: dict):
+    def convert_PS4_other_to_WiiU(self, joy_before: dict) -> dict:
         joy_after: dict = {"buttons": [
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}
         # リマッピングする
@@ -267,7 +265,7 @@ class battery:
             logger.error("battery_stateが既定のものではない")
             return -1
         
-    def battery_alert(self):
+    def battery_alert(self) -> None:
         while True:
             for each_battery_dict_key, each_battery_dict_value in battery.battery_dict.items():
                 if each_battery_dict_value["state"] == "low":
@@ -330,6 +328,11 @@ class Serial:
             if each_micon_dict_values["serial_obj"] is not None:
                 try:
                     received_bytes: bytes = each_micon_dict_values["serial_obj"].readline()
+                    # HACK なにもマイコンから受信しなくてもタイムアウトで、空を受け取ったふうになるから注意
+
+                    # ROS2MainNode.get_logger().error(f"{micon_id}から:{received_bytes}")
+                    logger.info(f"{micon_id}から:{received_bytes}")
+                    # self.received_command(received_bytes, micon_id)
                 # except AttributeError as e:
                 #     logger.error(f"{micon_id}への接続失敗 読み取り試行時:{e}")
                     # TODO falseにする動作ついか
@@ -338,9 +341,6 @@ class Serial:
                     logger.error(f"{micon_id}への接続失敗 読み取り試行時:{e}")
                     # ROS2MainNode.get_logger().error(f"{micon_id}への接続失敗 読み取り試行時:{e}")
                     continue
-                # ROS2MainNode.get_logger().error(f"{micon_id}から:{received_bytes}")
-                logger.info(f"{micon_id}から:{received_bytes}")
-                self.received_command(received_bytes, micon_id)
             else:
                 each_micon_dict_values["is_connected"] = False
                 time.sleep(0.01)  # 無駄にCPUを使わないようにする
@@ -711,6 +711,8 @@ class ROS2MainNode(Node):
 
         data_tuple:tuple = (self.uart_prev_count,-32767,16384,-24576,255)
 
+        self.get_logger().info(f"{data_tuple}")
+
         data = bytearray()
         for x in data_tuple:
             data.extend(x.to_bytes(2, byteorder='big', signed=True))
@@ -725,19 +727,20 @@ class ROS2MainNode(Node):
         # print(hex(crc16(data, 0, len(data))),flush=True)
 
         json_str: str = ','.join(map(str, self.send_ESP32_data)) + "\n"
+        data.extend(b'\x0d')  # 改行文字を追加 キャリッジリターン（CR：ASCIIコード0x0d）は \r       改行文字（CR）を追加します # ラインフィード(b'\x0a')（LF：ASCIIコード0x0a）は \nはいらない
+        
         if self.count_print % 15 == 0:  # 15回に1回実行
-            self.get_logger().info(json_str.encode())
-            # print(self.send_ESP32_data, flush=True)
-            # print(data,flush=True)
+            # self.get_logger().info(json_str.encode().hex())
+            self.get_logger().info(data.hex())
             pass
         self.count_print += 1
         for each_micon_dict_key, each_micon_dict_values in micon_dict.items():
         # each_micon_dict_key = "ESP32"
         # each_micon_dict_values = micon_dict["ESP32"]
             try:
-                each_micon_dict_values["serial_obj"].write(
-                    json_str.encode())
-                # each_micon_dict_values["serial_obj"].write(data)
+                # each_micon_dict_values["serial_obj"].write(
+                #     json_str.encode())
+                each_micon_dict_values["serial_obj"].write(data)
                 # print(f"{each_micon_dict_key}への送信成功", flush=True)
             except Exception as e:
                 # logger.critical(f"{each_micon_dict_key}への送信に失敗: {e}")
@@ -1214,79 +1217,6 @@ def receive_udp_webrtc():
         except Exception as e:
             print(
                 f"\n\n\n\n\n\n\n    webrtc からの受信に失敗: {e}\n\n\n\n\n\n\n", flush=True)
-
-
-
-coordinates: list[list[float]] = [[0, 1], [0, 1]]
-accuracy_angle: int = 0
-
-
-def graph():
-    global coordinates
-    while True:
-        # print(coordinates[0],coordinates[1],flush=True)
-        plt.clf()
-        plt.plot(coordinates[0], coordinates[1], color='red', linewidth=2)
-        plt.plot(coordinates[0][-1], coordinates[1]
-                 [-1], marker='x', markersize=15)
-        plt.xlim(-50000, 50000)
-        plt.ylim(-50000, 50000)
-        plt.title(
-            f"mouse odometry ( {coordinates[0][-1]} , {coordinates[1][-1]} )")
-        plt.grid(True)
-        plt.gca().set_aspect('equal', adjustable='box')
-        plt.pause(0.01)
-
-
-def odometry():
-    global coordinates, accuracy_angle
-    # マウス受信用
-    mouse_udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    mouse_udp_socket.bind(('127.0.0.1', 5020))  # 本当は5002
-    mouse_udp_socket.settimeout(1.0)  # タイムアウトを1秒に設定
-    while True:
-        try:
-            message, cli_addr = mouse_udp_socket.recvfrom(1024)
-            # print(f"Received: {message.decode('utf-8')}", flush=True)
-            mouse_displacement = [int(value)
-                                  for value in message.decode("utf-8").split(",")]
-            # print(mouse_displacement, flush=True)
-            # angle = ROS2MainNode.current_angle  # 角度（度）
-            angle = accuracy_angle
-            # print(
-            #     f"           角度{angle}", flush=True)
-            # 角度をラジアンに変換
-            angle = math.radians(angle) * -1
-
-            x_new = math.cos(
-                angle)*mouse_displacement[0] - math.sin(angle)*mouse_displacement[1]
-            y_new = math.sin(
-                angle)*mouse_displacement[0] + math.cos(angle)*mouse_displacement[1]
-
-            x_lateset = coordinates[0][-1] - x_new
-            y_lateset = coordinates[1][-1] - y_new
-
-            # 本当はintにしてから代入したい！！！！！！！！！！！！！！！！!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            coordinates[0].append(coordinates[0][-1] - x_new)
-            coordinates[1].append(coordinates[1][-1] - y_new)
-            # print(coordinates, flush=True)
-
-            if len(coordinates[0]) > 1000:
-                # coordinates[0].pop(0)
-                # coordinates[1].pop(0)
-
-                coordinates[0].append(coordinates[0][-1])
-                coordinates[1].append(coordinates[1][-1])
-                coordinates[0] = coordinates[0][:-1][::2]
-                coordinates[1] = coordinates[1][:-1][::2]
-
-            coordinates[0].append(x_lateset)
-            coordinates[1].append(y_lateset)
-        except Exception as e:
-            print(
-                f"\n\n\n\n\n\n\n    マウス の読み取りに失敗: {e}\n\n\n\n\n\n\n", flush=True)
-
-
 
 
 if __name__ == '__main__':

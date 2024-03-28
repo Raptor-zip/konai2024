@@ -22,6 +22,7 @@ setup(
         'console_scripts': [
             'main = konai2024_python.main:main',
             'webserver = konai2024_python.webserver:main',
+            'odometry = konai2024_python.odometry:main'
         ],
     },
 )

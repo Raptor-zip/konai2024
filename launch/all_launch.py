@@ -33,11 +33,17 @@ def generate_launch_description():
             #     parameters=[{"device_id": 1}],
             #     remappings=[("/joy", "/joy1")],
             # ),
-            Node(
-                package="konai2024_python",
-                executable="webserver",
-                output="screen",
-                prefix="xterm -e",
-            ),
+            # Node(
+            #     package="konai2024_python",
+            #     executable="webserver",
+            #     output="screen",
+            #     prefix="xterm -e",
+            # ),
+            # Node(
+            #     package="konai2024_python",
+            #     executable="odometry",
+            #     output="both",
+            #     prefix="xterm -e",
+            # ),
         ]
     )
