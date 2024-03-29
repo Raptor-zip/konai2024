@@ -101,6 +101,11 @@ micon_dict: dict[str, dict] = {
 
 
 
+reception_json: dict = {
+    "raw_angle": 0
+}
+
+
 class DeviceControl:
     DCmotor:dict ={
         "motor1":{
@@ -138,10 +143,6 @@ class DeviceControl:
 
     limit_switch: bool = False
 
-
-reception_json: dict = {
-    "raw_angle": 0
-}
 
 
 class controller:
@@ -259,6 +260,7 @@ class controller:
         return joy_after
 
 
+
 class battery:
     # stateには 以下のものが入る dictにはstrが入る send_ESPにはintが入る
     # -1:エラー 以下のものではない
@@ -332,7 +334,7 @@ class Serial:
                 available_ports = [port for port in candidates_port_list if port not in connected_ports]
 
                 if not available_ports:
-                    logger.critical(f"{micon_name}がUSBに接続されていない")
+                    # logger.critical(f"{micon_name}がUSBに接続されていない")
                     # ROS2MainNode.get_logger().error(f"{micon_name}がUSBに接続されていない")
                     continue
 
@@ -529,9 +531,6 @@ class ROS2MainNode(Node):
     angle_when_turn: list = []
     time_when_turn: list = []
 
-    joy0_stick1_angle: float = 0 # TODO ごみ　消す
-    joy0_stick1_distance: float = 0 # TODO ごみ　消す
-
     start_time: float = 0  # 試合開始時刻(ホームボタン押下時の時刻)
     turn_start_time: float = 0
 
@@ -575,7 +574,7 @@ class ROS2MainNode(Node):
             self.kd = float(_json["d"])
 
     def timer_callback_0033(self):
-        global wifi_ssid, battery_dict, micon_dict
+        global wifi_ssid, micon_dict
 
         temp_micon_dict: dict = {"ESP32": {
             "is_connected": micon_dict["ESP32"]["is_connected"],
@@ -627,15 +626,13 @@ class ROS2MainNode(Node):
         self.publisher_ESP32_to_Webserver.publish(msg)
 
     def timer_callback_001(self):
-        global reception_json, accuracy_angle, micon_dict, battery_dict
+        global reception_json, micon_dict
         self.current_angle = reception_json["raw_angle"] + \
             self.angle_adjust
         if self.current_angle < 0:
             self.current_angle = 360 + self.current_angle
 
         # print(reception_json["raw_angle"],self.angle_adjust,self.current_angle,flush=True)
-
-        accuracy_angle = self.current_angle
 
         turn_minus1to1: float = 0
 
@@ -651,9 +648,17 @@ class ROS2MainNode(Node):
         elif self.state == 4:
             turn_minus1to1 = self.turn(270)
 
+        _mecunum_speed: list[float] = [0, 0, 0, 0] # front_left, front_right, rear_left, rear_right
+
         if "joy0" in controller.joy_now:
             # 手動旋回と自動旋回を合わせる
             turn_minus1to1 += controller.joy_now["joy0"]["axes"][0]
+
+            _angle:float = (1 - (math.atan2(controller.joy_now["joy0"]["axes"][2], controller.joy_now["joy0"]["axes"][3])) / (2 * math.pi)) % 1
+            _distance:float = min(math.sqrt(controller.joy_now["joy0"]["axes"][2]**2 + controller.joy_now["joy0"]["axes"][3]**2), 1)  # ジョイスティックの傾きの大きさを求める(最大1最小0) # これよりも、割る1.4141356のほうがよくね？
+            
+            _mecunum_speed = self.control_mecanum_wheels(_angle, _distance)  # 0から1の範囲で指定（北を0、南を0.5として時計回りに）
+
         else:
             # logger.critical(f"joy0の読み取りに失敗")
             self.get_logger().error("joy0の読み取りに失敗")
@@ -664,18 +669,14 @@ class ROS2MainNode(Node):
             turn_minus1to1 * 30 * -1,
             turn_minus1to1 * 30]
 
-        # 制御関数の呼び出し
-        front_left, front_right, rear_left, rear_right = self.control_mecanum_wheels(
-            self.joy0_stick1_angle, self.joy0_stick1_distance)  # 0から1の範囲で指定（北を0、南を0.5として時計回りに）
-
-        # 旋回と合わせる
+        # 旋回と十字移動合わせる
         self.CyberGear_speed[:4] = [speed + value for speed, value in zip(
-            self.CyberGear_speed[:4], [front_left, front_right, rear_left, rear_right])]
+            self.CyberGear_speed[:4], _mecunum_speed)]
 
         # 絶対値が30を超えた場合、比率を保ったまま30以下にする
-        max_motor_speed = max(map(abs, self.CyberGear_speed[:4]))
-        if max_motor_speed > 30:
-            self.CyberGear_speed[:4] = [speed * 30 / max_motor_speed
+        _max_motor_speed:float = max(map(abs, self.CyberGear_speed[:4]))
+        if _max_motor_speed > 30:
+            self.CyberGear_speed[:4] = [speed * 30 / _max_motor_speed
                                       for speed in self.CyberGear_speed[:4]]
             
         # VESC
@@ -785,12 +786,6 @@ class ROS2MainNode(Node):
         global reception_json, micon_dict
 
         controller.joy_convert(controller(), "joy0", joy,)
-
-        self.joy0_stick1_angle = (
-            1 - (math.atan2(controller.joy_now["joy0"]["axes"][2], controller.joy_now["joy0"]["axes"][3])) / (2 * math.pi)) % 1
-
-        self.joy0_stick1_distance = min(math.sqrt(
-            controller.joy_now["joy0"]["axes"][2]**2 + controller.joy_now["joy0"]["axes"][3]**2), 1)  # ジョイスティックの傾きの大きさを求める(最大1最小0) # これよりも、割る1.4141356のほうがよくね？
 
         # Bボタン
         if controller.joy_past["joy0"]["buttons"][0] == 0 and controller.joy_now["joy0"]["buttons"][0] == 1:
@@ -987,7 +982,7 @@ class ROS2MainNode(Node):
 
         controller.joy_past["joy1"] = controller.joy_now["joy1"]
 
-    def control_mecanum_wheels(self, direction:float, speed:float) -> list[float]:
+    def control_mecanum_wheels(self, direction:float, speed:float) -> list[float]: # HACK リストじゃなくね？
         # ラジアンに変換
         angle: float = direction * 2.0 * math.pi
 
@@ -1003,7 +998,7 @@ class ROS2MainNode(Node):
         rear_left = rear_left * adjust * speed
         rear_right = rear_right * adjust * speed
 
-        return front_left, front_right, rear_left, rear_right
+        return [front_left, front_right, rear_left, rear_right]
 
     def turn(self, target_angle: float) -> float:
         # ラジアンにして、来週的に度数法に直せばよくね？   ーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
