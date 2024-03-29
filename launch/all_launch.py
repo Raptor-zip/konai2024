@@ -19,7 +19,8 @@ def generate_launch_description():
             Node(
                 package="joy",
                 executable="joy_node",
-                parameters=[{"device_id": 0}],
+                parameters=[{"device_id": 0, "deadzone": 0.2}],
+                # parameters=[{"device_name": "PS4 Controller", "deadzone": 0.2}], # Sony Interactive Entertainment Wireless Controller.
                 remappings=[("/joy", "/joy0")],
             ),
             # Node(

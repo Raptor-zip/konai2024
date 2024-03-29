@@ -89,6 +89,18 @@ def main() -> None:
         future.result()         # 全てのタスクが終了するまで待つ
 
 
+micon_dict: dict[str, dict] = {
+    "ESP32": {"is_connected": False,  # パソコンと接続しているか
+                "serial_port": None, # ポート 例:/dev/ttyUSB0
+                "serial_obj": None, # シリアルオブジェクト
+                "reboot": False}, # 再起動命令がでているか
+    "STM32": {"is_connected": False,
+                "serial_port": None,
+                "serial_obj": None,
+                "reboot": False}}
+
+
+
 class DeviceControl:
     DCmotor:dict ={
         "motor1":{
@@ -135,6 +147,37 @@ reception_json: dict = {
 class controller:
     joy_now: dict = {}
     joy_past: dict = {}
+
+    def joy_convert(self, joy_id: int, received_joy:Joy) -> None:
+        joy:dict = {"axes":received_joy.axes,
+                    "buttons":received_joy.buttons}
+        
+        # 旋回が逆になるから無理やり合わせる
+        joy["axes"][0] = joy["axes"][0] * -1
+
+        _len_axes: int = len(joy["axes"]) # axesの数
+        _len_buttons: int = len(joy["buttons"]) # buttonsの数
+
+        # ボタンの数が違うので、それぞれのコントローラーに合わせて変換する
+        if _len_axes == 4 and _len_buttons == 17:
+            self.joy_now.update({
+                joy_id:
+                {"axes": list(joy.axes),
+                "buttons": list(joy.buttons)}
+            })
+        if _len_axes == 6 and _len_buttons == 17:
+            self.joy_now.update({joy_id: self.convert_PS3_to_WiiU(joy)})
+        elif _len_axes == 6 and _len_buttons == 16:
+            self.joy_now.update({joy_id: self.convert_PS4_to_WiiU(joy)})
+        elif _len_axes == 8 and _len_buttons == 13:
+            self.joy_now.update({joy_id: self.convert_PS4_other_to_WiiU(joy)})
+        else:
+            logger.error("コントローラーのボタン数が違う")
+
+        self.joy_past.setdefault(  # 初回のみ実行 上書き不可
+            joy_id,
+            {"axes": [0] * _len_axes, "buttons": [0] * _len_buttons}
+        )
 
     def convert_PS3_to_WiiU(self, joy_before: dict) -> dict:
         joy_after: dict = {"buttons": joy_before["buttons"],
@@ -198,10 +241,10 @@ class controller:
             joy_after["buttons"][13] = 0
             joy_after["buttons"][14] = 0
 
-        if joy_before["axes"][6] < 0:
+        if joy_before["axes"][6] < 0: # トリガー　しきい値
             joy_after["buttons"][15] = 0
             joy_after["buttons"][16] = 1
-        elif joy_before["axes"][6] > 0:
+        elif joy_before["axes"][6] > 0: # トリガー　しきい値
             joy_after["buttons"][15] = 1
             joy_after["buttons"][16] = 0
         else:
@@ -215,16 +258,6 @@ class controller:
         # print(joy_after,flush=True)
         return joy_after
 
-
-micon_dict: dict[str, dict] = {
-    "ESP32": {"is_connected": False,  # パソコンと接続しているか
-                "serial_port": None, # ポート 例:/dev/ttyUSB0
-                "serial_obj": None, # シリアルオブジェクト
-                "reboot": False}, # 再起動命令がでているか
-    "STM32": {"is_connected": False,
-                "serial_port": None,
-                "serial_obj": None,
-                "reboot": False}}
 
 class battery:
     # stateには 以下のものが入る dictにはstrが入る send_ESPにはintが入る
@@ -452,6 +485,7 @@ class Serial:
                     each_battery["state"] = "normal"
                 else:
                     each_battery["state"] = "abnormality"
+
 
 
 def ros(args=None):
@@ -711,7 +745,7 @@ class ROS2MainNode(Node):
 
         data_tuple:tuple = (self.uart_prev_count,-32767,16384,-24576,255)
 
-        self.get_logger().info(f"{data_tuple}")
+        # self.get_logger().info(f"{data_tuple}")
 
         data = bytearray()
         for x in data_tuple:
@@ -730,8 +764,8 @@ class ROS2MainNode(Node):
         data.extend(b'\x0d')  # 改行文字を追加 キャリッジリターン（CR：ASCIIコード0x0d）は \r       改行文字（CR）を追加します # ラインフィード(b'\x0a')（LF：ASCIIコード0x0a）は \nはいらない
         
         if self.count_print % 15 == 0:  # 15回に1回実行
-            # self.get_logger().info(json_str.encode().hex())
-            self.get_logger().info(data.hex())
+            self.get_logger().info(json_str.encode())
+            # self.get_logger().info(data.hex())
             pass
         self.count_print += 1
         for each_micon_dict_key, each_micon_dict_values in micon_dict.items():
@@ -748,33 +782,9 @@ class ROS2MainNode(Node):
                 # TODO 片方のマイコンが途切れたときに、詰まるから、このやり方よくない 非同期にするか、connect_serialを並行処理でずっとwhileしといて、bool変数がTrueになったら接続処理するとか
 
     def joy0_listener_callback(self, joy):
-        global reception_json, coordinates, exclude_list, micon_dict
-        controller.joy_now.update({  # 上書きOK
-            "joy0":
-            {"axes": list(joy.axes),
-             "buttons": list(joy.buttons)}
-        })
+        global reception_json, micon_dict
 
-        # TODO 下のやつを自動でやってくれる関数作る
-        if len(controller.joy_now["joy0"]["axes"]) == 6 and len(controller.joy_now["joy0"]["buttons"]) == 17:
-            controller.joy_now["joy0"] = controller.convert_PS3_to_WiiU(
-                self, controller.joy_now["joy0"])
-        elif len(controller.joy_now["joy0"]["axes"]) == 6 and len(controller.joy_now["joy0"]["buttons"]) == 16:
-            controller.joy_now["joy0"] = controller.convert_PS4_to_WiiU(
-                self, controller.joy_now["joy0"])
-        elif len(controller.joy_now["joy0"]["axes"]) == 8 and len(controller.joy_now["joy0"]["buttons"]) == 13:
-            controller.joy_now["joy0"] = controller.convert_PS4_other_to_WiiU(
-                self, controller.joy_now["joy0"])
-        # 旋回が逆になるから無理やり合わせる
-        controller.joy_now["joy0"]["axes"][0] = controller.joy_now["joy0"]["axes"][0] * -1
-        # 各axesが0.3未満の場合に0に設定する
-        for i in range(len(controller.joy_now["joy0"]["axes"])):
-            if abs(controller.joy_now["joy0"]["axes"][i]) < 0.3:
-                controller.joy_now["joy0"]["axes"][i] = 0
-        controller.joy_past.setdefault(  # 初回のみ実行 上書き不可
-            "joy0",
-            {"axes": [0] * len(joy.axes), "buttons": [0] * len(joy.buttons)}
-        )
+        controller.joy_convert(controller(), "joy0", joy,)
 
         self.joy0_stick1_angle = (
             1 - (math.atan2(controller.joy_now["joy0"]["axes"][2], controller.joy_now["joy0"]["axes"][3])) / (2 * math.pi)) % 1
@@ -943,31 +953,9 @@ class ROS2MainNode(Node):
         controller.joy_past["joy0"] = controller.joy_now["joy0"]
 
     def joy1_listener_callback(self, joy):
-        global reception_json, coordinates, exclude_list, micon_dict
-        controller.joy_now.update({  # 上書きOK
-            "joy1":
-            {"axes": list(joy.axes),
-             "buttons": list(joy.buttons)}
-        })
-        if len(controller.joy_now["joy1"]["axes"]) == 6 and len(controller.joy_now["joy1"]["buttons"]) == 17:
-            controller.joy_now["joy1"] = controller.convert_PS3_to_WiiU(
-                self, controller.joy_now["joy1"])
-        elif len(controller.joy_now["joy1"]["axes"]) == 6 and len(controller.joy_now["joy1"]["buttons"]) == 16:
-            controller.joy_now["joy1"] = controller.convert_PS4_to_WiiU(
-                self, controller.joy_now["joy1"])
-        elif len(controller.joy_now["joy1"]["axes"]) == 8 and len(controller.joy_now["joy1"]["buttons"]) == 13:
-            controller.joy_now["joy1"] = controller.convert_PS4_other_to_WiiU(
-                self, controller.joy_now["joy1"])
-        # 旋回が逆になるから無理やり合わせる
-        controller.joy_now["joy1"]["axes"][0] = controller.joy_now["joy1"]["axes"][0] * -1
-        # 各axesが0.3未満の場合に0に設定する
-        for i in range(len(controller.joy_now["joy1"]["axes"])):
-            if abs(controller.joy_now["joy1"]["axes"][i]) < 0.3:
-                controller.joy_now["joy1"]["axes"][i] = 0
-        controller.joy_past.setdefault(  # 初回のみ実行 上書き不可
-            "joy1",
-            {"axes": [0] * len(joy.axes), "buttons": [0] * len(joy.buttons)}
-        )
+        global reception_json, micon_dict
+
+        controller.joy_convert(controller(), "joy1", joy,)
 
         # サーボの制御
         # R装填 サーボ初期位置
