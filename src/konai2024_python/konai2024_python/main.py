@@ -144,12 +144,20 @@ class DeviceControl:
     limit_switch: bool = False
 
 
-
 class controller:
     joy_now: dict = {}
     joy_past: dict = {}
 
-    def joy_convert(self, joy_id: int, received_joy:Joy) -> None:
+    def joy_convert(self, joy_id: str, received_joy:Joy) -> None:
+        self.joy_past.setdefault(  # 初回のみ実行 上書き不可
+            joy_id,
+            {"axes": [0] * 4, "buttons": [0] * 17}
+        )
+
+        #　一周期前のデータを保存
+        if joy_id in self.joy_now:
+            self.joy_past[joy_id] = self.joy_now[joy_id]
+
         joy:dict = {"axes":received_joy.axes,
                     "buttons":received_joy.buttons}
         
@@ -175,10 +183,6 @@ class controller:
         else:
             logger.error("コントローラーのボタン数が違う")
 
-        self.joy_past.setdefault(  # 初回のみ実行 上書き不可
-            joy_id,
-            {"axes": [0] * _len_axes, "buttons": [0] * _len_buttons}
-        )
 
     def convert_PS3_to_WiiU(self, joy_before: dict) -> dict:
         joy_after: dict = {"buttons": joy_before["buttons"],
@@ -260,7 +264,6 @@ class controller:
         return joy_after
 
 
-
 class battery:
     # stateには 以下のものが入る dictにはstrが入る send_ESPにはintが入る
     # -1:エラー 以下のものではない
@@ -316,7 +319,6 @@ class battery:
                 # 3:not_exit
                 # 4:abnormality
             time.sleep(0.2)  # 無駄にCPUを使わないようにする
-
 
 
 class Serial:
@@ -489,7 +491,6 @@ class Serial:
                     each_battery["state"] = "abnormality"
 
 
-
 def ros(args=None):
     rclpy.init(args=args)
 
@@ -532,9 +533,9 @@ class ROS2MainNode(Node):
     time_when_turn: list = []
 
     start_time: float = 0  # 試合開始時刻(ホームボタン押下時の時刻)
-    turn_start_time: float = 0
+    turn_start_time: float = 0 # 旋回の開始時刻
 
-    count_print: int = 0
+    count_print: int = 0 # 15回に1回デバッグ用のprintを出力するためのカウンタ
 
     send_ESP32_data: str = ""
 
@@ -562,6 +563,7 @@ class ROS2MainNode(Node):
         self.timer_0001 = self.create_timer(0.01, self.timer_callback_001)
         self.timer_0016 = self.create_timer(0.016, self.timer_callback_0033)
 
+
     def Web_to_Main_listener_callback(self, json_string):
         # ロボット制御からきたデータの処理
         # この処理雑くていろわろし
@@ -572,6 +574,7 @@ class ROS2MainNode(Node):
             self.ki = float(_json["i"])
         if "d" in _json:
             self.kd = float(_json["d"])
+
 
     def timer_callback_0033(self):
         global wifi_ssid, micon_dict
@@ -625,6 +628,7 @@ class ROS2MainNode(Node):
         # print(json.dumps(reception_json).encode('utf-8'))
         self.publisher_ESP32_to_Webserver.publish(msg)
 
+
     def timer_callback_001(self):
         global reception_json, micon_dict
         self.current_angle = reception_json["raw_angle"] + \
@@ -657,7 +661,7 @@ class ROS2MainNode(Node):
             _angle:float = (1 - (math.atan2(controller.joy_now["joy0"]["axes"][2], controller.joy_now["joy0"]["axes"][3])) / (2 * math.pi)) % 1
             _distance:float = min(math.sqrt(controller.joy_now["joy0"]["axes"][2]**2 + controller.joy_now["joy0"]["axes"][3]**2), 1)  # ジョイスティックの傾きの大きさを求める(最大1最小0) # これよりも、割る1.4141356のほうがよくね？
             
-            _mecunum_speed = self.control_mecanum_wheels(_angle, _distance)  # 0から1の範囲で指定（北を0、南を0.5として時計回りに）
+            _mecunum_speed = control_mecanum_wheels(_angle, _distance)  # 0から1の範囲で指定（北を0、南を0.5として時計回りに）
 
         else:
             # logger.critical(f"joy0の読み取りに失敗")
@@ -782,32 +786,33 @@ class ROS2MainNode(Node):
                 each_micon_dict_values["is_connected"] = False
                 # TODO 片方のマイコンが途切れたときに、詰まるから、このやり方よくない 非同期にするか、connect_serialを並行処理でずっとwhileしといて、bool変数がTrueになったら接続処理するとか
 
+
     def joy0_listener_callback(self, joy):
         global reception_json, micon_dict
 
-        controller.joy_convert(controller(), "joy0", joy,)
+        controller.joy_convert(controller(), "joy0", joy)
 
-        # Bボタン
+        # B ☓ボタン
         if controller.joy_past["joy0"]["buttons"][0] == 0 and controller.joy_now["joy0"]["buttons"][0] == 1:
             self.VESC_raw[0] = 16000
             if self.servo_raw[0] < 10:
                 self.servo_raw[1] = -60
 
-        # Aボタン
+        # A　○ボタン
         if controller.joy_past["joy0"]["buttons"][1] == 0 and controller.joy_now["joy0"]["buttons"][1] == 1:
             self.VESC_raw[0] = 21000
             if self.servo_raw[0] < 10:
                 self.servo_raw[1] = -40
 
-        # Xボタン
-        if controller.joy_now["joy0"]["buttons"][2] == 1:  
+        # X △ボタン
+        if controller.joy_past["joy0"]["buttons"][2] == 0 and controller.joy_now["joy0"]["buttons"][2] == 1:
             self.VESC_raw[0] = 30000
             if self.servo_raw[0] < 10:
                 self.servo_raw[1] = -35
 
-        # Yボタン
-        if controller.joy_now["joy0"]["buttons"][3] == 1:  
-            self.VESC_raw[0] = 32500 # TODO なぜかマイナス
+        # Y □ボタン
+        if controller.joy_past["joy0"]["buttons"][3] == 0 and controller.joy_now["joy0"]["buttons"][3] == 1:
+            self.VESC_raw[0] = 32500
             if self.servo_raw[0] < 10:
                 self.servo_raw[1] = -30
 
@@ -861,20 +866,12 @@ class ROS2MainNode(Node):
         else:
             self.is_slow_speed = False
 
-        # ダクテッドのリレー
-        # ZL
-        # if controller.joy_past["joy0"]["buttons"][6] == 0 and controller.joy_now["joy0"]["buttons"][6] == 1:
-        #     if self.is_run_ducted_fan == True:
-        #         self.is_run_ducted_fan = False
-        #     else:
-        #         self.is_run_ducted_fan = True
-
         # サーボの制御
         # self.servo_angle = int(controller.joy_now["joy0"]["axes"][1]*174)
         # ZR装填 サーボ初期位置
         if controller.joy_now["joy0"]["buttons"][7] == 1:
             self.time_pushed_load_button = int(time.time() * 1000)  # エポックミリ秒
-            self.servo_raw[0] = abs(self.servo_raw[1]) + 12
+            self.servo_raw[0] = abs(self.servo_raw[1] + self.servo_adjust[1]) + 12
 
         # if controller.joy_now["joy0"]["buttons"][8] == 1:
         #     micon_dict = {
@@ -902,28 +899,28 @@ class ROS2MainNode(Node):
             # 座標リセット
                 coordinates = [[1, 1], [2, 2]]
 
-        if controller.joy_past["joy0"]["buttons"][10] == 0 and controller.joy_now["joy0"]["buttons"][10] == 1:  # PS/homeボタン
+        # PS/homeボタン
+        if controller.joy_past["joy0"]["buttons"][10] == 0 and controller.joy_now["joy0"]["buttons"][10] == 1:  
             # タイマースタート
             self.start_time = time.time()
 
         # VESC
+        # ↑
         if controller.joy_now["joy0"]["buttons"][13] == 1 and controller.joy_past["joy0"]["buttons"][13] == 0:
-            # ↑
             self.VESC_adjust[0] += 500
-            # self.VESC_rpm[0] = min(32500, max(0, self.VESC_rpm[0] + 500))
-            # self.BLmotor_speed[0] = max(
-            #     1000, min(1500, self.BLmotor_speed[0] + 10))
-        elif controller.joy_now["joy0"]["buttons"][14] == 1 and controller.joy_past["joy0"]["buttons"][14] == 0:
-            # ↓
-            self.VESC_adjust[0] += -500
-            # self.VESC_rpm[0] = min(32500, max(0, self.VESC_rpm[0] - 500))
-            # self.BLmotor_speed[0] = min(
-            #     1500, max(1000, self.BLmotor_speed[0] - 10))
 
+        # ↓
+        elif controller.joy_now["joy0"]["buttons"][14] == 1 and controller.joy_past["joy0"]["buttons"][14] == 0:
+            self.VESC_adjust[0] += -500
+
+        # サーボ
+        # ←?→
         if controller.joy_now["joy0"]["buttons"][15] == 1 and controller.joy_past["joy0"]["buttons"][15] == 0:
-            self.servo_raw[1] += 5
+            self.servo_adjust[1] += 5
+
+        # ←?→
         elif controller.joy_now["joy0"]["buttons"][16] == 1 and controller.joy_past["joy0"]["buttons"][16] == 0:
-            self.servo_raw[1] += -5
+            self.servo_adjust[1] += -5
 
         # 回収モーター
         # if controller.joy_now["joy0"]["buttons"][15] == 1:
@@ -935,28 +932,29 @@ class ROS2MainNode(Node):
         # else:
         #     self.DCmotor_speed[4] = 0
 
+        #　左ジョイスティック
         if controller.joy_past["joy0"]["buttons"][11] == 0 and controller.joy_now["joy0"]["buttons"][11] == 1:
             # ESP32_1のソフトウェアリセット
             micon_dict["ESP32"]["reboot"] = True
             # 送信後に False に戻す
 
+        #　右ジョイスティック
         if controller.joy_past["joy0"]["buttons"][12] == 0 and controller.joy_now["joy0"]["buttons"][12] == 1:
-            # ESP32_2のソフトウェアリセット
+            # STM32のソフトウェアリセット
             micon_dict["STM32"]["reboot"] = True
             # 送信後に False に戻す
 
-        controller.joy_past["joy0"] = controller.joy_now["joy0"]
 
     def joy1_listener_callback(self, joy):
         global reception_json, micon_dict
 
-        controller.joy_convert(controller(), "joy1", joy,)
+        controller.joy_convert(controller(), "joy1", joy)
 
         # サーボの制御
         # R装填 サーボ初期位置
-        if controller.joy_now["joy1"]["buttons"][5] == 1:
-            self.time_pushed_load_button = int(time.time() * 1000)  # エポックミリ秒
-            self.servo_raw[0] = 45
+        # if controller.joy_now["joy1"]["buttons"][5] == 1:
+        #     self.time_pushed_load_button = int(time.time() * 1000)  # エポックミリ秒
+        #     self.servo_raw[0] = 45
 
         # ダクテッドファン
         # if controller.joy_now["joy1"]["buttons"][13] == 1 and controller.joy_past["joy1"]["buttons"][13] == 0:
@@ -967,45 +965,26 @@ class ROS2MainNode(Node):
         #     self.BLmotor_speed[0] = min(1500,max(1000,self.BLmotor_speed[0] - 10))
 
         # 回収モーター
-        if controller.joy_now["joy1"]["buttons"][15] == 1:
-            # 左ジョイスティック 回収機構 展開
-            self.DCmotor_speed[0] = -255
-        elif controller.joy_now["joy1"]["buttons"][16] == 1:
-            # 右ジョイスティック 回収機構 巻取り
-            self.DCmotor_speed[0] = 255
-        else:
-            self.DCmotor_speed[0] = 0
+        # if controller.joy_now["joy1"]["buttons"][15] == 1:
+        #     # 左ジョイスティック 回収機構 展開
+        #     self.DCmotor_speed[0] = -255
+        # elif controller.joy_now["joy1"]["buttons"][16] == 1:
+        #     # 右ジョイスティック 回収機構 巻取り
+        #     self.DCmotor_speed[0] = 255
+        # else:
+        #     self.DCmotor_speed[0] = 0
 
-        if controller.joy_past["joy1"]["buttons"][10] == 0 and controller.joy_now["joy1"]["buttons"][10] == 1:  # PS/homeボタン
-            # タイマースタート
-            self.start_time = time.time()
-
-        controller.joy_past["joy1"] = controller.joy_now["joy1"]
-
-    def control_mecanum_wheels(self, direction:float, speed:float) -> list[float]: # HACK リストじゃなくね？
-        # ラジアンに変換
-        angle: float = direction * 2.0 * math.pi
-
-        # 回転数を-30から30の範囲に変換
-        front_left:float = math.sin(angle + math.pi / 4.0) * 30
-        front_right:float = math.cos(angle + math.pi / 4.0) * 30
-        rear_left:float = math.cos(angle + math.pi / 4.0) * 30
-        rear_right:float = math.sin(angle + math.pi / 4.0) * 30
-        adjust = 30 / max([abs(front_left), abs(front_right),
-                           abs(rear_left), abs(rear_right)])
-        front_left = front_left * adjust * speed
-        front_right = front_right * adjust * speed
-        rear_left = rear_left * adjust * speed
-        rear_right = rear_right * adjust * speed
-
-        return [front_left, front_right, rear_left, rear_right]
+        # if controller.joy_past["joy1"]["buttons"][10] == 0 and controller.joy_now["joy1"]["buttons"][10] == 1:  # PS/homeボタン
+        #     # タイマースタート
+        #     self.start_time = time.time()
+    
 
     def turn(self, target_angle: float) -> float:
-        # ラジアンにして、来週的に度数法に直せばよくね？   ーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
+        # TODO ラジアンにして、来週的に度数法に直せばよくね？   ーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
         target_plus_180 = target_angle + 180
         if target_plus_180 > 360:
             target_plus_180 = 360 - target_angle
-        angle_difference = abs(self.current_angle - target_angle)
+        angle_difference:float = abs(self.current_angle - target_angle)
         if angle_difference > 180:
             angle_difference = 360 - abs(self.current_angle-target_angle)
         if target_angle > 180:
@@ -1020,10 +999,12 @@ class ROS2MainNode(Node):
         self.angle_when_turn.append(angle_difference)
         self.time_when_turn.append(time.time() - self.turn_start_time)
 
+        turn_amount:float = 0
+
         if abs(angle_difference) < 2:
             if self.angle_control_count > 50:
                 # 止まる
-                temp = 0
+                turn_amount = 0
                 self.state = 0
 
                 # print(self.time_when_turn, flush=True)
@@ -1039,7 +1020,7 @@ class ROS2MainNode(Node):
                 plt.savefig(f"turn_{int(time.time())}.png")
 
             self.angle_control_count += 1
-            temp = 0
+            turn_amount = 0
         else:
             #  PID制御する
             error = angle_difference
@@ -1048,76 +1029,96 @@ class ROS2MainNode(Node):
             derivative = error - self.prev_error
 
             # PID制御出力の計算
-            temp = self.kp * error + self.ki * self.integral + self.kd * derivative
+            turn_amount = self.kp * error + self.ki * self.integral + self.kd * derivative
 
             print("                                     ",
                   self.kp, self.ki, self.kd, flush=True)
 
             # 制御出力が -1 から 1 の範囲に収まるようにクリップ
-            temp = max(min(temp, 1), -1)
+            turn_amount = max(min(turn_amount, 1), -1)
 
             # 更新
             self.prev_error = error
 
-        return temp
+        return turn_amount
+
 
     def straight(self, target_angle):
+        return
+        # if self.current_distance > self.straight_distance_to_wall:
+        #     distance = self.current_distance * self.straight_P_gain
+        #     if distance > self.normal_max_motor_speed:
+        #         distance = self.normal_max_motor_speed
 
-        if self.current_distance > self.straight_distance_to_wall:
-            distance = self.current_distance * self.straight_P_gain
-            if distance > self.normal_max_motor_speed:
-                distance = self.normal_max_motor_speed
+        #     distance_1 = distance - self.axes_3
+        #     if distance_1 > 255:
+        #         distance_1 = 255
+        #     self.motor1_speed = distance_1
 
-            distance_1 = distance - self.axes_3
-            if distance_1 > 255:
-                distance_1 = 255
-            self.motor1_speed = distance_1
+        #     distance_2 = distance - self.axes_1
+        #     if distance_2 > 255:
+        #         distance_2 = 255
+        #     self.motor2_speed = distance_2
 
-            distance_2 = distance - self.axes_1
-            if distance_2 > 255:
-                distance_2 = 255
-            self.motor2_speed = distance_2
+        #     target_plus_180 = target_angle + 180
+        #     if target_plus_180 > 360:
+        #         target_plus_180 = 360 - target_angle
+        #     angle_difference = abs(self.current_angle - target_angle)
+        #     if angle_difference > 180:
+        #         angle_difference = 360 - abs(self.current_angle-target_angle)
+        #     if target_angle > 180:
+        #         if target_plus_180 <= self.current_angle <= target_angle:
+        #             angle_difference = angle_difference*-1
+        #     else:
+        #         if target_angle <= self.current_angle <= target_plus_180:
+        #             pass
+        #         else:
+        #             angle_difference = angle_difference*-1
 
-            target_plus_180 = target_angle + 180
-            if target_plus_180 > 360:
-                target_plus_180 = 360 - target_angle
-            angle_difference = abs(self.current_angle - target_angle)
-            if angle_difference > 180:
-                angle_difference = 360 - abs(self.current_angle-target_angle)
-            if target_angle > 180:
-                if target_plus_180 <= self.current_angle <= target_angle:
-                    angle_difference = angle_difference*-1
-            else:
-                if target_angle <= self.current_angle <= target_plus_180:
-                    pass
-                else:
-                    angle_difference = angle_difference*-1
+        #     # print(angle_difference,flush=True)
 
-            # print(angle_difference,flush=True)
+        #     if abs(angle_difference) > 2:  # 単位:° パラメーター調整必要
+        #         # 壁と平行じゃないなら
+        #         if angle_difference > 0:
+        #             # 右に傾いているなら
+        #             self.motor1_speed = self.motor1_speed - angle_difference * \
+        #                 self.straight_turn_P_gain
+        #         else:
+        #             # 左に傾いているなら
+        #             self.motor2_speed = self.motor2_speed + \
+        #                 angle_difference * self.straight_turn_P_gain
 
-            if abs(angle_difference) > 2:  # 単位:° パラメーター調整必要
-                # 壁と平行じゃないなら
-                if angle_difference > 0:
-                    # 右に傾いているなら
-                    self.motor1_speed = self.motor1_speed - angle_difference * \
-                        self.straight_turn_P_gain
-                else:
-                    # 左に傾いているなら
-                    self.motor2_speed = self.motor2_speed + \
-                        angle_difference * self.straight_turn_P_gain
+        #         if self.motor1_speed > 255:
+        #             self.motor1_speed = 255
+        #         elif self.motor1_speed < -1 * 255:
+        #             self.motor1_speed = -1 * 255
+        #         if self.motor2_speed > 255:
+        #             self.motor2_speed = 255
+        #         elif self.motor2_speed < -1 * 255:
+        #             self.motor2_speed = -1 * 255
+        # else:
+        #     self.motor1_speed = 0
+        #     self.motor2_speed = 0
+        #     self.state = 0
 
-                if self.motor1_speed > 255:
-                    self.motor1_speed = 255
-                elif self.motor1_speed < -1 * 255:
-                    self.motor1_speed = -1 * 255
-                if self.motor2_speed > 255:
-                    self.motor2_speed = 255
-                elif self.motor2_speed < -1 * 255:
-                    self.motor2_speed = -1 * 255
-        else:
-            self.motor1_speed = 0
-            self.motor2_speed = 0
-            self.state = 0
+
+def control_mecanum_wheels(direction:float, speed:float) -> list[float]:
+    # ラジアンに変換
+    angle: float = direction * 2.0 * math.pi
+
+    # 回転数を-30から30の範囲に変換
+    front_left:float = math.sin(angle + math.pi / 4.0) * 30
+    front_right:float = math.cos(angle + math.pi / 4.0) * 30
+    rear_left:float = math.cos(angle + math.pi / 4.0) * 30
+    rear_right:float = math.sin(angle + math.pi / 4.0) * 30
+    adjust = 30 / max([abs(front_left), abs(front_right),
+                        abs(rear_left), abs(rear_right)])
+    front_left = front_left * adjust * speed
+    front_right = front_right * adjust * speed
+    rear_left = rear_left * adjust * speed
+    rear_right = rear_right * adjust * speed
+
+    return [front_left, front_right, rear_left, rear_right]
 
 
 def convert_to_binary(boolean_value: bool) -> int:
@@ -1127,8 +1128,7 @@ def convert_to_binary(boolean_value: bool) -> int:
         return 0
     
 
-
-def crc16(data : bytearray, offset , length):
+def crc16(data : bytearray, offset , length:int) -> int:
     # CRC-16/CCITT-FALSE 
     # define CRC16_CCITT_FALSE_POLYNOME  0x1021
     # define CRC16_CCITT_FALSE_INITIAL   0xFFFF
@@ -1150,7 +1150,7 @@ def crc16(data : bytearray, offset , length):
 
 
 
-# def receive_udp_sp():
+# def receive_udp_sp() -> None:
 #     global reception_json
 #     # UDPソケットの作成
 #     sp_udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -1167,7 +1167,7 @@ def crc16(data : bytearray, offset , length):
 #                 f"スマホ からの受信に失敗: {e}", flush=True)
 
 
-def receive_udp_webserver():
+def receive_udp_webserver() -> None:
     global reception_json
     # UDPソケットの作成
     udp_socket_webserver = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -1184,7 +1184,7 @@ def receive_udp_webserver():
                 f"\n\n\n\n\n\n\n    Webserver からの受信に失敗: {e}\n\n\n\n\n\n\n", flush=True)
 
 
-def receive_udp_webrtc():
+def receive_udp_webrtc() -> None:
     global reception_json
     # UDPソケットの作成
     udp_socket_webserver = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
