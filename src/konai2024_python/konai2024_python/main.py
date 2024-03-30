@@ -286,7 +286,7 @@ class battery:
             "state": None},
     }
 
-    def convert_battery_state_to_binary(self, battery_state_str: str) -> int:
+    def convert_battery_state_to_binary(self, battery_state_str: str) -> int: # HACK はじめからintをdictにいれるほうがいい　定数で宣言する
         if battery_state_str == "normal":
             return 0
         elif battery_state_str == "low":
@@ -336,7 +336,7 @@ class Serial:
                 available_ports = [port for port in candidates_port_list if port not in connected_ports]
 
                 if not available_ports:
-                    # logger.critical(f"{micon_name}がUSBに接続されていない")
+                    logger.critical(f"{micon_name}がUSBに接続されていない")
                     # ROS2MainNode.get_logger().error(f"{micon_name}がUSBに接続されていない")
                     continue
 
@@ -539,7 +539,8 @@ class ROS2MainNode(Node):
 
     send_ESP32_data: str = ""
 
-    uart_prev_count:int = 0
+    uart_prev_count_bytes:bytes = 0
+    uart_prev_count_int: int = 0
 
     def __init__(self):
         global reception_json
@@ -560,7 +561,7 @@ class ROS2MainNode(Node):
             String, 'Web_to_Main', self.Web_to_Main_listener_callback, 10)
         self.subscription  # prevent unused variable warning
 
-        self.timer_0001 = self.create_timer(0.01, self.timer_callback_001)
+        self.timer_0001 = self.create_timer(0.5, self.timer_callback_001)
         self.timer_0016 = self.create_timer(0.016, self.timer_callback_0033)
 
 
@@ -635,6 +636,8 @@ class ROS2MainNode(Node):
             self.angle_adjust
         if self.current_angle < 0:
             self.current_angle = 360 + self.current_angle
+
+        self.get_logger().info(f"ESP32からの角度:{reception_json['raw_angle']} 補正後の角度:{self.current_angle}")
 
         # print(reception_json["raw_angle"],self.angle_adjust,self.current_angle,flush=True)
 
@@ -719,10 +722,10 @@ class ROS2MainNode(Node):
         # TODO MIN MAXの処理を追加する
         self.send_ESP32_data: list[int] = [
             int(self.state),  # 0 状態
-            float(self.CyberGear_speed[0]),  # 1 sメカナム
-            float(self.CyberGear_speed[1]),  # 2 メカナム
-            float(self.CyberGear_speed[2]),  # 3 メカナム
-            float(self.CyberGear_speed[3]),  # 4 メカナム
+            int(self.CyberGear_speed[0]),  # 1 sメカナム
+            int(self.CyberGear_speed[1]),  # 2 メカナム
+            int(self.CyberGear_speed[2]),  # 3 メカナム
+            int(self.CyberGear_speed[3]),  # 4 メカナム
             int(self.DCmotor_speed[0]),  # 5 回収装填
             int(self.DCmotor_speed[1]),  # 6 回収装填
             int(self.BLmotor_speed[0]),  # 7 ダクテッドファン
@@ -746,43 +749,49 @@ class ROS2MainNode(Node):
             if micon_dict_values["reboot"] == True:
                 micon_dict_values["reboot"] = False
 
-        self.uart_prev_count:bytes = (self.uart_prev_count + 1) & 0xFF # 0から255までの値を繰り返す
+        self.uart_prev_count_int += 1
+        if self.uart_prev_count_int > 255:
+            self.uart_prev_count_int = 0
 
-        data_tuple:tuple = (self.uart_prev_count,-32767,16384,-24576,255)
+        data_tuple:tuple = (self.uart_prev_count_int,-32767,16384,-24576,255)
 
-        # self.get_logger().info(f"{data_tuple}")
+        self.get_logger().info(f"{data_tuple}")
 
         data = bytearray()
         for x in data_tuple:
             data.extend(x.to_bytes(2, byteorder='big', signed=True))
 
-        # data = bytearray([0x10, 0x20])
-
         # crc16_bytes:bytes = crc16(data, 0, len(data)).to_bytes(2, byteorder='big')
         crc16_bytes:bytes = crc16(data, 0, len(data))
-        data.extend(crc16_bytes.to_bytes(2, byteorder='big'))
+        # data.extend(crc16_bytes.to_bytes(2, byteorder='big'))
+        data.extend(b'\x0d')  # 改行文字を追加 キャリッジリターン（CR：ASCIIコード0x0d）は \r       改行文字（CR）を追加します # ラインフィード(b'\x0a')（LF：ASCIIコード0x0a）は \nはいらない
         # print(hex(crc16_bytes),flush=True)
         # data.extend(crc16_bytes)
         # print(hex(crc16(data, 0, len(data))),flush=True)
 
-        json_str: str = ','.join(map(str, self.send_ESP32_data)) + "\n"
-        data.extend(b'\x0d')  # 改行文字を追加 キャリッジリターン（CR：ASCIIコード0x0d）は \r       改行文字（CR）を追加します # ラインフィード(b'\x0a')（LF：ASCIIコード0x0a）は \nはいらない
+        json_str_2: str = ','.join(map(str, self.send_ESP32_data)) + "\n"
+
+        json_str: str = ','.join(map(str, self.send_ESP32_data))
+        self.get_logger().info(json_str)
+        data2:bytearray = bytearray(json_str.encode())
+        # data2.extend(b'\x0d')  # 改行文字を追加 キャリッジリターン（CR：ASCIIコード0x0d）は \r       改行文字（CR）を追加します # ラインフィード(b'\x0a')（LF：ASCIIコード0x0a）は \nはいらない
+        data2.extend(b'\x0a')  # 改行文字を追加 キャリッジリターン（CR：ASCIIコード0x0d）は \r       改行文字（CR）を追加します # ラインフィード(b'\x0a')（LF：ASCIIコード0x0a）は \nはreadstringuntirlを使うときだけ \rはstm32
         
+
         if self.count_print % 15 == 0:  # 15回に1回実行
-            self.get_logger().info(json_str.encode())
-            # self.get_logger().info(data.hex())
+            self.get_logger().info(data.hex())
+            self.get_logger().info(data2.hex())
             pass
         self.count_print += 1
         for each_micon_dict_key, each_micon_dict_values in micon_dict.items():
         # each_micon_dict_key = "ESP32"
         # each_micon_dict_values = micon_dict["ESP32"]
             try:
-                # each_micon_dict_values["serial_obj"].write(
-                #     json_str.encode())
-                each_micon_dict_values["serial_obj"].write(data)
+                each_micon_dict_values["serial_obj"].write(bytes(data2))
+                # each_micon_dict_values["serial_obj"].write(json_str_2.encode())
                 # print(f"{each_micon_dict_key}への送信成功", flush=True)
             except Exception as e:
-                # logger.critical(f"{each_micon_dict_key}への送信に失敗: {e}")
+                logger.critical(f"{each_micon_dict_key}への送信に失敗: {e}")
                 each_micon_dict_values["is_connected"] = False
                 # TODO 片方のマイコンが途切れたときに、詰まるから、このやり方よくない 非同期にするか、connect_serialを並行処理でずっとwhileしといて、bool変数がTrueになったら接続処理するとか
 

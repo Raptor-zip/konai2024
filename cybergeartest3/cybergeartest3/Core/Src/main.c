@@ -89,14 +89,14 @@ int indexRead;
 
 int index_temp;
 
-#define BUFF_SIZE (200)
+#define BUFF_SIZE (100)
 #define CHAR_CR (0x0d)
 #define TRUE (1)
 #define FALSE (0)
 
 uint8_t flagRcved;            /* 受信完�?フラグ */
 uint16_t rcvLength;           /* 受信�?ータ数 */
-uint8_t rcvBuffer[BUFF_SIZE]; /* 受信バッファ */
+uint8_t rcvBuffer[2]; /* 受信バッファ 1でいい*/
 uint8_t sndBuffer[BUFF_SIZE]; /* 送信バッファ */
 
 int8_t received_data[17];
@@ -122,7 +122,7 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
   flagRcved = TRUE; /* 受信完�?フラグ設�? */
-  HAL_GPIO_TogglePin(BUILDIN_LED_GPIO_Port, BUILDIN_LED_Pin);
+//  HAL_GPIO_TogglePin(BUILDIN_LED_GPIO_Port, BUILDIN_LED_Pin);
 }
 /* USER CODE END 0 */
 
@@ -167,21 +167,21 @@ int main(void)
   //		CyberGear_SetConfig(&my_cyber[i], 12.0f, 30.0f, 6.0f);
   //		CyberGear_EnableMotor(&my_cyber[i]);
   //	}
-  HAL_Delay(1000);
+//  HAL_Delay(1000);
 
-  HAL_UART_Transmit(&huart2, txBuff, sizeof(txBuff), 0xFFFF);
-  HAL_Delay(1000);
-  HAL_UART_Transmit_IT(&huart2, txBuff, sizeof(txBuff));
-  HAL_Delay(1000);
+//  HAL_UART_Transmit(&huart2, txBuff, sizeof(txBuff), 0xFFFF);
+//  HAL_Delay(1000);
+//  HAL_UART_Transmit_IT(&huart2, txBuff, sizeof(txBuff));
+//  HAL_Delay(1000);
 
-  HAL_UART_Transmit_DMA(&huart2, (uint8_t *)"Boot NUCLEO\r\n", 13);
-  while (huart2.gState != HAL_UART_STATE_READY)
-  {
-  }
-  HAL_UART_Transmit_DMA(&huart2, (uint8_t *)"Type any key.\r\n", 14);
-  while (huart2.gState != HAL_UART_STATE_READY)
-  {
-  }
+//  HAL_UART_Transmit_DMA(&huart2, (uint8_t *)"Boot NUCLEO\r\n", 13);
+//  while (huart2.gState != HAL_UART_STATE_READY)
+//  {
+//  }
+//  HAL_UART_Transmit_DMA(&huart2, (uint8_t *)"Type any key.\r\n", 14);
+//  while (huart2.gState != HAL_UART_STATE_READY)
+//  {
+//  }
   HAL_UART_Transmit_DMA(&huart2,
                         (uint8_t *)"Then toggle LED each 8 letters.\r\n", 33);
 
@@ -229,14 +229,14 @@ int main(void)
 //    HAL_UART_Transmit(&huart2, sndBuffer, rcvLength, 1);
 
     // unsigned char buf[17];
-    unsigned char buf[17];
-    memcpy(buf, sndBuffer, sizeof(buf));
-
-    // 2バイトずつのint16配列を作成する
-     for (int i = 0; i < sizeof(buf) / sizeof(buf[0]) / 2; i++) {
-       // データをバイト列から変数にアンパック
-       data[i] = (buf[i * 2] << 8) | buf[i * 2 + 1];
-     }
+//    unsigned char buf[17];
+//    memcpy(buf, sndBuffer, sizeof(buf));
+//
+//    // 2バイトずつのint16配列を作成する
+//     for (int i = 0; i < sizeof(buf) / sizeof(buf[0]) / 2; i++) {
+//       // データをバイト列から変数にアンパック
+//       data[i] = (buf[i * 2] << 8) | buf[i * 2 + 1];
+//     }
 
 //    data[0] = 1;
 //    data[1] = 2;
