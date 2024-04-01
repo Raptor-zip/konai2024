@@ -108,7 +108,8 @@ def flask_socketio_run():
     socketio.run(app, host='0.0.0.0', port=5001, debug=True,
                  ssl_context=(cert_path, key_path), use_reloader=False)
 
-    # socketio.run(app, host='0.0.0.0', port=5001, debug=False, use_reloader=False)
+    # socketio.run(app, host='0.0.0.0', port=5001,
+    #              debug=False, use_reloader=False)
     # debug=Trueにすると0.0.0.0が勝手にlocalhostになるっぽいかも いや無理だわかなしい
 
 

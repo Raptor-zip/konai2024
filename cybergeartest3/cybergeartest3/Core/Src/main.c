@@ -213,6 +213,10 @@ int main(void)
       sndBuffer[rcvLength] = rcvBuffer[0];
       rcvLength++;
       flagRcved = FALSE;
+
+//      char str[6];
+//      sprintf(str, "\n ima:%d", rcvLength);
+//      HAL_UART_Transmit(&huart2, (uint8_t *)str, strlen(str), 0xFFFF);
     } while ((rcvBuffer[0] != CHAR_CR) && (rcvLength < BUFF_SIZE));
 
         // 受信したデータから\rを削除する

@@ -229,7 +229,7 @@ void loop()
 
       UART.setRPM(float(intArray[15]), 0); // 連続して送らないとタイムアウトで勝手に切れる 安全装置ナイス
 
-      analogWrite(LED_BUILTIN , intArray[15]);
+      analogWrite(LED_BUILTIN , intArray[9]);
 
       // ducted_fan.writeMicroseconds(intArray[7]);
 

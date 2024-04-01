@@ -15,8 +15,8 @@ import playsound  # バッテリー低電圧保護ブザー用
 import subprocess  # SSID取得用
 import time
 import datetime
-import serial # シリアル通信用
-from serial.tools import list_ports # シリアル通信用
+import serial  # シリアル通信用
+from serial.tools import list_ports  # シリアル通信用
 import ipget  # IPアドレス取得用
 import socket  # UDP通信用
 import asyncio  # 非同期関数を実行するため
@@ -37,8 +37,10 @@ log_folder = "python_log"
 # フォルダが存在しない場合は作成する
 if not os.path.exists(log_folder):
     os.makedirs(log_folder)
-log_filename:str = os.path.join(log_folder, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S.log"))
-handler = handlers.RotatingFileHandler(log_filename, maxBytes=1000000, backupCount=10)
+log_filename: str = os.path.join(
+    log_folder, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S.log"))
+handler = handlers.RotatingFileHandler(
+    log_filename, maxBytes=1000000, backupCount=10)
 logger.addHandler(handler)
 # コンソールにログを出力するハンドラを追加
 handler_console = logging.StreamHandler(sys.stdout)
@@ -53,9 +55,11 @@ try:
 except subprocess.CalledProcessError:
     wifi_ssid = "エラー"
 
-def location(depth:int=0) -> tuple:
+
+def location(depth: int = 0) -> tuple:
     frame = inspect.currentframe().f_back
     return os.path.basename(frame.f_code.co_filename), frame.f_code.co_name, frame.f_lineno
+
 
 def main() -> None:
     with ThreadPoolExecutor(max_workers=6) as executor:
@@ -91,14 +95,13 @@ def main() -> None:
 
 micon_dict: dict[str, dict] = {
     "ESP32": {"is_connected": False,  # パソコンと接続しているか
-                "serial_port": None, # ポート 例:/dev/ttyUSB0
-                "serial_obj": None, # シリアルオブジェクト
-                "reboot": False}, # 再起動命令がでているか
+              "serial_port": None,  # ポート 例:/dev/ttyUSB0
+              "serial_obj": None,  # シリアルオブジェクト
+              "reboot": False},  # 再起動命令がでているか
     "STM32": {"is_connected": False,
-                "serial_port": None,
-                "serial_obj": None,
-                "reboot": False}}
-
+              "serial_port": None,
+              "serial_obj": None,
+              "reboot": False}}
 
 
 reception_json: dict = {
@@ -107,35 +110,35 @@ reception_json: dict = {
 
 
 class DeviceControl:
-    DCmotor:dict ={
-        "motor1":{
+    DCmotor: dict = {
+        "motor1": {
             "is_allowed_to_run": True,
-            "duty":0,
-            "duty_min":-256,
-            "duty_max":256
+            "duty": 0,
+            "duty_min": -256,
+            "duty_max": 256
         },
 
-        "motor2":{
+        "motor2": {
             "is_allowed_to_run": True,
-            "duty":0,
-            "duty_min":-256,
-            "duty_max":256
+            "duty": 0,
+            "duty_min": -256,
+            "duty_max": 256
         }
     }
 
-    BLmotor:dict = {
-        "motor1":{
+    BLmotor: dict = {
+        "motor1": {
             "is_allowed_to_run": False,
-            "speed":0,
-            "speed_min":1000,
-            "speed_max":2000
+            "speed": 0,
+            "speed_min": 1000,
+            "speed_max": 2000
         }
     }
 
-    solenoid:dict = {
-        "solenoid1":{
+    solenoid: dict = {
+        "solenoid1": {
             "is_allowed_to_run": False,
-            "is_open":False
+            "is_open": False
         }
     }
 
@@ -148,31 +151,31 @@ class controller:
     joy_now: dict = {}
     joy_past: dict = {}
 
-    def joy_convert(self, joy_id: str, received_joy:Joy) -> None:
+    def joy_convert(self, joy_id: str, received_joy: Joy) -> None:
         self.joy_past.setdefault(  # 初回のみ実行 上書き不可
             joy_id,
             {"axes": [0] * 4, "buttons": [0] * 17}
         )
 
-        #　一周期前のデータを保存
+        # 　一周期前のデータを保存
         if joy_id in self.joy_now:
             self.joy_past[joy_id] = self.joy_now[joy_id]
 
-        joy:dict = {"axes":received_joy.axes,
-                    "buttons":received_joy.buttons}
-        
+        joy: dict = {"axes": received_joy.axes,
+                     "buttons": received_joy.buttons}
+
         # 旋回が逆になるから無理やり合わせる
         joy["axes"][0] = joy["axes"][0] * -1
 
-        _len_axes: int = len(joy["axes"]) # axesの数
-        _len_buttons: int = len(joy["buttons"]) # buttonsの数
+        _len_axes: int = len(joy["axes"])  # axesの数
+        _len_buttons: int = len(joy["buttons"])  # buttonsの数
 
         # ボタンの数が違うので、それぞれのコントローラーに合わせて変換する
         if _len_axes == 4 and _len_buttons == 17:
             self.joy_now.update({
                 joy_id:
                 {"axes": list(joy.axes),
-                "buttons": list(joy.buttons)}
+                 "buttons": list(joy.buttons)}
             })
         if _len_axes == 6 and _len_buttons == 17:
             self.joy_now.update({joy_id: self.convert_PS3_to_WiiU(joy)})
@@ -182,7 +185,6 @@ class controller:
             self.joy_now.update({joy_id: self.convert_PS4_other_to_WiiU(joy)})
         else:
             logger.error("コントローラーのボタン数が違う")
-
 
     def convert_PS3_to_WiiU(self, joy_before: dict) -> dict:
         joy_after: dict = {"buttons": joy_before["buttons"],
@@ -246,10 +248,10 @@ class controller:
             joy_after["buttons"][13] = 0
             joy_after["buttons"][14] = 0
 
-        if joy_before["axes"][6] < 0: # トリガー　しきい値
+        if joy_before["axes"][6] < 0:  # トリガー　しきい値
             joy_after["buttons"][15] = 0
             joy_after["buttons"][16] = 1
-        elif joy_before["axes"][6] > 0: # トリガー　しきい値
+        elif joy_before["axes"][6] > 0:  # トリガー　しきい値
             joy_after["buttons"][15] = 1
             joy_after["buttons"][16] = 0
         else:
@@ -286,7 +288,8 @@ class battery:
             "state": None},
     }
 
-    def convert_battery_state_to_binary(self, battery_state_str: str) -> int: # HACK はじめからintをdictにいれるほうがいい　定数で宣言する
+    # HACK はじめからintをdictにいれるほうがいい　定数で宣言する
+    def convert_battery_state_to_binary(self, battery_state_str: str) -> int:
         if battery_state_str == "normal":
             return 0
         elif battery_state_str == "low":
@@ -302,7 +305,7 @@ class battery:
         else:
             logger.error("battery_stateが既定のものではない")
             return -1
-        
+
     def battery_alert(self) -> None:
         while True:
             for each_battery_dict_key, each_battery_dict_value in battery.battery_dict.items():
@@ -322,18 +325,21 @@ class battery:
 
 
 class Serial:
-    def connect_serial(self) -> None: # TODO　これもreceiveみたいに並列にしてもインじゃない？
+    def connect_serial(self) -> None:  # TODO　これもreceiveみたいに並列にしてもインじゃない？
         global micon_dict
 
         while True:
             for micon_name, micon_values in micon_dict.items():
-                micon_dict["STM32"]["is_connected"] = True # TODO これなおす
+                micon_dict["STM32"]["is_connected"] = True  # TODO これなおす
                 if micon_values["is_connected"]:
                     continue
 
-                candidates_port_list = [info.device for info in list_ports.comports()]
-                connected_ports = [m["serial_port"] for m in micon_dict.values() if m["is_connected"]]
-                available_ports = [port for port in candidates_port_list if port not in connected_ports]
+                candidates_port_list = [
+                    info.device for info in list_ports.comports()]
+                connected_ports = [m["serial_port"]
+                                   for m in micon_dict.values() if m["is_connected"]]
+                available_ports = [
+                    port for port in candidates_port_list if port not in connected_ports]
 
                 if not available_ports:
                     logger.critical(f"{micon_name}がUSBに接続されていない")
@@ -342,8 +348,10 @@ class Serial:
 
                 for port in available_ports:
                     try:
-                        subprocess.run(f"sudo -S chmod 777 {port}".split(), input=("robocon471" + '\n').encode())
-                        micon_values["serial_obj"] = serial.Serial(port, 500000, timeout=1)
+                        subprocess.run(
+                            f"sudo -S chmod 777 {port}".split(), input=("robocon471" + '\n').encode())
+                        micon_values["serial_obj"] = serial.Serial(
+                            port, 500000, timeout=1)
                         micon_values["serial_port"] = port
                         micon_values["is_connected"] = True
                         logger.info(f"{micon_name}とSerial接続成功 {port}")
@@ -354,17 +362,17 @@ class Serial:
 
                 time.sleep(0.1)
 
-
-    def receive_serial(self, micon_id:str) -> None:
+    def receive_serial(self, micon_id: str) -> None:
         global micon_dict
 
         while True:
-            each_micon_dict_values:dict = micon_dict[micon_id]
+            each_micon_dict_values: dict = micon_dict[micon_id]
             # logger.info(f"{location()}")
             # ROS2MainNode.get_logger().error(f"{location()}")
             if each_micon_dict_values["serial_obj"] is not None:
                 try:
-                    received_bytes: bytes = each_micon_dict_values["serial_obj"].readline()
+                    received_bytes: bytes = each_micon_dict_values["serial_obj"].readline(
+                    )
                     # HACK なにもマイコンから受信しなくてもタイムアウトで、空を受け取ったふうになるから注意
 
                     # ROS2MainNode.get_logger().error(f"{micon_id}から:{received_bytes}")
@@ -382,7 +390,6 @@ class Serial:
                 each_micon_dict_values["is_connected"] = False
                 time.sleep(0.01)  # 無駄にCPUを使わないようにする
 
-
     def received_command(self, received_message: bytes, each_micon_dict_key: str) -> None:
 
         def convert_value(value):
@@ -397,7 +404,8 @@ class Serial:
         # ROS2MainNode.get_logger().error(f"{each_micon_dict_key}から:{received_message}")
 
         try:
-            received_message: str = received_message.decode('utf-8')[:-2]  # \r\nを消す
+            received_message: str = received_message.decode(
+                'utf-8')[:-2]  # \r\nを消す
         except UnicodeDecodeError as e:
             print(f"{each_micon_dict_key}から受信時のデコードエラー:{e}", flush=True)
 
@@ -504,15 +512,15 @@ def ros(args=None):
 
 class ROS2MainNode(Node):
     state: int = 0
-    CyberGear_speed:list[float] = [0,0,0,0] # rpm -30〜30
+    CyberGear_speed: list[float] = [0, 0, 0, 0]  # rpm -30〜30
     DCmotor_speed: list[int] = [0, 0]  # -256〜256 符号あり
     BLmotor_speed: list[int] = [0]  # 射出用ダクテッドファンと仰角調整用GM6020
-    VESC_rpm: list[int] = [0] # VESC
+    VESC_rpm: list[int] = [0]  # VESC
     VESC_adjust: list[int] = [0]
     VESC_raw: list[int] = [0]
-    servo_angle: list[int] = [0,0]
-    servo_adjust: list[int] = [0,0]
-    servo_raw: list[int] = [0,0]
+    servo_angle: list[int] = [0, 0]
+    servo_adjust: list[int] = [0, 0]
+    servo_raw: list[int] = [0, 0]
     is_slow_speed: bool = False
 
     time_pushed_load_button: int = 0  # 装填ボタンが押された時間
@@ -533,13 +541,13 @@ class ROS2MainNode(Node):
     time_when_turn: list = []
 
     start_time: float = 0  # 試合開始時刻(ホームボタン押下時の時刻)
-    turn_start_time: float = 0 # 旋回の開始時刻
+    turn_start_time: float = 0  # 旋回の開始時刻
 
-    count_print: int = 0 # 15回に1回デバッグ用のprintを出力するためのカウンタ
+    count_print: int = 0  # 15回に1回デバッグ用のprintを出力するためのカウンタ
 
     send_ESP32_data: str = ""
 
-    uart_prev_count_bytes:bytes = 0
+    uart_prev_count_bytes: bytes = 0
     uart_prev_count_int: int = 0
 
     def __init__(self):
@@ -560,10 +568,10 @@ class ROS2MainNode(Node):
         self.subscription = self.create_subscription(
             String, 'Web_to_Main', self.Web_to_Main_listener_callback, 10)
         self.subscription  # prevent unused variable warning
-
-        self.timer_0001 = self.create_timer(0.5, self.timer_callback_001)
+        self.get_logger().info("ROS2MainNode初期化完了")
+        self.timer_0001 = self.create_timer(0.01, self.timer_callback_001)
         self.timer_0016 = self.create_timer(0.016, self.timer_callback_0033)
-
+        self.get_logger().info("ROS2MainNodeタイマー初期化完了")
 
     def Web_to_Main_listener_callback(self, json_string):
         # ロボット制御からきたデータの処理
@@ -575,7 +583,6 @@ class ROS2MainNode(Node):
             self.ki = float(_json["i"])
         if "d" in _json:
             self.kd = float(_json["d"])
-
 
     def timer_callback_0033(self):
         global wifi_ssid, micon_dict
@@ -597,9 +604,9 @@ class ROS2MainNode(Node):
         # temp_micon_dict["ESP32_2"].pop("serial_obj")
 
         try:
-            _ubuntu_ip:str = ipget.ipget().ipaddr("wlp2s0")
+            _ubuntu_ip: str = ipget.ipget().ipaddr("wlp2s0")
         except ValueError as e:
-            _ubuntu_ip:str = "WiFiエラー"
+            _ubuntu_ip: str = "WiFiエラー"
 
         msg = String()
         send_json: dict = {
@@ -629,7 +636,6 @@ class ROS2MainNode(Node):
         # print(json.dumps(reception_json).encode('utf-8'))
         self.publisher_ESP32_to_Webserver.publish(msg)
 
-
     def timer_callback_001(self):
         global reception_json, micon_dict
         self.current_angle = reception_json["raw_angle"] + \
@@ -637,7 +643,8 @@ class ROS2MainNode(Node):
         if self.current_angle < 0:
             self.current_angle = 360 + self.current_angle
 
-        self.get_logger().info(f"ESP32からの角度:{reception_json['raw_angle']} 補正後の角度:{self.current_angle}")
+        # self.get_logger().info(
+        #     f"ESP32からの角度:{reception_json['raw_angle']} 補正後の角度:{self.current_angle}")
 
         # print(reception_json["raw_angle"],self.angle_adjust,self.current_angle,flush=True)
 
@@ -655,16 +662,21 @@ class ROS2MainNode(Node):
         elif self.state == 4:
             turn_minus1to1 = self.turn(270)
 
-        _mecunum_speed: list[float] = [0, 0, 0, 0] # front_left, front_right, rear_left, rear_right
+        # front_left, front_right, rear_left, rear_right
+        _mecunum_speed: list[float] = [0, 0, 0, 0]
 
         if "joy0" in controller.joy_now:
             # 手動旋回と自動旋回を合わせる
             turn_minus1to1 += controller.joy_now["joy0"]["axes"][0]
 
-            _angle:float = (1 - (math.atan2(controller.joy_now["joy0"]["axes"][2], controller.joy_now["joy0"]["axes"][3])) / (2 * math.pi)) % 1
-            _distance:float = min(math.sqrt(controller.joy_now["joy0"]["axes"][2]**2 + controller.joy_now["joy0"]["axes"][3]**2), 1)  # ジョイスティックの傾きの大きさを求める(最大1最小0) # これよりも、割る1.4141356のほうがよくね？
-            
-            _mecunum_speed = control_mecanum_wheels(_angle, _distance)  # 0から1の範囲で指定（北を0、南を0.5として時計回りに）
+            _angle: float = (
+                1 - (math.atan2(controller.joy_now["joy0"]["axes"][2], controller.joy_now["joy0"]["axes"][3])) / (2 * math.pi)) % 1
+            # ジョイスティックの傾きの大きさを求める(最大1最小0) # これよりも、割る1.4141356のほうがよくね？
+            _distance: float = min(math.sqrt(
+                controller.joy_now["joy0"]["axes"][2]**2 + controller.joy_now["joy0"]["axes"][3]**2), 1)
+
+            _mecunum_speed = control_mecanum_wheels(
+                _angle, _distance)  # 0から1の範囲で指定（北を0、南を0.5として時計回りに）
 
         else:
             # logger.critical(f"joy0の読み取りに失敗")
@@ -681,25 +693,25 @@ class ROS2MainNode(Node):
             self.CyberGear_speed[:4], _mecunum_speed)]
 
         # 絶対値が30を超えた場合、比率を保ったまま30以下にする
-        _max_motor_speed:float = max(map(abs, self.CyberGear_speed[:4]))
+        _max_motor_speed: float = max(map(abs, self.CyberGear_speed[:4]))
         if _max_motor_speed > 30:
             self.CyberGear_speed[:4] = [speed * 30 / _max_motor_speed
-                                      for speed in self.CyberGear_speed[:4]]
-            
+                                        for speed in self.CyberGear_speed[:4]]
+
         # VESC
         self.VESC_rpm[0] = self.VESC_raw[0] + self.VESC_adjust[0]
 
         # 低速モードの処理
         if self.is_slow_speed:
             self.CyberGear_speed[:4] = [speed * 0.3
-                                      for speed in self.CyberGear_speed[:4]]
+                                        for speed in self.CyberGear_speed[:4]]
 
         # モータースピードが絶対値16未満の値を削除 (ジョイコンの戻りが悪いときでもブレーキを利かすため)
         self.DCmotor_speed = [
             0 if abs(i) < 16 else i for i in self.DCmotor_speed]
         self.CyberGear_speed = [
             0 if abs(i) < 1 else i for i in self.CyberGear_speed]
-        
+
         #   装填サーボの処理
         if self.time_pushed_load_button != 0 and int(time.time() * 1000) - self.time_pushed_load_button > 700:
             # 1500msで0°に戻る
@@ -731,7 +743,7 @@ class ROS2MainNode(Node):
             int(self.BLmotor_speed[0]),  # 7 ダクテッドファン
             int(max(min(self.servo_angle[0], 135), -135)),  # 8 サーボ
             int(max(min(self.servo_angle[1], 135), -135)),  # 9 サーボ
-            1, # 10
+            1,  # 10
             # 11 ESP32_1を再起動するか 0 or 1
             int(convert_to_binary(micon_dict["ESP32"]["reboot"])),
             # 12 ESP32_2を再起動するか 0 or 1
@@ -753,18 +765,23 @@ class ROS2MainNode(Node):
         if self.uart_prev_count_int > 255:
             self.uart_prev_count_int = 0
 
-        data_tuple:tuple = (self.uart_prev_count_int,-32767,16384,-24576,255)
+        data_tuple: tuple = (self.uart_prev_count_int, -
+                             32767, 16384, -24576, 255)
 
-        self.get_logger().info(f"{data_tuple}")
+        data_tuple: tuple = (-32767, 16384, -24576, 255)
+
+        # self.get_logger().info(f"{data_tuple}")
+        logger.info(f"{data_tuple}")
 
         data = bytearray()
         for x in data_tuple:
             data.extend(x.to_bytes(2, byteorder='big', signed=True))
 
         # crc16_bytes:bytes = crc16(data, 0, len(data)).to_bytes(2, byteorder='big')
-        crc16_bytes:bytes = crc16(data, 0, len(data))
+        crc16_bytes: bytes = crc16(data, 0, len(data))
         # data.extend(crc16_bytes.to_bytes(2, byteorder='big'))
-        data.extend(b'\x0d')  # 改行文字を追加 キャリッジリターン（CR：ASCIIコード0x0d）は \r       改行文字（CR）を追加します # ラインフィード(b'\x0a')（LF：ASCIIコード0x0a）は \nはいらない
+        # 改行文字を追加 キャリッジリターン（CR：ASCIIコード0x0d）は \r       改行文字（CR）を追加します # ラインフィード(b'\x0a')（LF：ASCIIコード0x0a）は \nはいらない
+        data.extend(b'\x0d')
         # print(hex(crc16_bytes),flush=True)
         # data.extend(crc16_bytes)
         # print(hex(crc16(data, 0, len(data))),flush=True)
@@ -772,29 +789,33 @@ class ROS2MainNode(Node):
         json_str_2: str = ','.join(map(str, self.send_ESP32_data)) + "\n"
 
         json_str: str = ','.join(map(str, self.send_ESP32_data))
-        self.get_logger().info(json_str)
-        data2:bytearray = bytearray(json_str.encode())
-        # data2.extend(b'\x0d')  # 改行文字を追加 キャリッジリターン（CR：ASCIIコード0x0d）は \r       改行文字（CR）を追加します # ラインフィード(b'\x0a')（LF：ASCIIコード0x0a）は \nはいらない
-        data2.extend(b'\x0a')  # 改行文字を追加 キャリッジリターン（CR：ASCIIコード0x0d）は \r       改行文字（CR）を追加します # ラインフィード(b'\x0a')（LF：ASCIIコード0x0a）は \nはreadstringuntirlを使うときだけ \rはstm32
-        
+        # self.get_logger().info(json_str)
+        logger.info(json_str)
+        data2: bytearray = bytearray(json_str.encode())
+        # 改行文字を追加 キャリッジリターン（CR：ASCIIコード0x0d）は \r       改行文字（CR）を追加します # ラインフィード(b'\x0a')（LF：ASCIIコード0x0a）は \nはいらない
+        data2.extend(b'\x0d')
+        # 改行文字を追加 キャリッジリターン（CR：ASCIIコード0x0d）は \r       改行文字（CR）を追加します # ラインフィード(b'\x0a')（LF：ASCIIコード0x0a）は \nはreadstringuntirlを使うときだけ \rはstm32
+        # data2.extend(b'\x0a')
 
-        if self.count_print % 15 == 0:  # 15回に1回実行
-            self.get_logger().info(data.hex())
-            self.get_logger().info(data2.hex())
+        if self.count_print % 1 == 0:  # 15回に1回実行
+            # self.get_logger().info(data.hex())
+            # self.get_logger().info(data2.hex())
+            logger.info(data.hex())
+            logger.info(data2.hex())
             pass
         self.count_print += 1
         for each_micon_dict_key, each_micon_dict_values in micon_dict.items():
-        # each_micon_dict_key = "ESP32"
-        # each_micon_dict_values = micon_dict["ESP32"]
+            # each_micon_dict_key = "ESP32"
+            # each_micon_dict_values = micon_dict["ESP32"]
             try:
-                each_micon_dict_values["serial_obj"].write(bytes(data2))
+                # each_micon_dict_values["serial_obj"].write(bytes(data2))
                 # each_micon_dict_values["serial_obj"].write(json_str_2.encode())
                 # print(f"{each_micon_dict_key}への送信成功", flush=True)
+                pass
             except Exception as e:
                 logger.critical(f"{each_micon_dict_key}への送信に失敗: {e}")
                 each_micon_dict_values["is_connected"] = False
                 # TODO 片方のマイコンが途切れたときに、詰まるから、このやり方よくない 非同期にするか、connect_serialを並行処理でずっとwhileしといて、bool変数がTrueになったら接続処理するとか
-
 
     def joy0_listener_callback(self, joy):
         global reception_json, micon_dict
@@ -880,7 +901,8 @@ class ROS2MainNode(Node):
         # ZR装填 サーボ初期位置
         if controller.joy_now["joy0"]["buttons"][7] == 1:
             self.time_pushed_load_button = int(time.time() * 1000)  # エポックミリ秒
-            self.servo_raw[0] = abs(self.servo_raw[1] + self.servo_adjust[1]) + 12
+            self.servo_raw[0] = abs(
+                self.servo_raw[1] + self.servo_adjust[1]) + 12
 
         # if controller.joy_now["joy0"]["buttons"][8] == 1:
         #     micon_dict = {
@@ -909,7 +931,7 @@ class ROS2MainNode(Node):
                 coordinates = [[1, 1], [2, 2]]
 
         # PS/homeボタン
-        if controller.joy_past["joy0"]["buttons"][10] == 0 and controller.joy_now["joy0"]["buttons"][10] == 1:  
+        if controller.joy_past["joy0"]["buttons"][10] == 0 and controller.joy_now["joy0"]["buttons"][10] == 1:
             # タイマースタート
             self.start_time = time.time()
 
@@ -941,18 +963,17 @@ class ROS2MainNode(Node):
         # else:
         #     self.DCmotor_speed[4] = 0
 
-        #　左ジョイスティック
+        # 　左ジョイスティック
         if controller.joy_past["joy0"]["buttons"][11] == 0 and controller.joy_now["joy0"]["buttons"][11] == 1:
             # ESP32_1のソフトウェアリセット
             micon_dict["ESP32"]["reboot"] = True
             # 送信後に False に戻す
 
-        #　右ジョイスティック
+        # 　右ジョイスティック
         if controller.joy_past["joy0"]["buttons"][12] == 0 and controller.joy_now["joy0"]["buttons"][12] == 1:
             # STM32のソフトウェアリセット
             micon_dict["STM32"]["reboot"] = True
             # 送信後に False に戻す
-
 
     def joy1_listener_callback(self, joy):
         global reception_json, micon_dict
@@ -986,14 +1007,13 @@ class ROS2MainNode(Node):
         # if controller.joy_past["joy1"]["buttons"][10] == 0 and controller.joy_now["joy1"]["buttons"][10] == 1:  # PS/homeボタン
         #     # タイマースタート
         #     self.start_time = time.time()
-    
 
     def turn(self, target_angle: float) -> float:
         # TODO ラジアンにして、来週的に度数法に直せばよくね？   ーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
         target_plus_180 = target_angle + 180
         if target_plus_180 > 360:
             target_plus_180 = 360 - target_angle
-        angle_difference:float = abs(self.current_angle - target_angle)
+        angle_difference: float = abs(self.current_angle - target_angle)
         if angle_difference > 180:
             angle_difference = 360 - abs(self.current_angle-target_angle)
         if target_angle > 180:
@@ -1008,7 +1028,7 @@ class ROS2MainNode(Node):
         self.angle_when_turn.append(angle_difference)
         self.time_when_turn.append(time.time() - self.turn_start_time)
 
-        turn_amount:float = 0
+        turn_amount: float = 0
 
         if abs(angle_difference) < 2:
             if self.angle_control_count > 50:
@@ -1050,7 +1070,6 @@ class ROS2MainNode(Node):
             self.prev_error = error
 
         return turn_amount
-
 
     def straight(self, target_angle):
         return
@@ -1111,17 +1130,17 @@ class ROS2MainNode(Node):
         #     self.state = 0
 
 
-def control_mecanum_wheels(direction:float, speed:float) -> list[float]:
+def control_mecanum_wheels(direction: float, speed: float) -> list[float]:
     # ラジアンに変換
     angle: float = direction * 2.0 * math.pi
 
     # 回転数を-30から30の範囲に変換
-    front_left:float = math.sin(angle + math.pi / 4.0) * 30
-    front_right:float = math.cos(angle + math.pi / 4.0) * 30
-    rear_left:float = math.cos(angle + math.pi / 4.0) * 30
-    rear_right:float = math.sin(angle + math.pi / 4.0) * 30
+    front_left: float = math.sin(angle + math.pi / 4.0) * 30
+    front_right: float = math.cos(angle + math.pi / 4.0) * 30
+    rear_left: float = math.cos(angle + math.pi / 4.0) * 30
+    rear_right: float = math.sin(angle + math.pi / 4.0) * 30
     adjust = 30 / max([abs(front_left), abs(front_right),
-                        abs(rear_left), abs(rear_right)])
+                       abs(rear_left), abs(rear_right)])
     front_left = front_left * adjust * speed
     front_right = front_right * adjust * speed
     rear_left = rear_left * adjust * speed
@@ -1135,28 +1154,27 @@ def convert_to_binary(boolean_value: bool) -> int:
         return 1
     else:
         return 0
-    
 
-def crc16(data : bytearray, offset , length:int) -> int:
-    # CRC-16/CCITT-FALSE 
+
+def crc16(data: bytearray, offset, length: int) -> int:
+    # CRC-16/CCITT-FALSE
     # define CRC16_CCITT_FALSE_POLYNOME  0x1021
     # define CRC16_CCITT_FALSE_INITIAL   0xFFFF
     # define CRC16_CCITT_FALSE_XOR_OUT   0x0000
     # define CRC16_CCITT_FALSE_REV_IN    false
     # define CRC16_CCITT_FALSE_REV_OUT   false
     # https://stackoverflow.com/questions/35205702/calculating-crc16-in-python
-    if data is None or offset < 0 or offset > len(data)- 1 and offset+length > len(data):
+    if data is None or offset < 0 or offset > len(data) - 1 and offset+length > len(data):
         return 0
     crc = 0xFFFF
     for i in range(0, length):
         crc ^= data[offset + i] << 8
-        for j in range(0,8):
+        for j in range(0, 8):
             if (crc & 0x8000) > 0:
-                crc =(crc << 1) ^ 0x1021
+                crc = (crc << 1) ^ 0x1021
             else:
                 crc = crc << 1
     return crc & 0xFFFF
-
 
 
 # def receive_udp_sp() -> None:
