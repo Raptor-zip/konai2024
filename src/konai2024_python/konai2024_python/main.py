@@ -1,6 +1,7 @@
 import inspect  # 実行中の行数を取得 logger用
 import os
 import sys
+import struct # floatをbytesに変換するため
 from re import T
 from turtle import distance  # どのESP32を識別するためにls使うよう
 import matplotlib.pyplot as plt
@@ -8,6 +9,7 @@ from sympy import false
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
+from std_msgs.msg import Float64MultiArray # main ⇔ write_read_serial
 from sensor_msgs.msg import Joy
 import json  # jsonを使うため
 from concurrent.futures import ThreadPoolExecutor  # threadPoolExecutor
@@ -67,9 +69,9 @@ def main() -> None:
         # executor.submit(receive_udp_webserver)
         # executor.submit(receive_udp_webrtc)
         # executor.submit(battery.battery_alert)
-        executor.submit(lambda: Serial.receive_serial(Serial(), "ESP32"))
+        # executor.submit(lambda: Serial.receive_serial(Serial(), "ESP32"))
         # ROS2MainNode.get_logger(ROS2MainNode).debug("ESP32との通信開始")
-        # executor.submit(Serial.receive_serial("STM32"))
+
 #         import threading
 # import serial
 
@@ -330,6 +332,7 @@ class Serial:
 
         while True:
             for micon_name, micon_values in micon_dict.items():
+                time.sleep(0.1)
                 micon_dict["STM32"]["is_connected"] = True  # TODO これなおす
                 if micon_values["is_connected"]:
                     continue
@@ -340,6 +343,8 @@ class Serial:
                                    for m in micon_dict.values() if m["is_connected"]]
                 available_ports = [
                     port for port in candidates_port_list if port not in connected_ports]
+
+                available_ports = [port for port in available_ports if "ACM" not in port] # ACMがついているときは接続しない
 
                 if not available_ports:
                     logger.critical(f"{micon_name}がUSBに接続されていない")
@@ -359,8 +364,6 @@ class Serial:
                     except Exception as e:
                         logger.critical(f"{micon_name}とSerial接続失敗: {e}")
                         # ROS2MainNode.get_logger().error(f"{micon_name}とSerial接続失敗: {e}")
-
-                time.sleep(0.1)
 
     def receive_serial(self, micon_id: str) -> None:
         global micon_dict
@@ -400,7 +403,7 @@ class Serial:
             except ValueError:
                 return value  # その他の場合は文字列として返す
 
-        logger.info(f"{each_micon_dict_key}から:{received_message}")
+        logger.info(f"{each_micon_dict_key}から:{received_message.decode('utf-8', 'ignore')}")
         # ROS2MainNode.get_logger().error(f"{each_micon_dict_key}から:{received_message}")
 
         try:
@@ -547,14 +550,15 @@ class ROS2MainNode(Node):
 
     send_ESP32_data: str = ""
 
-    uart_prev_count_bytes: bytes = 0
-    uart_prev_count_int: int = 0
+    uart_prev_count: int = 0
 
     def __init__(self):
         global reception_json
         super().__init__('main')
         self.publisher_ESP32_to_Webserver = self.create_publisher(
             String, 'ESP32_to_Webserver', 10)
+        self.publisher_serial_write = self.create_publisher(
+            Float64MultiArray, 'serial_write', 10)
         self.subscription = self.create_subscription(
             Joy,
             "joy0",
@@ -570,7 +574,7 @@ class ROS2MainNode(Node):
         self.subscription  # prevent unused variable warning
         self.get_logger().info("ROS2MainNode初期化完了")
         self.timer_0001 = self.create_timer(0.01, self.timer_callback_001)
-        self.timer_0016 = self.create_timer(0.016, self.timer_callback_0033)
+        self.timer_0016 = self.create_timer(0.033, self.timer_callback_0033)
         self.get_logger().info("ROS2MainNodeタイマー初期化完了")
 
     def Web_to_Main_listener_callback(self, json_string):
@@ -635,6 +639,28 @@ class ROS2MainNode(Node):
             'utf-8'), ('127.0.0.1', 5002))
         # print(json.dumps(reception_json).encode('utf-8'))
         self.publisher_ESP32_to_Webserver.publish(msg)
+
+
+        command = Float64MultiArray()
+        # CyberGear_speedの値を浮動小数点数に変換してリストに格納
+        command.data = [float(1), float(22), float(self.CyberGear_speed[0])]
+        self.publisher_serial_write.publish(command)
+
+        command = Float64MultiArray()
+        # CyberGear_speedの値を浮動小数点数に変換してリストに格納
+        command.data = [float(1), float(24), float(self.CyberGear_speed[1])]
+        self.publisher_serial_write.publish(command)
+
+        command = Float64MultiArray()
+        # CyberGear_speedの値を浮動小数点数に変換してリストに格納
+        command.data = [float(1), float(26), float(self.CyberGear_speed[2])]
+        self.publisher_serial_write.publish(command)
+
+        command = Float64MultiArray()
+        # CyberGear_speedの値を浮動小数点数に変換してリストに格納
+        command.data = [float(1), float(28), float(self.CyberGear_speed[3])]
+        self.publisher_serial_write.publish(command)
+
 
     def timer_callback_001(self):
         global reception_json, micon_dict
@@ -734,10 +760,10 @@ class ROS2MainNode(Node):
         # TODO MIN MAXの処理を追加する
         self.send_ESP32_data: list[int] = [
             int(self.state),  # 0 状態
-            int(self.CyberGear_speed[0]),  # 1 sメカナム
-            int(self.CyberGear_speed[1]),  # 2 メカナム
-            int(self.CyberGear_speed[2]),  # 3 メカナム
-            int(self.CyberGear_speed[3]),  # 4 メカナム
+            1,  # 1 sメカナム
+            1,  # 2 メカナム
+            1,  # 3 メカナム
+            1,  # 4 メカナム
             int(self.DCmotor_speed[0]),  # 5 回収装填
             int(self.DCmotor_speed[1]),  # 6 回収装填
             int(self.BLmotor_speed[0]),  # 7 ダクテッドファン
@@ -761,61 +787,59 @@ class ROS2MainNode(Node):
             if micon_dict_values["reboot"] == True:
                 micon_dict_values["reboot"] = False
 
-        self.uart_prev_count_int += 1
-        if self.uart_prev_count_int > 255:
-            self.uart_prev_count_int = 0
 
-        data_tuple: tuple = (self.uart_prev_count_int, -
-                             32767, 16384, -24576, 255)
 
-        data_tuple: tuple = (-32767, 16384, -24576, 255)
+        # command = Float64MultiArray()
+        # # CyberGear_speedの値を浮動小数点数に変換してリストに格納
+        # command.data = [float(1), float(22), float(self.CyberGear_speed[0])]
+        # self.publisher_serial_write.publish(command)
 
-        # self.get_logger().info(f"{data_tuple}")
-        logger.info(f"{data_tuple}")
+        # command = Float64MultiArray()
+        # # CyberGear_speedの値を浮動小数点数に変換してリストに格納
+        # command.data = [float(1), float(24), float(self.CyberGear_speed[1])]
+        # self.publisher_serial_write.publish(command)
 
-        data = bytearray()
-        for x in data_tuple:
-            data.extend(x.to_bytes(2, byteorder='big', signed=True))
+        # 2つじゃないと3つめいくとバグる
 
-        # crc16_bytes:bytes = crc16(data, 0, len(data)).to_bytes(2, byteorder='big')
-        crc16_bytes: bytes = crc16(data, 0, len(data))
-        # data.extend(crc16_bytes.to_bytes(2, byteorder='big'))
-        # 改行文字を追加 キャリッジリターン（CR：ASCIIコード0x0d）は \r       改行文字（CR）を追加します # ラインフィード(b'\x0a')（LF：ASCIIコード0x0a）は \nはいらない
-        data.extend(b'\x0d')
-        # print(hex(crc16_bytes),flush=True)
-        # data.extend(crc16_bytes)
-        # print(hex(crc16(data, 0, len(data))),flush=True)
+        # command = Float64MultiArray()
+        # # CyberGear_speedの値を浮動小数点数に変換してリストに格納
+        # command.data = [float(1), float(26), float(self.CyberGear_speed[2])]
+        # self.publisher_serial_write.publish(command)
 
-        json_str_2: str = ','.join(map(str, self.send_ESP32_data)) + "\n"
+        # command = Float64MultiArray()
+        # # CyberGear_speedの値を浮動小数点数に変換してリストに格納
+        # command.data = [float(1), float(28), float(self.CyberGear_speed[3])]
+        # self.publisher_serial_write.publish(command)
 
         json_str: str = ','.join(map(str, self.send_ESP32_data))
         # self.get_logger().info(json_str)
-        logger.info(json_str)
+        # logger.info(json_str)
         data2: bytearray = bytearray(json_str.encode())
-        # 改行文字を追加 キャリッジリターン（CR：ASCIIコード0x0d）は \r       改行文字（CR）を追加します # ラインフィード(b'\x0a')（LF：ASCIIコード0x0a）は \nはいらない
+
+        # data.extend(b'\x0d')
+        # data.extend(b'\x0a')
         data2.extend(b'\x0d')
-        # 改行文字を追加 キャリッジリターン（CR：ASCIIコード0x0d）は \r       改行文字（CR）を追加します # ラインフィード(b'\x0a')（LF：ASCIIコード0x0a）は \nはreadstringuntirlを使うときだけ \rはstm32
         # data2.extend(b'\x0a')
+
+        logger.info(data2)
+        # logger.info(len(data2))
 
         if self.count_print % 1 == 0:  # 15回に1回実行
             # self.get_logger().info(data.hex())
             # self.get_logger().info(data2.hex())
-            logger.info(data.hex())
-            logger.info(data2.hex())
+            # logger.info(data.hex())
+            # logger.info(data2.hex())
             pass
         self.count_print += 1
-        for each_micon_dict_key, each_micon_dict_values in micon_dict.items():
-            # each_micon_dict_key = "ESP32"
-            # each_micon_dict_values = micon_dict["ESP32"]
-            try:
-                # each_micon_dict_values["serial_obj"].write(bytes(data2))
-                # each_micon_dict_values["serial_obj"].write(json_str_2.encode())
-                # print(f"{each_micon_dict_key}への送信成功", flush=True)
-                pass
-            except Exception as e:
-                logger.critical(f"{each_micon_dict_key}への送信に失敗: {e}")
-                each_micon_dict_values["is_connected"] = False
-                # TODO 片方のマイコンが途切れたときに、詰まるから、このやり方よくない 非同期にするか、connect_serialを並行処理でずっとwhileしといて、bool変数がTrueになったら接続処理するとか
+        try:
+            micon_dict["ESP32"]["serial_obj"].write(bytes(data2))
+            # each_micon_dict_values["serial_obj"].write(json_str_2.encode())
+            # print(f"{each_micon_dict_key}への送信成功", flush=True)
+            pass
+        except Exception as e:
+            logger.critical(f"ESP32 への送信に失敗: {e}")
+            micon_dict["ESP32"]["is_connected"] = False
+            # TODO 片方のマイコンが途切れたときに、詰まるから、このやり方よくない 非同期にするか、connect_serialを並行処理でずっとwhileしといて、bool変数がTrueになったら接続処理するとか
 
     def joy0_listener_callback(self, joy):
         global reception_json, micon_dict

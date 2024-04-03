@@ -1,6 +1,6 @@
 ################################################################################
 # Automatically-generated file. Do not edit!
-# Toolchain: GNU Tools for STM32 (11.3.rel1)
+# Toolchain: GNU Tools for STM32 (12.3.rel1)
 ################################################################################
 
 -include ../makefile.init
@@ -60,8 +60,8 @@ all: main-build
 main-build: cybergeartest3.elf secondary-outputs
 
 # Tool invocations
-cybergeartest3.elf cybergeartest3.map: $(OBJS) $(USER_OBJS) C:\Users\Rapto\Downloads\cybergeartest3\cybergeartest3\STM32F303K8TX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "cybergeartest3.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\Rapto\Downloads\cybergeartest3\cybergeartest3\STM32F303K8TX_FLASH.ld" --specs=nosys.specs -Wl,-Map="cybergeartest3.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+cybergeartest3.elf cybergeartest3.map: $(OBJS) $(USER_OBJS) /home/roboconb/konai2024/cybergeartest3/cybergeartest3\ -\ コピー/STM32F303K8TX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "cybergeartest3.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/home/roboconb/konai2024/cybergeartest3/cybergeartest3 - コピー/STM32F303K8TX_FLASH.ld" --specs=nosys.specs -Wl,-Map="cybergeartest3.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

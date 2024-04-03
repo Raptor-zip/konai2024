@@ -85,7 +85,7 @@ void setup()
     ; // シリアル通信ポートが正常に接続されるまで抜け出さない
     // TODO このプログラム怖いんだけど
   }
-  Serial.setTimeout(1000); // milliseconds for Serial.readString
+  Serial.setTimeout(100); // milliseconds for Serial.readString
   Serial.println(" ");
   Serial.println("ESP32_2起動");
   Serial.println("$2,1,1");
@@ -197,7 +197,7 @@ void loop()
   {
     // read the incoming byte:
     startTime = micros();
-    incomingStrings = Serial.readStringUntil('\n');
+    incomingStrings = Serial.readStringUntil('\r');
     if (incomingStrings.length() > 5)
     {
       int32_t intArray[MAX_ELEMENTS]; // 整数の配列
@@ -229,7 +229,7 @@ void loop()
 
       UART.setRPM(float(intArray[15]), 0); // 連続して送らないとタイムアウトで勝手に切れる 安全装置ナイス
 
-      analogWrite(LED_BUILTIN , intArray[9]);
+      analogWrite(LED_BUILTIN , intArray[9]* -1);
 
       // ducted_fan.writeMicroseconds(intArray[7]);
 
@@ -271,6 +271,7 @@ void loop()
   // 100ms以上パソコンからデータを受信できなかったら全てのモーターを強制停止(WatchdogTimerみたいな)
   if (millis() - last_receive_time > 100)
   {
+    digitalWrite(LED_BUILTIN, LOW); // ESP32内蔵LED
     ducted_fan.detach();               // 接続解除
     digitalWrite(BLmotor_Pin[0], LOW); // PWM停止
     krs.setFree(0); //フリー指令 ID:0 をフリー状態に

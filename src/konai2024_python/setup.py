@@ -21,6 +21,7 @@ setup(
     entry_points={
         'console_scripts': [
             'main = konai2024_python.main:main',
+            'write_read_serial = konai2024_python.write_read_serial:main',
             'webserver = konai2024_python.webserver:main',
             'odometry = konai2024_python.odometry:main'
         ],

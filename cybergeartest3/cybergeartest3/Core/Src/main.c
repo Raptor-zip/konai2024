@@ -52,6 +52,8 @@ DMA_HandleTypeDef hdma_usart2_tx;
 DMA_HandleTypeDef hdma_usart2_rx;
 
 /* USER CODE BEGIN PV */
+uint8_t debug;
+
 CyberGear_Typedef my_cyber[4];
 Easy_CAN6_Typedef ecan;
 /* USER CODE END PV */
@@ -84,23 +86,29 @@ int16_t values[byte_number]; // ??��?��?大15個�???��?��?��
 
 #define DATANUM 20
 uint8_t serialData[DATANUM] = {};
-uint8_t serial_data[20];
-int indexRead;
 
-int index_temp;
+unsigned char buf[20];
 
-#define BUFF_SIZE (100)
-#define CHAR_CR (0x0d)
 #define TRUE (1)
 #define FALSE (0)
 
+#define is_run_CyberGear (1) ///////////////////////////////////CyberGear動作させるかさせないか
+
+uint8_t uart_prev_count;
+uint16_t command_id;
+float command_content;
+
+float motor_speed[4];
+
+uint8_t value3[8];
+
 uint8_t flagRcved;            /* 受信完�?フラグ */
 uint16_t rcvLength;           /* 受信�?ータ数 */
-uint8_t rcvBuffer[2]; /* 受信バッファ 1でいい*/
-uint8_t sndBuffer[BUFF_SIZE]; /* 送信バッファ */
+uint8_t rcvBuffer[30]; /* 受信バッファ*/
+uint8_t sndBuffer[100]; /* 送信バッファ */
 
-int8_t received_data[17];
-int16_t data[10]; // データの配列 (2つのint16_t型の要素)
+int8_t received_data[30];
+float data[5]; // データの配列 (2つのint16_t型の要素)
 
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {
@@ -160,14 +168,16 @@ int main(void)
   MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
   Easy_CAN6_Start(&ecan, &hcan, 2);
-  //	for (int i = 0; i < 4; i++) {
-  //		CyberGear_Init(&my_cyber[i], &ecan, 0x70 + i, 0, HAL_Delay);
-  //		CyberGear_ResetMotor(&my_cyber[i]);
-  //		CyberGear_SetMode(&my_cyber[i], MODE_SPEED);
-  //		CyberGear_SetConfig(&my_cyber[i], 12.0f, 30.0f, 6.0f);
-  //		CyberGear_EnableMotor(&my_cyber[i]);
-  //	}
-//  HAL_Delay(1000);
+
+  	for (int i = 0; i < 4; i++) {
+    	if (is_run_CyberGear){
+  		CyberGear_Init(&my_cyber[i], &ecan, 0x70 + i, 0, HAL_Delay);
+  		CyberGear_ResetMotor(&my_cyber[i]);
+  		CyberGear_SetMode(&my_cyber[i], MODE_SPEED);
+  		CyberGear_SetConfig(&my_cyber[i], 12.0f, 30.0f, 6.0f);
+  		CyberGear_EnableMotor(&my_cyber[i]);
+    	}
+  	}
 
 //  HAL_UART_Transmit(&huart2, txBuff, sizeof(txBuff), 0xFFFF);
 //  HAL_Delay(1000);
@@ -187,7 +197,7 @@ int main(void)
 
   //	HAL_UART_Receive_DMA(&huart2, UART2_RX_Buffer, byte_number);
   //	HAL_UART_Receive_DMA(&huart2,serialData,DATANUM);
-
+  HAL_Delay(100);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -197,53 +207,37 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+
     HAL_GPIO_TogglePin(BUILDIN_LED_GPIO_Port, BUILDIN_LED_Pin);
 
-    do
-    {
-      /* 受信割り込み開�? */
-      HAL_UART_Receive_IT(&huart2, rcvBuffer, 1);
+    debug = HAL_UART_Receive(&huart2, rcvBuffer, 7, 1000);
+//         while (flagRcved == FALSE) {
+//           // 受信完了まで待機
+//         }
+//            flagRcved = FALSE;
 
-      /* 受信割り込み終�?�?ち */
-      while (flagRcved == FALSE)
-      {
-        ;
-      }
+    memcpy(buf, rcvBuffer, sizeof(buf));
 
-      sndBuffer[rcvLength] = rcvBuffer[0];
-      rcvLength++;
-      flagRcved = FALSE;
+    memcpy(&uart_prev_count, &buf[0], sizeof(uint8_t));
 
-//      char str[6];
-//      sprintf(str, "\n ima:%d", rcvLength);
-//      HAL_UART_Transmit(&huart2, (uint8_t *)str, strlen(str), 0xFFFF);
-    } while ((rcvBuffer[0] != CHAR_CR) && (rcvLength < BUFF_SIZE));
+    uint8_t reversed_bytes[4];
+    reversed_bytes[0] = buf[2];
+    reversed_bytes[1] = buf[1];
+        memcpy(&command_id, reversed_bytes, sizeof(uint16_t));
 
-        // 受信したデータから\rを削除する
-    for (int i = 0; i < rcvLength; i++) {
-        if (sndBuffer[i] == CHAR_CR) {
-            sndBuffer[i] = '\0'; // \rをヌル文字で置き換える
-            rcvLength = i; // 新しい長さを設定
-            break;
+//     uint16_t reversed_command_id;
+// memcpy(&reversed_command_id, reversed_bytes, sizeof(uint16_t));
+// command_id = reversed_command_id;
+
+    uint8_t _temp_command_content[4];
+        // uint8_t reversed_bytes[4];
+    memcpy(_temp_command_content, &buf[3], sizeof(float));
+
+    //    // バイト列を逆順にコピー
+        for (int j = 0; j < 4; j++) {
+            reversed_bytes[j] = _temp_command_content[3 - j];
         }
-    }
-
-    /* 受信した�?容を�?�信 */
-    // HAL_UART_Transmit_IT(&huart2, sndBuffer, rcvLength);
-//    HAL_UART_Transmit(&huart2, sndBuffer, rcvLength, 1);
-
-    // unsigned char buf[17];
-//    unsigned char buf[17];
-//    memcpy(buf, sndBuffer, sizeof(buf));
-//
-//    // 2バイトずつのint16配列を作成する
-//     for (int i = 0; i < sizeof(buf) / sizeof(buf[0]) / 2; i++) {
-//       // データをバイト列から変数にアンパック
-//       data[i] = (buf[i * 2] << 8) | buf[i * 2 + 1];
-//     }
-
-//    data[0] = 1;
-//    data[1] = 2;
+        memcpy(&command_content, reversed_bytes, sizeof(float));
 
 //    char str[6];
 //    sprintf(str, "\ndata[0] : %d\n", data[0]);
@@ -254,32 +248,33 @@ int main(void)
 
     rcvLength = 0;
 
-    // TODO 今�???��?��場合だと??��?��?送られてくる??��?��?字数が決まってな??��?��?と??��?��?けな??��?��? 短くなると??��?��?けな??��?��? ??��?��?から?��??��?��???��?��??��?��??
-    // TODO 受信したも�???��?��は、毎回[0]からメモリに書き込んだほ??��?��?がい??��?��?
-    //		strncpy(temp_str, (char*) UART2_RX_Buffer, byte_number);
-    //
-    //		char *token = strtok(temp_str, ",");
-    //
-    //		int i = 0;
-    //
-    //		while (token != NULL && i < byte_number) {
-    ////			values[i] = atoi(token); // ??��?��?ト�???��?��クンをint16に変換して配�???��?��に格??��?��?
-    //			token = strtok(NULL, ","); // 次のト�???��?��クンを取??��?��?
-    //			i++;
-    //		}
-    //
-    //		int16_t _temp = values[2];
+    switch(command_id){
+    case 22:
+    	motor_speed[0] = command_content;
+    	if (is_run_CyberGear){
+    	CyberGear_ControlSpeed(&my_cyber[0], (float)motor_speed[0]);
+    	}
+    	break;
+    case 24:
+    	motor_speed[1] = command_content;
+    	if (is_run_CyberGear){
+    	CyberGear_ControlSpeed(&my_cyber[1], (float)motor_speed[1]);
+    	}
+    	break;
+    case 26:
+    	motor_speed[2] = command_content;
+    	if (is_run_CyberGear){
+    	CyberGear_ControlSpeed(&my_cyber[2], (float)motor_speed[2]);
+    	}
+    	break;
+    case 28:
+    	motor_speed[3] = command_content;
+    	if (is_run_CyberGear){
+    	CyberGear_ControlSpeed(&my_cyber[3], (float)motor_speed[3]);
+    	}
+    	break;
+    }
 
-    //		CyberGear_ControlSpeed(&my_cyber[0], (float)motor_speed[0]);
-    //		CyberGear_ControlSpeed(&my_cyber[1], (float)motor_speed[1]);
-    //		CyberGear_ControlSpeed(&my_cyber[2], (float)motor_speed[2]);
-    //		CyberGear_ControlSpeed(&my_cyber[3], (float)motor_speed[3]);
-
-    //		char send_str[byte_number];
-    //		sprintf(send_str, "%d\n", _temp); // _tempを文字�???��?��に変換して改行コードを追??��?��?
-    //
-    //		HAL_UART_Transmit_DMA(&huart2, (uint8_t*) send_str, strlen(send_str));
-    //
     HAL_Delay(1);
   }
   /* USER CODE END 3 */

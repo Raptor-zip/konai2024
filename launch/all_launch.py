@@ -17,6 +17,12 @@ def generate_launch_description():
                 # prefix="xterm -e",
             ),
             Node(
+                package="konai2024_python",
+                executable="write_read_serial",
+                output="both",
+                # prefix="xterm -e",
+            ),
+            Node(
                 package="joy",
                 executable="joy_node",
                 parameters=[{"device_id": 0, "deadzone": 0.2}],
