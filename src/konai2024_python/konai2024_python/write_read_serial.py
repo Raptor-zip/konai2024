@@ -67,7 +67,7 @@ def main() -> None:
     with ThreadPoolExecutor(max_workers=6) as executor:
         executor.submit(lambda: Serial.connect_serial(Serial()))
         executor.submit(lambda: Serial.write_serial(Serial(), "ESP32"))
-        executor.submit(lambda: Serial.receive_serial(Serial(), "ESP32"))
+        # executor.submit(lambda: Serial.receive_serial(Serial(), "ESP32"))
         # ROS2MainNode.get_logger(ROS2MainNode).debug("ESP32との通信開始")
         # executor.submit(Serial.receive_serial("STM32"))
 #         import threading
@@ -372,7 +372,7 @@ class Serial:
 
         while True:
             if micon_write_queues[micon_name].empty():
-                logger.info("キューが空")
+                # logger.info("キューが空")
                 time.sleep(0.01)
                 # continue
 
@@ -411,6 +411,9 @@ class Serial:
                 # logger.info(f"{data_tuple}")
 
                 logger.info(len(data))
+
+                # if len(data) != 7:
+                #     logger.info("\n\n\n\n\n\n\nああああ\n\n\n\n\n\n")
 
                 # logger.info(micon_write_queues[micon_name].qsize()) # キューのサイズ
 

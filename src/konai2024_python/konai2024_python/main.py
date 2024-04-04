@@ -832,7 +832,7 @@ class ROS2MainNode(Node):
             pass
         self.count_print += 1
         try:
-            micon_dict["ESP32"]["serial_obj"].write(bytes(data2))
+            # micon_dict["ESP32"]["serial_obj"].write(bytes(data2))
             # each_micon_dict_values["serial_obj"].write(json_str_2.encode())
             # print(f"{each_micon_dict_key}への送信成功", flush=True)
             pass
@@ -963,6 +963,12 @@ class ROS2MainNode(Node):
         # ↑
         if controller.joy_now["joy0"]["buttons"][13] == 1 and controller.joy_past["joy0"]["buttons"][13] == 0:
             self.VESC_adjust[0] += 500
+
+
+            command = Float64MultiArray()
+            # CyberGear_speedの値を浮動小数点数に変換してリストに格納
+            command.data = [float(1), float(27), float(1)]
+            self.publisher_serial_write.publish(command)
 
         # ↓
         elif controller.joy_now["joy0"]["buttons"][14] == 1 and controller.joy_past["joy0"]["buttons"][14] == 0:
