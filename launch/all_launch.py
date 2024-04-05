@@ -14,13 +14,13 @@ def generate_launch_description():
                 package="konai2024_python",
                 executable="main",
                 output="both",
-                prefix="xterm -e",
+                # prefix="xterm -e",
             ),
             Node(
                 package="konai2024_python",
                 executable="write_read_serial",
                 output="both",
-                # prefix="xterm -e",
+                prefix="xterm -e",
             ),
             Node(
                 package="joy",
@@ -34,12 +34,12 @@ def generate_launch_description():
             #     executable="joy_node",
             #     remappings=[("/joy", "/joy0")],
             # ),
-            # Node(
-            #     package="joy",
-            #     executable="joy_node",
-            #     parameters=[{"device_id": 1}],
-            #     remappings=[("/joy", "/joy1")],
-            # ),
+            Node(
+                package="joy",
+                executable="joy_node",
+                parameters=[{"device_id": 1}],
+                remappings=[("/joy", "/joy1")],
+            ),
             # Node(
             #     package="konai2024_python",
             #     executable="webserver",

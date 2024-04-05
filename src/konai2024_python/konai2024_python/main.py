@@ -69,7 +69,7 @@ def main() -> None:
         # executor.submit(receive_udp_webserver)
         # executor.submit(receive_udp_webrtc)
         # executor.submit(battery.battery_alert)
-        # executor.submit(lambda: Serial.receive_serial(Serial(), "ESP32"))
+        executor.submit(lambda: Serial.receive_serial(Serial(), "ESP32"))
         # ROS2MainNode.get_logger(ROS2MainNode).debug("ESP32との通信開始")
 
 #         import threading
@@ -729,7 +729,7 @@ class ROS2MainNode(Node):
 
         # 低速モードの処理
         if self.is_slow_speed:
-            self.CyberGear_speed[:4] = [speed * 0.3
+            self.CyberGear_speed[:4] = [speed * 0.1
                                         for speed in self.CyberGear_speed[:4]]
 
         # モータースピードが絶対値16未満の値を削除 (ジョイコンの戻りが悪いときでもブレーキを利かすため)
@@ -832,7 +832,7 @@ class ROS2MainNode(Node):
             pass
         self.count_print += 1
         try:
-            # micon_dict["ESP32"]["serial_obj"].write(bytes(data2))
+            micon_dict["ESP32"]["serial_obj"].write(bytes(data2))
             # each_micon_dict_values["serial_obj"].write(json_str_2.encode())
             # print(f"{each_micon_dict_key}への送信成功", flush=True)
             pass
@@ -899,7 +899,7 @@ class ROS2MainNode(Node):
         #     self.time_when_turn = []
         #     self.angle_control_count = 0
 
-        # Rボタン
+        # Lボタン
         if controller.joy_now["joy0"]["buttons"][4] == 1:
             # 走行補助強制停止
             self.state = 0
@@ -913,7 +913,7 @@ class ROS2MainNode(Node):
             self.servo_adjust = [0] * len(self.servo_adjust)
             self.servo_raw = [0] * len(self.servo_raw)
 
-        # Lボタン
+        # Rボタン
         if controller.joy_now["joy0"]["buttons"][5] == 1:
             # 低速モード
             self.is_slow_speed = True
@@ -1010,19 +1010,7 @@ class ROS2MainNode(Node):
 
         controller.joy_convert(controller(), "joy1", joy)
 
-        # サーボの制御
-        # R装填 サーボ初期位置
-        # if controller.joy_now["joy1"]["buttons"][5] == 1:
-        #     self.time_pushed_load_button = int(time.time() * 1000)  # エポックミリ秒
-        #     self.servo_raw[0] = 45
-
-        # ダクテッドファン
-        # if controller.joy_now["joy1"]["buttons"][13] == 1 and controller.joy_past["joy1"]["buttons"][13] == 0:
-        #     # ↑
-        #     self.BLmotor_speed[0] = max(1000,min(1500,self.BLmotor_speed[0] + 10))
-        # elif controller.joy_now["joy1"]["buttons"][14] == 1 and controller.joy_past["joy1"]["buttons"][14] == 0:
-        #     # ↓
-        #     self.BLmotor_speed[0] = min(1500,max(1000,self.BLmotor_speed[0] - 10))
+        self.DCmotor_speed[0] = controller.joy_now["joy1"]["axes"][1] * 255
 
         # 回収モーター
         # if controller.joy_now["joy1"]["buttons"][15] == 1:

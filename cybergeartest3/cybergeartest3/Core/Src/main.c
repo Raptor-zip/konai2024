@@ -92,7 +92,7 @@ unsigned char buf[20];
 #define TRUE (1)
 #define FALSE (0)
 
-uint8_t debug_2 = 10;
+uint16_t debug_2 = 10;
 
 #define is_run_CyberGear (1) ///////////////////////////////////CyberGear動作させるかさせないか
 
@@ -105,7 +105,6 @@ float motor_speed[4];
 uint8_t value3[8];
 
 uint8_t flagRcved; /* 受信完�?フラグ */
-uint16_t rcvLength; /* 受信�?ータ数 */
 uint8_t rcvBuffer[30]; /* 受信バッファ*/
 uint8_t sndBuffer[100]; /* 送信バッファ */
 
@@ -210,21 +209,7 @@ int main(void) {
 
 		debug = HAL_UART_Receive_DMA(&huart2, rcvBuffer, 7);
 
-//		debug = HAL_UART_Receive(&huart2, rcvBuffer, 7, 1000);
-//         while (flagRcved == FALSE) {
-//           // 受信完了まで待機
-//         }
-//            flagRcved = FALSE;
-
 		memcpy(buf, rcvBuffer, sizeof(buf));
-
-//    rcvBuffer[0] = buf[1];
-//    rcvBuffer[1] = buf[2];
-//    rcvBuffer[2] = buf[3];
-//    rcvBuffer[3] = buf[4];
-//    rcvBuffer[4] = buf[5];
-//    rcvBuffer[5] = buf[6];
-//    rcvBuffer[6] = buf[0];
 
 //		memcpy(&uart_prev_count, &buf[0], sizeof(uint8_t));
 		memcpy(&uart_prev_count, &buf[1], sizeof(uint8_t));
@@ -260,8 +245,6 @@ int main(void) {
 //    sprintf(str, "data[1] : %d\n", data[1]);
 //    HAL_UART_Transmit(&huart2, (uint8_t *)str, strlen(str), 0xFFFF);
 
-		rcvLength = 0;
-
 		switch (command_id) {
 		case 22:
 			motor_speed[0] = command_content;
@@ -284,14 +267,20 @@ int main(void) {
 		case 27:
 			debug_2 = 100;
 			for (int i = 0; i < 4; i++) {
-					if (is_run_CyberGear) {
-						CyberGear_Init(&my_cyber[i], &ecan, 0x70 + i, 0, HAL_Delay);
-						CyberGear_ResetMotor(&my_cyber[i]);
-						CyberGear_SetMode(&my_cyber[i], MODE_SPEED);
-						CyberGear_SetConfig(&my_cyber[i], 12.0f, 30.0f, 6.0f);
-						CyberGear_EnableMotor(&my_cyber[i]);
-					}
+				if (is_run_CyberGear) {
+					debug_2 = 288;
+					CyberGear_Init(&my_cyber[i], &ecan, 0x70 + i, 0, HAL_Delay);
+					debug_2 = 290;
+					CyberGear_ResetMotor(&my_cyber[i]);
+					debug_2 = 292;
+					CyberGear_SetMode(&my_cyber[i], MODE_SPEED);
+					debug_2 = 294;
+					CyberGear_SetConfig(&my_cyber[i], 12.0f, 30.0f, 6.0f);
+					debug_2 = 296;
+					CyberGear_EnableMotor(&my_cyber[i]);
+					debug_2 = 298;
 				}
+			}
 			break;
 		case 28:
 			motor_speed[3] = command_content;
