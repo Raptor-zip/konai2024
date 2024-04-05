@@ -278,6 +278,16 @@ window.setInterval(function () {
     socket.emit('my ping');
 }, 1000);
 
+window.addEventListener("gamepadconnected", (e) => {
+    console.log(
+        "Gamepad connected at index %d: %s. %d buttons, %d axes.",
+        e.gamepad.index,
+        e.gamepad.id,
+        e.gamepad.buttons.length,
+        e.gamepad.axes.length
+    );
+});
+
 window.onload = function () {
     // ボタンにクリックイベントを追加
     document.getElementById("reload_button").addEventListener('click', function () {

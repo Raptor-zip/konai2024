@@ -1,7 +1,8 @@
 import inspect  # 実行中の行数を取得 logger用
 import os
+from sqlite3 import Time
 import sys
-import struct # floatをbytesに変換するため
+import struct  # floatをbytesに変換するため
 from re import T
 from turtle import distance  # どのESP32を識別するためにls使うよう
 import matplotlib.pyplot as plt
@@ -9,7 +10,7 @@ from sympy import false
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
-from std_msgs.msg import Float64MultiArray # main ⇔ write_read_serial
+from std_msgs.msg import Float64MultiArray  # main ⇔ write_read_serial
 from sensor_msgs.msg import Joy
 import json  # jsonを使うため
 from concurrent.futures import ThreadPoolExecutor  # threadPoolExecutor
@@ -69,6 +70,8 @@ def main() -> None:
         # executor.submit(receive_udp_webserver)
         # executor.submit(receive_udp_webrtc)
         # executor.submit(battery.battery_alert)
+        executor.submit(lambda: controller.check_controller_connection(
+            controller()))  # コントローラーの死活監視
         executor.submit(lambda: Serial.receive_serial(Serial(), "ESP32"))
         # ROS2MainNode.get_logger(ROS2MainNode).debug("ESP32との通信開始")
 
@@ -153,13 +156,29 @@ class controller:
     joy_now: dict = {}
     joy_past: dict = {}
 
-    def joy_convert(self, joy_id: str, received_joy: Joy) -> None:
+    def check_controller_connection(self) -> None:
+        while True:
+            # 0.1秒に1回コントローラーの接続を確認
+            time.sleep(0.1)
+            # コントローラーの接続を確認
+            for joy_id, joy_value in controller.joy_now.items():
+                if time.time() - joy_value["time"] > 1:
+                    logger.error(f"{joy_id}が接続されていません")
+
+                    joy_value["state"] = "disconnected"
+                    joy_value["axes"] = [0] * len(joy_value["axes"])
+                    joy_value["buttons"] = [0] * len(joy_value["buttons"])
+
+                    stop()
+
+
+    def joy_setup(self, joy_id: str, received_joy: Joy) -> None:
         self.joy_past.setdefault(  # 初回のみ実行 上書き不可
             joy_id,
             {"axes": [0] * 4, "buttons": [0] * 17}
         )
 
-        # 　一周期前のデータを保存
+        # 一周期前のデータを保存
         if joy_id in self.joy_now:
             self.joy_past[joy_id] = self.joy_now[joy_id]
 
@@ -187,6 +206,11 @@ class controller:
             self.joy_now.update({joy_id: self.convert_PS4_other_to_WiiU(joy)})
         else:
             logger.error("コントローラーのボタン数が違う")
+
+        # 時刻を保存 死活監視のため
+        self.joy_now[joy_id].update({
+            "time": time.time(),
+            "state": "connected"})
 
     def convert_PS3_to_WiiU(self, joy_before: dict) -> dict:
         joy_after: dict = {"buttons": joy_before["buttons"],
@@ -344,7 +368,9 @@ class Serial:
                 available_ports = [
                     port for port in candidates_port_list if port not in connected_ports]
 
-                available_ports = [port for port in available_ports if "ACM" not in port] # ACMがついているときは接続しない
+                # ACMがついているときは接続しない
+                available_ports = [
+                    port for port in available_ports if "ACM" not in port]
 
                 if not available_ports:
                     logger.critical(f"{micon_name}がUSBに接続されていない")
@@ -403,7 +429,8 @@ class Serial:
             except ValueError:
                 return value  # その他の場合は文字列として返す
 
-        logger.info(f"{each_micon_dict_key}から:{received_message.decode('utf-8', 'ignore')}")
+        logger.info(
+            f"{each_micon_dict_key}から:{received_message.decode('utf-8', 'ignore')}")
         # ROS2MainNode.get_logger().error(f"{each_micon_dict_key}から:{received_message}")
 
         try:
@@ -526,7 +553,7 @@ class ROS2MainNode(Node):
     servo_raw: list[int] = [0, 0]
     is_slow_speed: bool = False
 
-    time_pushed_load_button: int = 0  # 装填ボタンが押された時間
+    time_pushed_load_button = 0  # 装填ボタンが押された時間
 
     # TODO Initialize PID parameters dict型にしたい！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
     kp: float = 0.01  # Proportional gain 基本要素として必須。これをベースに、必要に応じて他の項を追加する
@@ -640,7 +667,6 @@ class ROS2MainNode(Node):
         # print(json.dumps(reception_json).encode('utf-8'))
         self.publisher_ESP32_to_Webserver.publish(msg)
 
-
         command = Float64MultiArray()
         # CyberGear_speedの値を浮動小数点数に変換してリストに格納
         command.data = [float(1), float(22), float(self.CyberGear_speed[0])]
@@ -660,7 +686,6 @@ class ROS2MainNode(Node):
         # CyberGear_speedの値を浮動小数点数に変換してリストに格納
         command.data = [float(1), float(28), float(self.CyberGear_speed[3])]
         self.publisher_serial_write.publish(command)
-
 
     def timer_callback_001(self):
         global reception_json, micon_dict
@@ -739,8 +764,8 @@ class ROS2MainNode(Node):
             0 if abs(i) < 1 else i for i in self.CyberGear_speed]
 
         #   装填サーボの処理
-        if self.time_pushed_load_button != 0 and int(time.time() * 1000) - self.time_pushed_load_button > 700:
-            # 1500msで0°に戻る
+        if self.time_pushed_load_button != 0 and (time.time() - self.time_pushed_load_button) > 0.7:
+            # 0.7sで0°に戻る
             self.servo_raw[0] = 0
             self.time_pushed_load_button = 0
 
@@ -786,8 +811,6 @@ class ROS2MainNode(Node):
         for micon_dict_key, micon_dict_values in micon_dict.items():
             if micon_dict_values["reboot"] == True:
                 micon_dict_values["reboot"] = False
-
-
 
         # command = Float64MultiArray()
         # # CyberGear_speedの値を浮動小数点数に変換してリストに格納
@@ -844,7 +867,7 @@ class ROS2MainNode(Node):
     def joy0_listener_callback(self, joy):
         global reception_json, micon_dict
 
-        controller.joy_convert(controller(), "joy0", joy)
+        controller.joy_setup(controller(), "joy0", joy)
 
         # B ☓ボタン
         if controller.joy_past["joy0"]["buttons"][0] == 0 and controller.joy_now["joy0"]["buttons"][0] == 1:
@@ -901,17 +924,7 @@ class ROS2MainNode(Node):
 
         # Lボタン
         if controller.joy_now["joy0"]["buttons"][4] == 1:
-            # 走行補助強制停止
-            self.state = 0
-            self.CyberGear_speed = [0] * len(self.CyberGear_speed)
-            self.DCmotor_speed = [0] * len(self.DCmotor_speed)
-            self.BLmotor_speed = [0] * len(self.BLmotor_speed)
-            self.VESC_rpm = [0] * len(self.VESC_rpm)
-            self.VESC_adjust = [0] * len(self.VESC_adjust)
-            self.VESC_raw = [0] * len(self.VESC_raw)
-            self.servo_angle = [0] * len(self.servo_angle)
-            self.servo_adjust = [0] * len(self.servo_adjust)
-            self.servo_raw = [0] * len(self.servo_raw)
+            stop()
 
         # Rボタン
         if controller.joy_now["joy0"]["buttons"][5] == 1:
@@ -924,7 +937,7 @@ class ROS2MainNode(Node):
         # self.servo_angle = int(controller.joy_now["joy0"]["axes"][1]*174)
         # ZR装填 サーボ初期位置
         if controller.joy_now["joy0"]["buttons"][7] == 1:
-            self.time_pushed_load_button = int(time.time() * 1000)  # エポックミリ秒
+            self.time_pushed_load_button = time.time()  # エポック秒
             self.servo_raw[0] = abs(
                 self.servo_raw[1] + self.servo_adjust[1]) + 12
 
@@ -963,7 +976,6 @@ class ROS2MainNode(Node):
         # ↑
         if controller.joy_now["joy0"]["buttons"][13] == 1 and controller.joy_past["joy0"]["buttons"][13] == 0:
             self.VESC_adjust[0] += 500
-
 
             command = Float64MultiArray()
             # CyberGear_speedの値を浮動小数点数に変換してリストに格納
@@ -1008,7 +1020,7 @@ class ROS2MainNode(Node):
     def joy1_listener_callback(self, joy):
         global reception_json, micon_dict
 
-        controller.joy_convert(controller(), "joy1", joy)
+        controller.joy_setup(controller(), "joy1", joy)
 
         self.DCmotor_speed[0] = controller.joy_now["joy1"]["axes"][1] * 255
 
@@ -1146,6 +1158,20 @@ class ROS2MainNode(Node):
         #     self.motor1_speed = 0
         #     self.motor2_speed = 0
         #     self.state = 0
+
+
+def stop():
+    # 強制停止
+    ROS2MainNode.state = 0
+    ROS2MainNode.CyberGear_speed = [0] * len(ROS2MainNode.CyberGear_speed)
+    ROS2MainNode.DCmotor_speed = [0] * len(ROS2MainNode.DCmotor_speed)
+    ROS2MainNode.BLmotor_speed = [0] * len(ROS2MainNode.BLmotor_speed)
+    ROS2MainNode.VESC_rpm = [0] * len(ROS2MainNode.VESC_rpm)
+    ROS2MainNode.VESC_adjust = [0] * len(ROS2MainNode.VESC_adjust)
+    ROS2MainNode.VESC_raw = [0] * len(ROS2MainNode.VESC_raw)
+    ROS2MainNode.servo_angle = [0] * len(ROS2MainNode.servo_angle)
+    ROS2MainNode.servo_adjust = [0] * len(ROS2MainNode.servo_adjust)
+    ROS2MainNode.servo_raw = [0] * len(ROS2MainNode.servo_raw)
 
 
 def control_mecanum_wheels(direction: float, speed: float) -> list[float]:
