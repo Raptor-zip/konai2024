@@ -729,7 +729,7 @@ class ROS2MainNode(Node):
 
         # 低速モードの処理
         if self.is_slow_speed:
-            self.CyberGear_speed[:4] = [speed * 0.1
+            self.CyberGear_speed[:4] = [speed * 0.2
                                         for speed in self.CyberGear_speed[:4]]
 
         # モータースピードが絶対値16未満の値を削除 (ジョイコンの戻りが悪いときでもブレーキを利かすため)
@@ -760,7 +760,7 @@ class ROS2MainNode(Node):
         # TODO MIN MAXの処理を追加する
         self.send_ESP32_data: list[int] = [
             int(self.state),  # 0 状態
-            1,  # 1 sメカナム
+            1,  # 1 メカナム
             1,  # 2 メカナム
             1,  # 3 メカナム
             1,  # 4 メカナム

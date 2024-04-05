@@ -218,10 +218,12 @@ void loop()
       // 回収モーター1のduty制御
       PWM(1, intArray[6]);
 
-      krs.setPos(0, krs.degPos(int(intArray[8]))); // 対象の処理を実行 ！！！タイムアウトさせとくと、Serial受信(Serial2じゃなくて)と干渉して、途中までしか受信できなくなった intで囲む必要ない
-      // delay(9);                                    // TODO どうにかする
-      krs.setPos(1, krs.degPos(int(intArray[9]))); // 対象の処理を実行 ！！！タイムアウトさせとくと、Serial受信(Serial2じゃなくて)と干渉して、途中までしか受信できなくなった intで囲む必要ない
-      
+      // 装填サーボの制御
+      krs.setPos(0, krs.degPos(int(intArray[8]))); // タイムアウトさせとくと、Serial受信(Serial2じゃなくて)と干渉して、途中までしか受信できなくなった intで囲む必要ない
+
+      // 仰角サーボの制御
+      krs.setPos(1, krs.degPos(int(intArray[9]))); // タイムアウトさせとくと、Serial受信(Serial2じゃなくて)と干渉して、途中までしか受信できなくなった intで囲む必要ない
+
       // LEDテープの処理 射出時のアニメーションのトリガー
       if (intArray[9] == 45)
       {
@@ -232,6 +234,7 @@ void loop()
         digitalWrite(COMMUNICATE_LED_PIN, HIGH);
       }
 
+      // VESCの制御
       UART.setRPM(float(intArray[15]), 0); // 連続して送らないとタイムアウトで勝手に切れる 安全装置ナイス
 
       analogWrite(LED_BUILTIN , intArray[9]* -1);
