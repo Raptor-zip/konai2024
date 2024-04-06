@@ -761,9 +761,9 @@ class ROS2MainNode(Node):
             0 if abs(i) < 1 else i for i in self.CyberGear_speed]
 
         #   装填サーボの処理
-        if self.time_pushed_load_button != 0 and (time.time() - self.time_pushed_load_button) > 0.7:
+        if self.time_pushed_load_button != 0 and (time.time() - self.time_pushed_load_button) > 1:
             # 0.7sで0°に戻る
-            self.servo_raw[0] = 0
+            self.servo_raw[0] = -40
             self.time_pushed_load_button = 0
 
         self.servo_angle[0] = self.servo_raw[0] + self.servo_adjust[0]
@@ -872,7 +872,7 @@ class ROS2MainNode(Node):
             if self.servo_raw[0] < 10:
                 self.servo_raw[1] = -60
 
-        # A　○ボタン
+        # A ○ボタン
         if controller.joy_past["joy0"]["buttons"][1] == 0 and controller.joy_now["joy0"]["buttons"][1] == 1:
             self.VESC_raw[0] = 21000
             if self.servo_raw[0] < 10:
