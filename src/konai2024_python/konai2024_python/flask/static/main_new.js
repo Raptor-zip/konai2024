@@ -32,6 +32,7 @@ window.setInterval(function () {
 
 socket.on('json_receive', function (json) {
     console.log(json);
+    console.log(json["servo_angle"][0])
     if ("state" in json) {
         // switch (json["state"]) {
         // case 0:
@@ -119,7 +120,8 @@ socket.on('json_receive', function (json) {
     }
     if ("servo_angle" in json) {
         // document.getElementById("servo_angle_char").innerText = Math.round(json["servo_angle"]);
-        document.getElementById("servo_angle_gauge").style.width = json["servo_angle"] / 2.7 + 50 + "%";
+        document.getElementById("servo_angle_gauge").style.width = json["servo_angle"][0] / 2.7 + 50 + "%";
+        console.log(json["servo_angle"][0])
     }
     if ("servo_tmp" in json) {
         if (json["servo_tmp"] != 999) {

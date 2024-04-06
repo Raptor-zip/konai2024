@@ -24,13 +24,12 @@ unsigned long startTime, stopTime = 0; // プログラムの遅延を確認す�
 #define LED_BUILTIN 2
 
 // VESCモーター
-VescUart UART;
-// HardwareSerial Serial1(0);
+VescUart UART(10);
 
 // サーボモーター
 #define EN_PIN 23
 #define BAUDRATE 115200                                      // TODO 速くする？ノイズも怖いけど
-#define TIMEOUT 15                                           // TODO [ms] 遅いとタイムアウトするまで待たないといけないからやばい
+#define TIMEOUT 10                                           // TODO [ms] 遅いとタイムアウトするまで待たないといけないからやばい
 IcsHardSerialClass krs(&Serial2, EN_PIN, BAUDRATE, TIMEOUT); // インスタンス＋ENピン(2番ピン)およびUARTの指定
 
 // 距離センサー

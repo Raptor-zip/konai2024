@@ -1,14 +1,14 @@
 import inspect  # 実行中の行数を取得 logger用
 import os
 import sys
-import struct # floatをbytesに変換するため
+import struct  # floatをbytesに変換するため
 from re import T
 from turtle import distance  # どのESP32を識別するためにls使うよう
 import matplotlib.pyplot as plt
 from sympy import false
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float64MultiArray, String # main ⇔ write_read_serial
+from std_msgs.msg import Float64MultiArray, String  # main ⇔ write_read_serial
 from sensor_msgs.msg import Joy
 import json  # jsonを使うため
 from concurrent.futures import ThreadPoolExecutor  # threadPoolExecutor
@@ -16,8 +16,8 @@ import playsound  # バッテリー低電圧保護ブザー用
 import subprocess  # SSID取得用
 import time
 import datetime
-import serial # シリアル通信用
-from serial.tools import list_ports # シリアル通信用
+import serial  # シリアル通信用
+from serial.tools import list_ports  # シリアル通信用
 import ipget  # IPアドレス取得用
 import socket  # UDP通信用
 import asyncio  # 非同期関数を実行するため
@@ -43,8 +43,10 @@ log_folder = "python_log"
 # フォルダが存在しない場合は作成する
 if not os.path.exists(log_folder):
     os.makedirs(log_folder)
-log_filename:str = os.path.join(log_folder, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S.log"))
-handler = handlers.RotatingFileHandler(log_filename, maxBytes=1000000, backupCount=10)
+log_filename: str = os.path.join(
+    log_folder, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S.log"))
+handler = handlers.RotatingFileHandler(
+    log_filename, maxBytes=1000000, backupCount=10)
 logger.addHandler(handler)
 # コンソールにログを出力するハンドラを追加
 handler_console = logging.StreamHandler(sys.stdout)
@@ -59,9 +61,11 @@ try:
 except subprocess.CalledProcessError:
     wifi_ssid = "エラー"
 
-def location(depth:int=0) -> tuple:
+
+def location(depth: int = 0) -> tuple:
     frame = inspect.currentframe().f_back
     return os.path.basename(frame.f_code.co_filename), frame.f_code.co_name, frame.f_lineno
+
 
 def main() -> None:
     with ThreadPoolExecutor(max_workers=6) as executor:
@@ -90,6 +94,7 @@ def main() -> None:
 
         future = executor.submit(ros)
         future.result()         # 全てのタスクが終了するまで待つ
+
 
 micon_dict: dict[str, dict] = {
     "ESP32": {"is_connected": False,  # パソコンと接続しているか
@@ -343,8 +348,10 @@ class Serial:
                                    for m in micon_dict.values() if m["is_connected"]]
                 available_ports = [
                     port for port in candidates_port_list if port not in connected_ports]
-                
-                available_ports = [port for port in available_ports if "USB" not in port] # USBがついているときは接続しない
+
+                # USBがついているときは接続しない
+                available_ports = [
+                    port for port in available_ports if "USB" not in port]
 
                 if not available_ports:
                     logger.critical(f"{micon_name}がUSBに接続されていない")
@@ -378,7 +385,8 @@ class Serial:
 
             else:
 
-                send_float_array = micon_write_queues[micon_name].get() # キューから取り出す
+                # キューから取り出す
+                send_float_array = micon_write_queues[micon_name].get()
 
                 data = bytearray()
 
@@ -386,11 +394,13 @@ class Serial:
                 uart_prev_count += 1
                 if uart_prev_count > 255:
                     uart_prev_count = 1
-                data.extend(uart_prev_count.to_bytes(1, byteorder='big', signed=False))
+                data.extend(uart_prev_count.to_bytes(
+                    1, byteorder='big', signed=False))
 
                 # コマンドID
                 command_id = send_float_array["command_id"]
-                data.extend(command_id.to_bytes(2, byteorder='big', signed=False))
+                data.extend(command_id.to_bytes(
+                    2, byteorder='big', signed=False))
 
                 # コマンド内容
                 command_content = send_float_array["command_content"]
@@ -415,7 +425,7 @@ class Serial:
                 # if len(data) != 7:
                 #     logger.info("\n\n\n\n\n\n\nああああ\n\n\n\n\n\n")
 
-                # logger.info(micon_write_queues[micon_name].qsize()) # キューのサイズ
+                logger.info(micon_write_queues[micon_name].qsize())  # キューのサイズ
 
                 if count_print % 1 == 0:  # 15回に1回実行
                     # self.get_logger().info(data.hex())
@@ -426,15 +436,16 @@ class Serial:
                 count_print += 1
 
                 try:
+                    # logger.debug(location())
                     micon_dict[micon_name]["serial_obj"].write(bytes(data))
+                    # logger.debug(location())
                     pass
                 except Exception as e:
                     logger.critical(f"{micon_name}への送信に失敗: {e}")
                     micon_dict[micon_name]["is_connected"] = False
                     # TODO 片方のマイコンが途切れたときに、詰まるから、このやり方よくない 非同期にするか、connect_serialを並行処理でずっとwhileしといて、bool変数がTrueになったら接続処理するとか
+
             time.sleep(0.002)
-
-
 
     def receive_serial(self, micon_id: str) -> None:
         global micon_dict
@@ -474,7 +485,8 @@ class Serial:
             except ValueError:
                 return value  # その他の場合は文字列として返す
 
-        logger.info(f"{each_micon_dict_key}から:{received_message.decode('utf-8', 'ignore')}")
+        logger.info(
+            f"{each_micon_dict_key}から:{received_message.decode('utf-8', 'ignore')}")
         # ROS2MainNode.get_logger().error(f"{each_micon_dict_key}から:{received_message}")
 
         try:
@@ -602,10 +614,12 @@ class ROS2MainNode(Node):
     def serial_write(self, received_float_array):
         global micon_write_queues
         micon_name = "ESP32"
-        micon_write_queues[micon_name].put({"command_id": int(received_float_array.data[1]), "command_content": float(received_float_array.data[2])})
+        micon_write_queues[micon_name].put({"command_id": int(
+            received_float_array.data[1]), "command_content": float(received_float_array.data[2])})
         # logger.debug(received_float_array.data);
         pass
 # TODO 書き込みはrosのclass外で、回す　それぞれのマイコンに付き一つの関数で動かす
+
 
 if __name__ == '__main__':
     main()

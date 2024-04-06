@@ -177,25 +177,8 @@ int main(void) {
 	}
 	HAL_Delay(100);
 
-//  HAL_UART_Transmit(&huart2, txBuff, sizeof(txBuff), 0xFFFF);
-//  HAL_Delay(1000);
-//  HAL_UART_Transmit_IT(&huart2, txBuff, sizeof(txBuff));
-//  HAL_Delay(1000);
-
-//  HAL_UART_Transmit_DMA(&huart2, (uint8_t *)"Boot NUCLEO\r\n", 13);
-//  while (huart2.gState != HAL_UART_STATE_READY)
-//  {
-//  }
-//  HAL_UART_Transmit_DMA(&huart2, (uint8_t *)"Type any key.\r\n", 14);
-//  while (huart2.gState != HAL_UART_STATE_READY)
-//  {
-//  }
 	HAL_UART_Transmit_DMA(&huart2,
 			(uint8_t*) "Then toggle LED each 8 letters.\r\n", 33);
-
-	//	HAL_UART_Receive_DMA(&huart2, UART2_RX_Buffer, byte_number);
-	//	HAL_UART_Receive_DMA(&huart2,serialData,DATANUM);
-	HAL_Delay(100);
 	/* USER CODE END 2 */
 
 	/* Infinite loop */
@@ -204,35 +187,27 @@ int main(void) {
 		/* USER CODE END WHILE */
 
 		/* USER CODE BEGIN 3 */
-
 		HAL_GPIO_TogglePin(BUILDIN_LED_GPIO_Port, BUILDIN_LED_Pin);
 
 		debug = HAL_UART_Receive_DMA(&huart2, rcvBuffer, 7);
 
-		memcpy(buf, rcvBuffer, sizeof(buf));
+		debug_2 = rcvBuffer[0];
+		if(rcvBuffer[0] == 0){
+			memcpy(buf, &rcvBuffer[1], sizeof(buf));
+		}else{
+			memcpy(buf, &rcvBuffer[0], sizeof(buf));
+		}
 
-//		memcpy(&uart_prev_count, &buf[0], sizeof(uint8_t));
-		memcpy(&uart_prev_count, &buf[1], sizeof(uint8_t));
+		memcpy(&uart_prev_count, &buf[0], sizeof(uint8_t));
 
 		uint8_t reversed_bytes[4];
-		reversed_bytes[0] = buf[3];
-		reversed_bytes[1] = buf[2];
-
-//		reversed_bytes[0] = buf[2];
-//		reversed_bytes[1] = buf[1];
+		reversed_bytes[0] = buf[2];
+		reversed_bytes[1] = buf[1];
 		memcpy(&command_id, reversed_bytes, sizeof(uint16_t));
 
-//     uint16_t reversed_command_id;
-// memcpy(&reversed_command_id, reversed_bytes, sizeof(uint16_t));
-// command_id = reversed_command_id;
-
 		uint8_t _temp_command_content[4];
-		// uint8_t reversed_bytes[4];
-		memcpy(_temp_command_content, &buf[4], sizeof(float));
-
-//		memcpy(_temp_command_content, &buf[3], sizeof(float));
-
-		//    // バイト列を逆順にコピー
+		memcpy(_temp_command_content, &buf[3], sizeof(float));
+		// バイト列を逆順にコピー
 		for (int j = 0; j < 4; j++) {
 			reversed_bytes[j] = _temp_command_content[3 - j];
 		}
@@ -252,36 +227,33 @@ int main(void) {
 				CyberGear_ControlSpeed(&my_cyber[0], (float) motor_speed[0]);
 			}
 			break;
+
 		case 24:
 			motor_speed[1] = command_content;
 			if (is_run_CyberGear) {
 				CyberGear_ControlSpeed(&my_cyber[1], (float) motor_speed[1]);
 			}
 			break;
+
 		case 26:
 			motor_speed[2] = command_content;
 			if (is_run_CyberGear) {
 				CyberGear_ControlSpeed(&my_cyber[2], (float) motor_speed[2]);
 			}
 			break;
+
 		case 27:
-			debug_2 = 100;
 			for (int i = 0; i < 4; i++) {
 				if (is_run_CyberGear) {
-					debug_2 = 288;
 					CyberGear_Init(&my_cyber[i], &ecan, 0x70 + i, 0, HAL_Delay);
-					debug_2 = 290;
 					CyberGear_ResetMotor(&my_cyber[i]);
-					debug_2 = 292;
 					CyberGear_SetMode(&my_cyber[i], MODE_SPEED);
-					debug_2 = 294;
 					CyberGear_SetConfig(&my_cyber[i], 12.0f, 30.0f, 6.0f);
-					debug_2 = 296;
 					CyberGear_EnableMotor(&my_cyber[i]);
-					debug_2 = 298;
 				}
 			}
 			break;
+
 		case 28:
 			motor_speed[3] = command_content;
 			if (is_run_CyberGear) {
@@ -290,7 +262,7 @@ int main(void) {
 			break;
 		}
 
-		HAL_Delay(1);
+		HAL_Delay(9);
 	}
 	/* USER CODE END 3 */
 }

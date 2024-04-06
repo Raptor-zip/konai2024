@@ -14,13 +14,13 @@ def generate_launch_description():
                 package="konai2024_python",
                 executable="main",
                 output="both",
-                # prefix="xterm -e",
+                prefix="xterm -e",
             ),
             Node(
                 package="konai2024_python",
                 executable="write_read_serial",
                 output="both",
-                prefix="xterm -e",
+                # prefix="xterm -e",
             ),
             Node(
                 package="joy",

@@ -32,6 +32,7 @@ app.config['SECRET_KEY'] = 'secret!'
 
 socketio = SocketIO(app, cors_allowed_origins='*')  # , async_mode='eventlet'
 
+
 def main():
     with ThreadPoolExecutor(max_workers=2) as executor:
         executor.submit(publish)
@@ -110,7 +111,8 @@ def flask_socketio_run():
     # socketio.run(app, host="0.0.0.0", port=5000)
     cert_path = '/cert.pem'
     key_path = '/key.pem'
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True, use_reloader=False)
+    socketio.run(app, host='0.0.0.0', port=5000,
+                 debug=True, use_reloader=False)
     # socketio.run(app, host='0.0.0.0', port=5000, debug=True,
     #             ssl_context=(cert_path, key_path), use_reloader=False)
 
@@ -144,7 +146,7 @@ def disconnect():
 @socketio.on('json_request')
 def json_request():
     global reception_json  # しなくていいの?
-    print(reception_json["DCmotor_speed"][0], flush=True)
+    print(reception_json["servo_angle"], flush=True)
     emit('json_receive', reception_json)
 
 

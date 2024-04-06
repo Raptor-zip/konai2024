@@ -171,7 +171,6 @@ class controller:
 
                     stop()
 
-
     def joy_setup(self, joy_id: str, received_joy: Joy) -> None:
         self.joy_past.setdefault(  # 初回のみ実行 上書き不可
             joy_id,
@@ -576,8 +575,6 @@ class ROS2MainNode(Node):
     count_print: int = 0  # 15回に1回デバッグ用のprintを出力するためのカウンタ
 
     send_ESP32_data: str = ""
-
-    uart_prev_count: int = 0
 
     def __init__(self):
         global reception_json
