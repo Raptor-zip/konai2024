@@ -152,7 +152,6 @@ int main(void) {
 
 	/* Configure the system clock */
 	SystemClock_Config();
-
 	/* USER CODE BEGIN SysInit */
 
 	/* USER CODE END SysInit */
@@ -189,7 +188,8 @@ int main(void) {
 		/* USER CODE BEGIN 3 */
 		HAL_GPIO_TogglePin(BUILDIN_LED_GPIO_Port, BUILDIN_LED_Pin);
 
-		debug = HAL_UART_Receive_DMA(&huart2, rcvBuffer, 7);
+//		debug = HAL_UART_Receive_DMA(&huart2, rcvBuffer, 7);
+		debug = HAL_UART_Receive(&huart2, rcvBuffer, 7, 1000);
 
 		debug_2 = rcvBuffer[0];
 		if(rcvBuffer[0] == 0){

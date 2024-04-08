@@ -422,8 +422,10 @@ class Serial:
 
                 logger.info(len(data))
 
-                # if len(data) != 7:
-                #     logger.info("\n\n\n\n\n\n\nああああ\n\n\n\n\n\n")
+                if len(data) != 7:
+                    logger.info(
+                        "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nああああ\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
+                    logger.info(len(data))
 
                 logger.info(micon_write_queues[micon_name].qsize())  # キューのサイズ
 
@@ -445,7 +447,7 @@ class Serial:
                     micon_dict[micon_name]["is_connected"] = False
                     # TODO 片方のマイコンが途切れたときに、詰まるから、このやり方よくない 非同期にするか、connect_serialを並行処理でずっとwhileしといて、bool変数がTrueになったら接続処理するとか
 
-            time.sleep(0.002)
+            time.sleep(0.015)  # DMA 0.002# DMA 0.01
 
     def receive_serial(self, micon_id: str) -> None:
         global micon_dict

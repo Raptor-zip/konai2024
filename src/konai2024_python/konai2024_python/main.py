@@ -598,7 +598,7 @@ class ROS2MainNode(Node):
         self.subscription  # prevent unused variable warning
         self.get_logger().info("ROS2MainNode初期化完了")
         self.timer_0001 = self.create_timer(0.01, self.timer_callback_001)
-        self.timer_0016 = self.create_timer(0.033, self.timer_callback_0033)
+        self.timer_0016 = self.create_timer(0.065, self.timer_callback_0033)
         self.get_logger().info("ROS2MainNodeタイマー初期化完了")
 
     def Web_to_Main_listener_callback(self, json_string):
@@ -745,6 +745,8 @@ class ROS2MainNode(Node):
         if _max_motor_speed > 30:
             self.CyberGear_speed[:4] = [speed * 30 / _max_motor_speed
                                         for speed in self.CyberGear_speed[:4]]
+
+        self.CyberGear_speed[3] *= -1
 
         # VESC
         self.VESC_rpm[0] = self.VESC_raw[0] + self.VESC_adjust[0]
@@ -936,7 +938,7 @@ class ROS2MainNode(Node):
         if controller.joy_now["joy0"]["buttons"][7] == 1:
             self.time_pushed_load_button = time.time()  # エポック秒
             self.servo_raw[0] = abs(
-                self.servo_raw[1] + self.servo_adjust[1]) + 12
+                self.servo_raw[1] + self.servo_adjust[1]) + 14
 
         # if controller.joy_now["joy0"]["buttons"][8] == 1:
         #     micon_dict = {
