@@ -37,7 +37,7 @@ def generate_launch_description():
             Node(
                 package="joy",
                 executable="joy_node",
-                parameters=[{"device_id": 1}],
+                parameters=[{"device_id": 1, "deadzone": 0.2}],
                 remappings=[("/joy", "/joy1")],
             ),
             # Node(

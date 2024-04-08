@@ -251,6 +251,7 @@ int main(void) {
 			break;
 
 		case 27:
+			debug_2 = 1919;
 			for (int i = 0; i < 4; i++) {
 				if (is_run_CyberGear) {
 					CyberGear_Init(&my_cyber[i], &ecan, 0x70 + i, 0, HAL_Delay);

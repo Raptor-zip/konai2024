@@ -106,7 +106,8 @@ micon_dict: dict[str, dict] = {
     "STM32": {"is_connected": False,
               "serial_port": None,
               "serial_obj": None,
-              "reboot": False}}
+              "reboot": False}
+}
 
 
 reception_json: dict = {
@@ -390,6 +391,7 @@ class Serial:
                         logger.critical(f"{micon_name}とSerial接続失敗: {e}")
                         # ROS2MainNode.get_logger().error(f"{micon_name}とSerial接続失敗: {e}")
 
+
     def receive_serial(self, micon_id: str) -> None:
         global micon_dict
 
@@ -417,6 +419,7 @@ class Serial:
             else:
                 each_micon_dict_values["is_connected"] = False
                 time.sleep(0.01)  # 無駄にCPUを使わないようにする
+
 
     def received_command(self, received_message: bytes, each_micon_dict_key: str) -> None:
 
@@ -544,12 +547,15 @@ class ROS2MainNode(Node):
     CyberGear_speed: list[float] = [0, 0, 0, 0]  # rpm -30〜30
     DCmotor_speed: list[int] = [0, 0]  # -256〜256 符号あり
     BLmotor_speed: list[int] = [0]  # 射出用ダクテッドファンと仰角調整用GM6020
+
     VESC_rpm: list[int] = [0]  # VESC
     VESC_adjust: list[int] = [0]
     VESC_raw: list[int] = [0]
-    servo_angle: list[int] = [0, 0]
-    servo_adjust: list[int] = [0, 0]
-    servo_raw: list[int] = [0, 0]
+
+    servo_angle: list[int] = [0, 0, 0]
+    servo_adjust: list[int] = [0, 0, 0]
+    servo_raw: list[int] = [0, 0, 0]
+
     is_slow_speed: bool = False
 
     time_pushed_load_button = 0  # 装填ボタンが押された時間
@@ -573,6 +579,8 @@ class ROS2MainNode(Node):
     turn_start_time: float = 0  # 旋回の開始時刻
 
     count_print: int = 0  # 15回に1回デバッグ用のprintを出力するためのカウンタ
+
+    servo_setup: bool = False
 
     send_ESP32_data: str = ""
 
@@ -599,7 +607,7 @@ class ROS2MainNode(Node):
         self.get_logger().info("ROS2MainNode初期化完了")
         self.timer_0001 = self.create_timer(0.01, self.timer_callback_001)
         # self.timer_0016 = self.create_timer(0.065, self.timer_callback_0033) # 同期式
-        # self.timer_0016 = self.create_timer(0.016, self.timer_callback_0033) # DMA
+        self.timer_0016 = self.create_timer(0.016, self.timer_callback_0033) # DMA
 
         self.get_logger().info("ROS2MainNodeタイマー初期化完了")
 
@@ -666,25 +674,25 @@ class ROS2MainNode(Node):
         # print(json.dumps(reception_json).encode('utf-8'))
         self.publisher_ESP32_to_Webserver.publish(msg)
 
-        # command = Float64MultiArray()
-        # # CyberGear_speedの値を浮動小数点数に変換してリストに格納
-        # command.data = [float(1), float(22), float(self.CyberGear_speed[0])]
-        # self.publisher_serial_write.publish(command)
+        command = Float64MultiArray()
+        # CyberGear_speedの値を浮動小数点数に変換してリストに格納
+        command.data = [float(1), float(22), float(self.CyberGear_speed[0])]
+        self.publisher_serial_write.publish(command)
 
-        # command = Float64MultiArray()
-        # # CyberGear_speedの値を浮動小数点数に変換してリストに格納
-        # command.data = [float(1), float(24), float(self.CyberGear_speed[1])]
-        # self.publisher_serial_write.publish(command)
+        command = Float64MultiArray()
+        # CyberGear_speedの値を浮動小数点数に変換してリストに格納
+        command.data = [float(1), float(24), float(self.CyberGear_speed[1])]
+        self.publisher_serial_write.publish(command)
 
-        # command = Float64MultiArray()
-        # # CyberGear_speedの値を浮動小数点数に変換してリストに格納
-        # command.data = [float(1), float(26), float(self.CyberGear_speed[2])]
-        # self.publisher_serial_write.publish(command)
+        command = Float64MultiArray()
+        # CyberGear_speedの値を浮動小数点数に変換してリストに格納
+        command.data = [float(1), float(26), float(self.CyberGear_speed[2])]
+        self.publisher_serial_write.publish(command)
 
-        # command = Float64MultiArray()
-        # # CyberGear_speedの値を浮動小数点数に変換してリストに格納
-        # command.data = [float(1), float(28), float(self.CyberGear_speed[3])]
-        # self.publisher_serial_write.publish(command)
+        command = Float64MultiArray()
+        # CyberGear_speedの値を浮動小数点数に変換してリストに格納
+        command.data = [float(1), float(28), float(self.CyberGear_speed[3])]
+        self.publisher_serial_write.publish(command)
 
     def timer_callback_001(self):
         global reception_json, micon_dict
@@ -770,8 +778,8 @@ class ROS2MainNode(Node):
             self.servo_raw[0] = -40
             self.time_pushed_load_button = 0
 
-        self.servo_angle[0] = self.servo_raw[0] + self.servo_adjust[0]
-        self.servo_angle[1] = self.servo_raw[1] + self.servo_adjust[1]
+        for i in range(len(self.servo_angle)):
+            self.servo_angle[i] = self.servo_raw[i] + self.servo_adjust[i]
 
         # バッテリー保護
         # if battery.battery_dict["battery_4cell"]["state"] == "much_low" or battery.battery_dict["battery_4cell"]["state"] == "abnormality":
@@ -783,67 +791,80 @@ class ROS2MainNode(Node):
         #     self.BLmotor_speed = [0] * len(self.BLmotor_speed)
         #     logger.critical(f"3セルバッテリーが危険:{battery.battery_dict['battery_3cell']['state']}")
 
-        # TODO MIN MAXの処理を追加する
+        # # TODO MIN MAXの処理を追加する
+        # self.send_ESP32_data: list[int] = [
+        #     int(self.state),  # 0 状態
+        #     1,  # 1 メカナム
+        #     1,  # 2 メカナム
+        #     1,  # 3 メカナム
+        #     1,  # 4 メカナム
+        #     int(self.DCmotor_speed[0]),  # 5 回収装填
+        #     int(self.DCmotor_speed[1]),  # 6 回収装填
+        #     int(self.BLmotor_speed[0]),  # 7 ダクテッドファン
+        #     int(max(min(self.servo_angle[0], 135), -135)),  # 8 サーボ
+        #     int(max(min(self.servo_angle[1], 135), -135)),  # 9 サーボ
+        #     1,  # 10
+        #     # 11 ESP32_1を再起動するか 0 or 1
+        #     int(convert_to_binary(micon_dict["ESP32"]["reboot"])),
+        #     # 12 ESP32_2を再起動するか 0 or 1
+        #     int(convert_to_binary(micon_dict["STM32"]["reboot"])),
+        #     # 13 4セルリポバッテリーのstate
+        #     int(battery.convert_battery_state_to_binary(battery,
+        #         battery.battery_dict["battery_4cell"]["state"])),
+        #     # 14 3セルリポバッテリーのstate
+        #     int(battery.convert_battery_state_to_binary(battery,
+        #         battery.battery_dict["battery_3cell"]["state"])),
+        #     int(max(min(self.VESC_rpm[0], 40000), 0))   # 15 VESC
+        # ]
+
         self.send_ESP32_data: list[int] = [
-            int(self.state),  # 0 状態
-            1,  # 1 メカナム
-            1,  # 2 メカナム
-            1,  # 3 メカナム
-            1,  # 4 メカナム
-            int(self.DCmotor_speed[0]),  # 5 回収装填
-            int(self.DCmotor_speed[1]),  # 6 回収装填
-            int(self.BLmotor_speed[0]),  # 7 ダクテッドファン
-            int(max(min(self.servo_angle[0], 135), -135)),  # 8 サーボ
-            int(max(min(self.servo_angle[1], 135), -135)),  # 9 サーボ
-            1,  # 10
-            # 11 ESP32_1を再起動するか 0 or 1
-            int(convert_to_binary(micon_dict["ESP32"]["reboot"])),
-            # 12 ESP32_2を再起動するか 0 or 1
-            int(convert_to_binary(micon_dict["STM32"]["reboot"])),
-            # 13 4セルリポバッテリーのstate
-            int(battery.convert_battery_state_to_binary(battery,
-                battery.battery_dict["battery_4cell"]["state"])),
-            # 14 3セルリポバッテリーのstate
-            int(battery.convert_battery_state_to_binary(battery,
-                battery.battery_dict["battery_3cell"]["state"])),
-            int(max(min(self.VESC_rpm[0], 40000), 0))   # 15 VESC
+            int(self.DCmotor_speed[0]),  # 0 回収装填
+            int(self.DCmotor_speed[1]),  # 1 回収装填
+            int(self.BLmotor_speed[0]),  # 2 ダクテッドファン
+            int(max(min(self.servo_angle[0], 135), -135)),  # 3 サーボ
+            int(max(min(self.servo_angle[1], 135), -135)),  # 4 サーボ
+            int(max(min(self.servo_angle[2], 135), -135)),  # 5 サーボ
+            int(convert_to_binary(micon_dict["ESP32"]["reboot"])), # 6 ESP32を再起動するか 0 or 1
+            int(max(min(self.VESC_rpm[0], 40000), 0)),   # 7 VESC
+            int(0), # 8 LEDテープの装填アニメーションの合図 0 or 1
+            int(convert_to_binary(self.servo_setup)) # 9 サーボの初期設定 0 or 1
         ]
 
         for micon_dict_key, micon_dict_values in micon_dict.items():
             if micon_dict_values["reboot"] == True:
                 micon_dict_values["reboot"] = False
+        
+        self.servo_setup = False
 
-        command = Float64MultiArray()
-        # CyberGear_speedの値を浮動小数点数に変換してリストに格納
-        command.data = [float(1), float(22), float(self.CyberGear_speed[0])]
-        self.publisher_serial_write.publish(command)
+        # command = Float64MultiArray()
+        # # CyberGear_speedの値を浮動小数点数に変換してリストに格納
+        # command.data = [float(1), float(22), float(self.CyberGear_speed[0])]
+        # self.publisher_serial_write.publish(command)
 
-        command = Float64MultiArray()
-        # CyberGear_speedの値を浮動小数点数に変換してリストに格納
-        command.data = [float(1), float(24), float(self.CyberGear_speed[1])]
-        self.publisher_serial_write.publish(command)
+        # command = Float64MultiArray()
+        # # CyberGear_speedの値を浮動小数点数に変換してリストに格納
+        # command.data = [float(1), float(24), float(self.CyberGear_speed[1])]
+        # self.publisher_serial_write.publish(command)
 
-        command = Float64MultiArray()
-        # CyberGear_speedの値を浮動小数点数に変換してリストに格納
-        command.data = [float(1), float(26), float(self.CyberGear_speed[2])]
-        self.publisher_serial_write.publish(command)
+        # command = Float64MultiArray()
+        # # CyberGear_speedの値を浮動小数点数に変換してリストに格納
+        # command.data = [float(1), float(26), float(self.CyberGear_speed[2])]
+        # self.publisher_serial_write.publish(command)
 
-        command = Float64MultiArray()
-        # CyberGear_speedの値を浮動小数点数に変換してリストに格納
-        command.data = [float(1), float(28), float(self.CyberGear_speed[3])]
-        self.publisher_serial_write.publish(command)
+        # command = Float64MultiArray()
+        # # CyberGear_speedの値を浮動小数点数に変換してリストに格納
+        # command.data = [float(1), float(28), float(self.CyberGear_speed[3])]
+        # self.publisher_serial_write.publish(command)
 
         json_str: str = ','.join(map(str, self.send_ESP32_data))
         # self.get_logger().info(json_str)
         # logger.info(json_str)
         data2: bytearray = bytearray(json_str.encode())
 
-        # data.extend(b'\x0d')
-        # data.extend(b'\x0a')
         data2.extend(b'\x0d')
         # data2.extend(b'\x0a')
 
-        logger.info(data2)
+        logger.info(data2.hex())
         # logger.info(len(data2))
 
         if self.count_print % 1 == 0:  # 15回に1回実行
@@ -975,6 +996,8 @@ class ROS2MainNode(Node):
         # ↑
         if controller.joy_now["joy0"]["buttons"][13] == 1 and controller.joy_past["joy0"]["buttons"][13] == 0:
             self.VESC_adjust[0] += 500
+
+            self.servo_setup = True
 
             command = Float64MultiArray()
             # CyberGear_speedの値を浮動小数点数に変換してリストに格納

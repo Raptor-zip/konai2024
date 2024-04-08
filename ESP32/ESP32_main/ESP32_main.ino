@@ -99,9 +99,11 @@ void setup()
   krs.begin(); // サーボモータの通信初期設定
   delay(100);
   krs.setStrc(0, 127);
-  krs.setSpd(0, 50); // MAX127
+  krs.setSpd(0, 50);
   krs.setStrc(1, 127);
-  krs.setSpd(1, 20); // MAX127
+  krs.setSpd(1, 20);
+  krs.setStrc(2, 10);
+  krs.setSpd(2, 20);
 
   // 距離センサーの処理
   pinMode(PIN_SER, OUTPUT);
@@ -204,7 +206,7 @@ void loop()
       last_receive_time = millis();
 
       // 再起動するかの処理
-      if (intArray[12] == 1)
+      if (intArray[6] == 1)
       {
         Serial.println("$2,6");
         delay(200);
@@ -212,19 +214,22 @@ void loop()
       }
 
       // 回収モーター0のduty制御
-      PWM(0, intArray[5]);
+      PWM(0, intArray[0]);
 
       // 回収モーター1のduty制御
-      PWM(1, intArray[6]);
+      PWM(1, intArray[1]);
 
       // 装填サーボの制御
-      krs.setPos(0, krs.degPos(int(intArray[8]))); // タイムアウトさせとくと、Serial受信(Serial2じゃなくて)と干渉して、途中までしか受信できなくなった intで囲む必要ない
+      krs.setPos(0, krs.degPos(int(intArray[3]))); // タイムアウトさせとくと、Serial受信(Serial2じゃなくて)と干渉して、途中までしか受信できなくなった intで囲む必要ない
 
       // 仰角サーボの制御
-      krs.setPos(1, krs.degPos(int(intArray[9]))); // タイムアウトさせとくと、Serial受信(Serial2じゃなくて)と干渉して、途中までしか受信できなくなった intで囲む必要ない
+      krs.setPos(1, krs.degPos(int(intArray[4])));
+
+      // 玉づまりサーボの制御
+      krs.setPos(2, krs.degPos(int(intArray[5])));
 
       // LEDテープの処理 射出時のアニメーションのトリガー
-      if (intArray[9] == 45)
+      if (intArray[8] == 1)
       {
         digitalWrite(COMMUNICATE_LED_PIN, LOW);
       }
@@ -233,10 +238,23 @@ void loop()
         digitalWrite(COMMUNICATE_LED_PIN, HIGH);
       }
 
-      // VESCの制御
-      UART.setRPM(float(intArray[15]), 0); // 連続して送らないとタイムアウトで勝手に切れる 安全装置ナイス
+      // サーボを初期設定する
+      if (intArray[9] == 1){
+        // サーボモーターの初期化
+        krs.begin(); // サーボモータの通信初期設定
+        delay(100);
+        krs.setStrc(0, 127);
+        krs.setSpd(0, 50);
+        krs.setStrc(1, 127);
+        krs.setSpd(1, 20);
+        krs.setStrc(2, 10);
+        krs.setSpd(2, 20);
+      }
 
-      analogWrite(LED_BUILTIN , intArray[9]* -1);
+      // VESCの制御
+      UART.setRPM(float(intArray[7]), 0); // 連続して送らないとタイムアウトで勝手に切れる 安全装置ナイス
+
+      analogWrite(LED_BUILTIN , intArray[4]* -1);
 
       // ducted_fan.writeMicroseconds(intArray[7]);
 
@@ -283,6 +301,7 @@ void loop()
     digitalWrite(BLmotor_Pin[0], LOW); // PWM停止
     krs.setFree(0); //フリー指令 ID:0 をフリー状態に
     krs.setFree(1); //フリー指令 ID:1 をフリー状態に
+    krs.setFree(2); //フリー指令 ID:1 をフリー状態に
     // ducted_fan_2.detach();  // 接続解除
     // digitalWrite(13, LOW);  // PWM停止
     for (uint8_t i = 0; i < amount_motor - 1; i++)

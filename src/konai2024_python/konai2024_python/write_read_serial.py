@@ -70,7 +70,7 @@ def location(depth: int = 0) -> tuple:
 def main() -> None:
     with ThreadPoolExecutor(max_workers=6) as executor:
         executor.submit(lambda: Serial.connect_serial(Serial()))
-        executor.submit(lambda: Serial.write_serial(Serial(), "ESP32"))
+        executor.submit(lambda: Serial.write_serial(Serial(), "STM32"))
         # executor.submit(lambda: Serial.receive_serial(Serial(), "ESP32"))
         # ROS2MainNode.get_logger(ROS2MainNode).debug("ESP32との通信開始")
         # executor.submit(Serial.receive_serial("STM32"))
@@ -338,7 +338,7 @@ class Serial:
         while True:
             for micon_name, micon_values in micon_dict.items():
                 time.sleep(0.1)
-                micon_dict["STM32"]["is_connected"] = True  # TODO これなおす
+                micon_dict["ESP32"]["is_connected"] = True  # TODO これなおす
                 if micon_values["is_connected"]:
                     continue
 
@@ -371,6 +371,7 @@ class Serial:
                     except Exception as e:
                         logger.critical(f"{micon_name}とSerial接続失敗: {e}")
                         # ROS2MainNode.get_logger().error(f"{micon_name}とSerial接続失敗: {e}")
+
 
     def write_serial(self, micon_name: str) -> None:
         global mipon_dict, micon_write_queues
@@ -420,7 +421,7 @@ class Serial:
                 # self.get_logger().info(f"{data_tuple}")
                 # logger.info(f"{data_tuple}")
 
-                logger.info(len(data))
+                # logger.info(len(data))
 
                 if len(data) != 7:
                     logger.info(
@@ -447,9 +448,10 @@ class Serial:
                     micon_dict[micon_name]["is_connected"] = False
                     # TODO 片方のマイコンが途切れたときに、詰まるから、このやり方よくない 非同期にするか、connect_serialを並行処理でずっとwhileしといて、bool変数がTrueになったら接続処理するとか
 
-            # time.sleep(0.015)  # DMA 0.002# DMA 0.01 #同期だと0.015が限界 0.01だめで0.02は大丈夫
-            # DMA 0.002# DMA 0.01 #同期だと0.015が限界 0.01だめで0.02は大丈夫
+            # time.sleep(0.015) #同期だと0.015が限界 0.01だめで0.02は大丈夫(デュアルブート)
+            # 仮想環境ならsleep0.001でも間に合わない
             time.sleep(0.001)
+
 
     def receive_serial(self, micon_id: str) -> None:
         global micon_dict
@@ -617,7 +619,12 @@ class ROS2MainNode(Node):
 
     def serial_write(self, received_float_array):
         global micon_write_queues
-        micon_name = "ESP32"
+
+        if int(received_float_array.data[0]) == 0:
+            micon_name = "ESP32"
+        else:
+            micon_name = "STM32"
+
         micon_write_queues[micon_name].put({"command_id": int(
             received_float_array.data[1]), "command_content": float(received_float_array.data[2])})
         # logger.debug(received_float_array.data);
