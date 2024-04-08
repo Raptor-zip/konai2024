@@ -188,15 +188,23 @@ int main(void) {
 		/* USER CODE BEGIN 3 */
 		HAL_GPIO_TogglePin(BUILDIN_LED_GPIO_Port, BUILDIN_LED_Pin);
 
-//		debug = HAL_UART_Receive_DMA(&huart2, rcvBuffer, 7);
-		debug = HAL_UART_Receive(&huart2, rcvBuffer, 7, 1000);
+		debug = HAL_UART_Receive_DMA(&huart2, rcvBuffer, 7);
+//		debug = HAL_UART_Receive(&huart2, rcvBuffer, 7, 1000);
 
-		debug_2 = rcvBuffer[0];
-		if(rcvBuffer[0] == 0){
-			memcpy(buf, &rcvBuffer[1], sizeof(buf));
-		}else{
-			memcpy(buf, &rcvBuffer[0], sizeof(buf));
-		}
+		buf[0] = (unsigned char) rcvBuffer[1];
+		buf[1] = (unsigned char) rcvBuffer[2];
+		buf[2] = (unsigned char) rcvBuffer[3];
+		buf[3] = (unsigned char) rcvBuffer[4];
+		buf[4] = (unsigned char) rcvBuffer[5];
+		buf[5] = (unsigned char) rcvBuffer[6];
+		buf[6] = (unsigned char) rcvBuffer[0];
+
+//		debug_2 = rcvBuffer[0];
+//		if(rcvBuffer[0] == 0){
+//			memcpy(buf, &rcvBuffer[1], sizeof(buf));
+//		}else{
+//			memcpy(buf, &rcvBuffer[0], sizeof(buf));
+//		}
 
 		memcpy(&uart_prev_count, &buf[0], sizeof(uint8_t));
 

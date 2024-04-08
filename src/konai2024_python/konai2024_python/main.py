@@ -598,7 +598,9 @@ class ROS2MainNode(Node):
         self.subscription  # prevent unused variable warning
         self.get_logger().info("ROS2MainNode初期化完了")
         self.timer_0001 = self.create_timer(0.01, self.timer_callback_001)
-        self.timer_0016 = self.create_timer(0.065, self.timer_callback_0033)
+        # self.timer_0016 = self.create_timer(0.065, self.timer_callback_0033) # 同期式
+        # self.timer_0016 = self.create_timer(0.016, self.timer_callback_0033) # DMA
+
         self.get_logger().info("ROS2MainNodeタイマー初期化完了")
 
     def Web_to_Main_listener_callback(self, json_string):
@@ -664,25 +666,25 @@ class ROS2MainNode(Node):
         # print(json.dumps(reception_json).encode('utf-8'))
         self.publisher_ESP32_to_Webserver.publish(msg)
 
-        command = Float64MultiArray()
-        # CyberGear_speedの値を浮動小数点数に変換してリストに格納
-        command.data = [float(1), float(22), float(self.CyberGear_speed[0])]
-        self.publisher_serial_write.publish(command)
+        # command = Float64MultiArray()
+        # # CyberGear_speedの値を浮動小数点数に変換してリストに格納
+        # command.data = [float(1), float(22), float(self.CyberGear_speed[0])]
+        # self.publisher_serial_write.publish(command)
 
-        command = Float64MultiArray()
-        # CyberGear_speedの値を浮動小数点数に変換してリストに格納
-        command.data = [float(1), float(24), float(self.CyberGear_speed[1])]
-        self.publisher_serial_write.publish(command)
+        # command = Float64MultiArray()
+        # # CyberGear_speedの値を浮動小数点数に変換してリストに格納
+        # command.data = [float(1), float(24), float(self.CyberGear_speed[1])]
+        # self.publisher_serial_write.publish(command)
 
-        command = Float64MultiArray()
-        # CyberGear_speedの値を浮動小数点数に変換してリストに格納
-        command.data = [float(1), float(26), float(self.CyberGear_speed[2])]
-        self.publisher_serial_write.publish(command)
+        # command = Float64MultiArray()
+        # # CyberGear_speedの値を浮動小数点数に変換してリストに格納
+        # command.data = [float(1), float(26), float(self.CyberGear_speed[2])]
+        # self.publisher_serial_write.publish(command)
 
-        command = Float64MultiArray()
-        # CyberGear_speedの値を浮動小数点数に変換してリストに格納
-        command.data = [float(1), float(28), float(self.CyberGear_speed[3])]
-        self.publisher_serial_write.publish(command)
+        # command = Float64MultiArray()
+        # # CyberGear_speedの値を浮動小数点数に変換してリストに格納
+        # command.data = [float(1), float(28), float(self.CyberGear_speed[3])]
+        # self.publisher_serial_write.publish(command)
 
     def timer_callback_001(self):
         global reception_json, micon_dict
@@ -811,27 +813,25 @@ class ROS2MainNode(Node):
             if micon_dict_values["reboot"] == True:
                 micon_dict_values["reboot"] = False
 
-        # command = Float64MultiArray()
-        # # CyberGear_speedの値を浮動小数点数に変換してリストに格納
-        # command.data = [float(1), float(22), float(self.CyberGear_speed[0])]
-        # self.publisher_serial_write.publish(command)
+        command = Float64MultiArray()
+        # CyberGear_speedの値を浮動小数点数に変換してリストに格納
+        command.data = [float(1), float(22), float(self.CyberGear_speed[0])]
+        self.publisher_serial_write.publish(command)
 
-        # command = Float64MultiArray()
-        # # CyberGear_speedの値を浮動小数点数に変換してリストに格納
-        # command.data = [float(1), float(24), float(self.CyberGear_speed[1])]
-        # self.publisher_serial_write.publish(command)
+        command = Float64MultiArray()
+        # CyberGear_speedの値を浮動小数点数に変換してリストに格納
+        command.data = [float(1), float(24), float(self.CyberGear_speed[1])]
+        self.publisher_serial_write.publish(command)
 
-        # 2つじゃないと3つめいくとバグる
+        command = Float64MultiArray()
+        # CyberGear_speedの値を浮動小数点数に変換してリストに格納
+        command.data = [float(1), float(26), float(self.CyberGear_speed[2])]
+        self.publisher_serial_write.publish(command)
 
-        # command = Float64MultiArray()
-        # # CyberGear_speedの値を浮動小数点数に変換してリストに格納
-        # command.data = [float(1), float(26), float(self.CyberGear_speed[2])]
-        # self.publisher_serial_write.publish(command)
-
-        # command = Float64MultiArray()
-        # # CyberGear_speedの値を浮動小数点数に変換してリストに格納
-        # command.data = [float(1), float(28), float(self.CyberGear_speed[3])]
-        # self.publisher_serial_write.publish(command)
+        command = Float64MultiArray()
+        # CyberGear_speedの値を浮動小数点数に変換してリストに格納
+        command.data = [float(1), float(28), float(self.CyberGear_speed[3])]
+        self.publisher_serial_write.publish(command)
 
         json_str: str = ','.join(map(str, self.send_ESP32_data))
         # self.get_logger().info(json_str)
