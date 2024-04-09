@@ -52,8 +52,6 @@ DMA_HandleTypeDef hdma_usart2_tx;
 DMA_HandleTypeDef hdma_usart2_rx;
 
 /* USER CODE BEGIN PV */
-uint8_t debug;
-
 CyberGear_Typedef my_cyber[4];
 Easy_CAN6_Typedef ecan;
 /* USER CODE END PV */
@@ -71,6 +69,8 @@ static void MX_TIM1_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+#define is_run_CyberGear (0) ///////////////////////////////////CyberGear動作させるかさせないか
+
 #define byte_number 20
 uint8_t UART2_RX_Buffer[byte_number];
 uint8_t txBuff[] = "Hello, World\n";
@@ -79,37 +79,32 @@ uint32_t startTime;
 uint32_t setTime;
 uint32_t sdTime;
 uint8_t sdBuff[100];
+uint8_t flagRcved; /* 受信完�?フラグ */
+uint8_t rcvBuffer[30]; /* 受信バッファ*/
+uint8_t sndBuffer[100]; /* 送信バッファ */
 float motor_speed[4];
-
-char temp_str[byte_number];
-int16_t values[byte_number]; // ??��?��?大15個�???��?��?��??��?��?を持つint16の配�???��?��を作�??
-
-#define DATANUM 20
-uint8_t serialData[DATANUM] = { };
 
 unsigned char buf[20];
 
 #define TRUE (1)
 #define FALSE (0)
 
+// デバッグ用
+uint32_t debug;
 uint16_t debug_2 = 10;
 
-#define is_run_CyberGear (1) ///////////////////////////////////CyberGear動作させるかさせないか
+// 1周期の時間を計測する用
+uint32_t begin_time;
+uint32_t end_time;
+uint32_t cycle_time;
 
+// UARTの受信内容
 uint8_t uart_prev_count;
 uint16_t command_id;
 float command_content;
 
-float motor_speed[4];
-
-uint8_t value3[8];
-
-uint8_t flagRcved; /* 受信完�?フラグ */
-uint8_t rcvBuffer[30]; /* 受信バッファ*/
-uint8_t sndBuffer[100]; /* 送信バッファ */
-
-int8_t received_data[30];
-float data[5]; // データの配列 (2つのint16_t型の要素)
+// CyberGearの受信データ保存用
+float CyberGear_pos[4];
 
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) {
 	CAN_RxHeaderTypeDef RxHeader;
@@ -165,12 +160,32 @@ int main(void) {
 	/* USER CODE BEGIN 2 */
 	Easy_CAN6_Start(&ecan, &hcan, 2);
 
+	CAN_TxHeaderTypeDef TxHeader;
+	uint32_t TxMailbox;
+	uint8_t TxData[8];
+	if(0 < HAL_CAN_GetTxMailboxesFreeLevel(&hcan)){
+	    TxHeader.StdId = 0x1FF;                 // CAN ID
+	    TxHeader.RTR = CAN_RTR_DATA;            // フレームタイプはデータフレーム
+	    TxHeader.IDE = CAN_ID_STD;              // 標準ID(11ﾋﾞｯﾄ)
+	    TxHeader.DLC = 8;                       // データ長は8バイトに
+	    TxHeader.TransmitGlobalTime = DISABLE;  // ???
+	    TxData[0] = 0x61;
+	    TxData[1] = 0xA8; // MIN-2500 MAX25000
+	    TxData[2] = 0x00;
+	    TxData[3] = 0x00;
+	    TxData[4] = 0x00;
+	    TxData[5] = 0x00;
+	    TxData[6] = 0x00;
+	    TxData[7] = 0x00;
+	    HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, &TxMailbox);
+	}
+
 	for (int i = 0; i < 4; i++) {
 		if (is_run_CyberGear) {
 			CyberGear_Init(&my_cyber[i], &ecan, 0x70 + i, 0, HAL_Delay);
 			CyberGear_ResetMotor(&my_cyber[i]);
 			CyberGear_SetMode(&my_cyber[i], MODE_SPEED);
-			CyberGear_SetConfig(&my_cyber[i], 12.0f, 30.0f, 6.0f);
+			CyberGear_SetConfig(&my_cyber[i], 12.0f, 30.0f, 4.0f);
 			CyberGear_EnableMotor(&my_cyber[i]);
 		}
 	}
@@ -186,10 +201,11 @@ int main(void) {
 		/* USER CODE END WHILE */
 
 		/* USER CODE BEGIN 3 */
-		HAL_GPIO_TogglePin(BUILDIN_LED_GPIO_Port, BUILDIN_LED_Pin);
+		begin_time = HAL_GetTick();
+//		HAL_GPIO_TogglePin(BUILDIN_LED_GPIO_Port, BUILDIN_LED_Pin);
 
-		debug = HAL_UART_Receive_DMA(&huart2, rcvBuffer, 7);
-//		debug = HAL_UART_Receive(&huart2, rcvBuffer, 7, 1000);
+		HAL_UART_Receive_DMA(&huart2, rcvBuffer, 7);
+//		HAL_UART_Receive(&huart2, rcvBuffer, 7, 1000);
 
 		buf[0] = (unsigned char) rcvBuffer[1];
 		buf[1] = (unsigned char) rcvBuffer[2];
@@ -234,6 +250,11 @@ int main(void) {
 			if (is_run_CyberGear) {
 				CyberGear_ControlSpeed(&my_cyber[0], (float) motor_speed[0]);
 			}
+			if (motor_speed[0] > 5){
+				HAL_GPIO_WritePin(BUILDIN_LED_GPIO_Port, BUILDIN_LED_Pin, 1);
+			}else{
+				HAL_GPIO_WritePin(BUILDIN_LED_GPIO_Port, BUILDIN_LED_Pin, 0);
+			}
 			break;
 
 		case 24:
@@ -251,13 +272,13 @@ int main(void) {
 			break;
 
 		case 27:
-			debug_2 = 1919;
+			debug_2 = 1000;
 			for (int i = 0; i < 4; i++) {
 				if (is_run_CyberGear) {
 					CyberGear_Init(&my_cyber[i], &ecan, 0x70 + i, 0, HAL_Delay);
 					CyberGear_ResetMotor(&my_cyber[i]);
 					CyberGear_SetMode(&my_cyber[i], MODE_SPEED);
-					CyberGear_SetConfig(&my_cyber[i], 12.0f, 30.0f, 6.0f);
+					CyberGear_SetConfig(&my_cyber[i], 12.0f, 30.0f, 4.0f);
 					CyberGear_EnableMotor(&my_cyber[i]);
 				}
 			}
@@ -271,7 +292,15 @@ int main(void) {
 			break;
 		}
 
-		HAL_Delay(9);
+		CyberGear_pos[0] = my_cyber[0].cyberfeedback.feedback_pos;
+		CyberGear_pos[1] = my_cyber[1].cyberfeedback.feedback_pos;
+		CyberGear_pos[2] = my_cyber[2].cyberfeedback.feedback_pos;
+		CyberGear_pos[3] = my_cyber[3].cyberfeedback.feedback_pos;
+
+//		HAL_Delay(1);
+
+		end_time = HAL_GetTick();
+		cycle_time = end_time - begin_time;
 	}
 	/* USER CODE END 3 */
 }

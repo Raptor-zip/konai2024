@@ -428,7 +428,8 @@ class Serial:
                         "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nああああ\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
                     logger.info(len(data))
 
-                logger.info(micon_write_queues[micon_name].qsize())  # キューのサイズ
+                if micon_write_queues[micon_name].qsize() > 9:
+                    logger.info(micon_write_queues[micon_name].qsize())  # キューのサイズ
 
                 if count_print % 1 == 0:  # 15回に1回実行
                     # self.get_logger().info(data.hex())
