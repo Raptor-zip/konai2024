@@ -98,6 +98,8 @@ void setup()
   // サーボモーターの初期化
   krs.begin(); // サーボモータの通信初期設定
   delay(100);
+  // krs.setID(2);
+
   krs.setStrc(0, 127);
   krs.setSpd(0, 50);
   krs.setStrc(1, 127);
