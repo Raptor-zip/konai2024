@@ -155,7 +155,7 @@ def receive_udp_from_webrtc():
     received_udp_from_webrtc.settimeout(1.0)  # タイムアウトを1秒に設定
     while True:
         try:
-            message, cli_addr = received_udp_from_webrtc.recvfrom(1024)
+            message, cli_addr = received_udp_from_webrtc.recvfrom(2048)
             print(f"Received: {message.decode('utf-8')}")
             received_json_temp: str = message.decode('utf-8')
             # webrtcで生成したlocal?SDP

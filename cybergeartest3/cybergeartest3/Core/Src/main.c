@@ -69,7 +69,7 @@ static void MX_TIM1_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-#define is_run_CyberGear (0) ///////////////////////////////////CyberGear動作させるかさせないか
+#define is_run_CyberGear (1) ///////////////////////////////////CyberGear動作させるかさせないか
 
 #define byte_number 20
 uint8_t UART2_RX_Buffer[byte_number];
@@ -143,7 +143,7 @@ int main(void) {
 	/* MCU Configuration--------------------------------------------------------*/
 
 	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-	HAL_Init();
+																											HAL_Init();
 
 	/* USER CODE BEGIN Init */
 

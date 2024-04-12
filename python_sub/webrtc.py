@@ -194,7 +194,7 @@ def receive_udp_from_get_angle():
     while True:
         try:
             message, cli_addr = received_udp.recvfrom(1024)
-            # print(f"Received: {message.decode('utf-8')}")
+            print(f"Received: {message.decode('utf-8')}")
             received_json_temp: str = message.decode('utf-8')
             got_sdp = received_json_temp
             # socketio.emit("send_control_data", received_json_temp, namespace='/')

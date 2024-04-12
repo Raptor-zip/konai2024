@@ -111,7 +111,7 @@
               //   pc.localDescription.sdp;
               document.getElementById("localSDP").value =
                 JSON.stringify(json_str);
-              socket.emit("angle_sp_localSDP", pc.localDescription.sdp);
+              socket.emit("angle_sp_localSDP", JSON.stringify(json_str));
               document.getElementById("status").innerText = "Vanilla ICE ready";
             }
           };

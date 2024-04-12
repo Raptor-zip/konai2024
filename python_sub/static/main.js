@@ -364,6 +364,12 @@ socket.on("send_control_pc_localSDP", function (json) {
     setRemoteSdp();
 });
 
+socket.on("send_angle_pc_localSDP", function (json) {
+    console.log(json);
+    document.getElementById("remoteSDP").value = json;
+    setRemoteSdp();
+});
+
 // 新しい RTCPeerConnection を作成する
 function createPeerConnection() {
     let pc = new RTCPeerConnection(peerConnectionConfig);
@@ -384,7 +390,8 @@ function createPeerConnection() {
             let test = "{\"sdp\":\"" +
                 pc.localDescription.sdp.replace(/\n/g, '').replace(/\r/g, '\\r\\n') + "\", \"type\": \"offer\"}";
             document.getElementById("localSDP").value = test;
-            socket.emit("control_sp_localSDP", pc.localDescription.sdp);
+            socket.emit("control_sp_localSDP", test);
+            console.log(12345);
             document.getElementById("status").innerText = "Vanilla ICE ready";
         }
     };
