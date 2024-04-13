@@ -105,7 +105,7 @@ void setup()
   krs.setStrc(1, 127);
   krs.setSpd(1, 20);
   krs.setStrc(2, 10);
-  krs.setSpd(2, 20);
+  krs.setSpd(2, 120);
 
   // 距離センサーの処理
   pinMode(PIN_SER, OUTPUT);
@@ -250,7 +250,7 @@ void loop()
         krs.setStrc(1, 127);
         krs.setSpd(1, 20);
         krs.setStrc(2, 10);
-        krs.setSpd(2, 20);
+        krs.setSpd(2, 160);
       }
 
       // VESCの制御

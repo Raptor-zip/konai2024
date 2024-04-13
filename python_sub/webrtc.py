@@ -24,6 +24,12 @@ def channel_send(channel, message):
 
 # シグナリングを受信し、RTCSessionDescription や RTCIceCandidate を処理するための非同期関数。
 
+# async def receive(self):
+#     print("-- Please enter a message from remote party --")
+#     data = await self._reader.readline()
+#     print()
+#     return object_from_string(data.decode(self._read_pipe.encoding))
+
 
 async def consume_signaling(pc, signaling):
     global got_sdp
@@ -42,6 +48,8 @@ async def consume_signaling(pc, signaling):
         # obj = RTCSessionDescription(sdp=dummy_data, type='offer')
 
         obj = await signaling.receive()  # signalingから受信したオブジェクトを待機します。
+
+        obj = await test()
         # これがconsoleの入力だわ
 
         if isinstance(obj, RTCSessionDescription):  # 受信したオブジェクトがRTCSessionDescriptionの場合

@@ -64,6 +64,9 @@ def location(depth: int = 0) -> tuple:
     return os.path.basename(frame.f_code.co_filename), frame.f_code.co_name, frame.f_lineno
 
 
+ros2_main = None
+
+
 def main() -> None:
     with ThreadPoolExecutor(max_workers=6) as executor:
         # executor.submit(receive_udp_sp)
@@ -95,6 +98,7 @@ def main() -> None:
 
         executor.submit(lambda: Serial.connect_serial(Serial()))
         future = executor.submit(ros)
+        executor.submit(lambda: DeviceControl.servo_2_control(DeviceControl()))
         future.result()         # 全てのタスクが終了するまで待つ
 
 
@@ -534,13 +538,15 @@ class Serial:
 
 
 def ros(args=None):
+    global ros2_main
+
     rclpy.init(args=args)
 
-    minimal_subscriber = ROS2MainNode()
+    ros2_main = ROS2MainNode()
 
-    rclpy.spin(minimal_subscriber)
+    rclpy.spin(ros2_main)
 
-    minimal_subscriber.destroy_node()
+    ros2_main.destroy_node()
     rclpy.shutdown()
 
 
@@ -561,6 +567,7 @@ class ROS2MainNode(Node):
     is_slow_speed: bool = False
 
     time_pushed_load_button = 0  # 装填ボタンが押された時間
+    time_pushed_antiJammedServo_button = 0
 
     # TODO Initialize PID parameters dict型にしたい！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
     kp: float = 0.01  # Proportional gain 基本要素として必須。これをベースに、必要に応じて他の項を追加する
@@ -681,6 +688,8 @@ class ROS2MainNode(Node):
             if controller.joy_now["joy0"]["buttons"][4] == 1:
                 self.stop()
 
+        logger.debug(self.CyberGear_speed)
+
         command = Float64MultiArray()
         # CyberGear_speedの値を浮動小数点数に変換してリストに格納
         command.data = [float(1), float(22), float(self.CyberGear_speed[0])]
@@ -780,11 +789,17 @@ class ROS2MainNode(Node):
         self.CyberGear_speed = [
             0 if abs(i) < 1 else i for i in self.CyberGear_speed]
 
-        #   装填サーボの処理
+        # 装填サーボの処理
         if self.time_pushed_load_button != 0 and (time.time() - self.time_pushed_load_button) > 1:
-            # 0.7sで0°に戻る
+            # 1sで0°に戻る
             self.servo_raw[0] = -40
             self.time_pushed_load_button = 0
+
+        # 玉詰まりサーボの処理
+        if self.time_pushed_antiJammedServo_button != 0 and (time.time() - self.time_pushed_antiJammedServo_button) > 1.5:
+            # 1.2sで0°に戻る
+            self.servo_raw[2] = 0
+            self.time_pushed_antiJammedServo_button = 0
 
         for i in range(len(self.servo_angle)):
             self.servo_angle[i] = self.servo_raw[i] + self.servo_adjust[i]
@@ -868,6 +883,8 @@ class ROS2MainNode(Node):
         # # CyberGear_speedの値を浮動小数点数に変換してリストに格納
         # command.data = [float(1), float(28), float(self.CyberGear_speed[3])]
         # self.publisher_serial_write.publish(command)
+
+        logger.info(self.send_ESP32_data)
 
         json_str: str = ','.join(map(str, self.send_ESP32_data))
         # self.get_logger().info(json_str)
@@ -969,7 +986,6 @@ class ROS2MainNode(Node):
             self.is_slow_speed = False
 
         # サーボの制御
-        # self.servo_angle = int(controller.joy_now["joy0"]["axes"][1]*174)
         # ZR装填 サーボ初期位置
         if controller.joy_now["joy0"]["buttons"][7] == 1:
             self.time_pushed_load_button = time.time()  # エポック秒
@@ -1042,13 +1058,13 @@ class ROS2MainNode(Node):
         # else:
         #     self.DCmotor_speed[4] = 0
 
-        # 　左ジョイスティック
+        # 左ジョイスティック
         if controller.joy_past["joy0"]["buttons"][11] == 0 and controller.joy_now["joy0"]["buttons"][11] == 1:
             # ESP32_1のソフトウェアリセット
             micon_dict["ESP32"]["reboot"] = True
             # 送信後に False に戻す
 
-        # 　右ジョイスティック
+        # 右ジョイスティック
         if controller.joy_past["joy0"]["buttons"][12] == 0 and controller.joy_now["joy0"]["buttons"][12] == 1:
             # STM32のソフトウェアリセット
             micon_dict["STM32"]["reboot"] = True
@@ -1061,8 +1077,14 @@ class ROS2MainNode(Node):
 
         self.DCmotor_speed[0] = controller.joy_now["joy1"]["axes"][1] * 255
 
-        self.servo_raw[2] = min(
-            max(controller.joy_now["joy1"]["axes"][3], -135), 135)
+        # サーボの制御
+        # ZR装填
+        if controller.joy_now["joy1"]["buttons"][7] == 1:
+            self.time_pushed_antiJammedServo_button = time.time()
+            self.servo_raw[2] = -100
+
+        # self.servo_raw[2] = min(
+        #     max(controller.joy_now["joy1"]["axes"][3]*100, -100), 0)
 
         # 回収モーター
         # if controller.joy_now["joy1"]["buttons"][15] == 1:
@@ -1224,6 +1246,9 @@ class ROS2MainNode(Node):
 #     ROS2MainNode.servo_angle = [0] * len(ROS2MainNode.servo_angle)
 #     ROS2MainNode.servo_adjust = [0] * len(ROS2MainNode.servo_adjust)
 #     ROS2MainNode.servo_raw = [0] * len(ROS2MainNode.servo_raw)
+
+
+# ros2_main = ROS2MainNode()
 
 
 def control_mecanum_wheels(direction: float, speed: float) -> list[float]:
