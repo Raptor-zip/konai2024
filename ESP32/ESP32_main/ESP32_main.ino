@@ -68,9 +68,9 @@ const uint8_t amount_motor = sizeof(PIN_array) / sizeof(PIN_array[0]);
 #define COMMUNICATE_LED_PIN 13
 
 void servo_setup(){
-  krs.setStrc(0, 60);
+  krs.setStrc(0, 127);
   krs.setSpd(0, 50);
-  krs.setStrc(1, 127);
+  krs.setStrc(1, 10);
   krs.setSpd(1, 20);
   krs.setStrc(2, 10);
   krs.setSpd(2, 120);

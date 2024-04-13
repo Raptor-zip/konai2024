@@ -49,7 +49,7 @@ async def consume_signaling(pc, signaling):
 
         obj = await signaling.receive()  # signalingから受信したオブジェクトを待機します。
 
-        obj = await test()
+        # obj = await test()
         # これがconsoleの入力だわ
 
         if isinstance(obj, RTCSessionDescription):  # 受信したオブジェクトがRTCSessionDescriptionの場合

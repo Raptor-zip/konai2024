@@ -47,7 +47,7 @@
             "Battery API not supported";
         }
 
-        window.setInterval(send_state, 50);
+        window.setInterval(send_state, 20);
         function send_state() {
           dataChannel.send(state.raw_angle);
         }

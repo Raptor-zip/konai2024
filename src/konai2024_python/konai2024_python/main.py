@@ -581,6 +581,8 @@ class ROS2MainNode(Node):
     angle_when_turn: list = []
     time_when_turn: list = []
 
+    injection_mode: int = 0  # 0停止 1左下かご 2左上かご 3右下かご 4右上かご 5Vゴール
+
     start_time: float = 0  # 試合開始時刻(ホームボタン押下時の時刻)
     turn_start_time: float = 0  # 旋回の開始時刻
 
@@ -654,25 +656,33 @@ class ROS2MainNode(Node):
             _ubuntu_ip: str = "WiFiエラー"
 
         msg = String()
+        # send_json: dict = {
+        #     "state": self.state,
+        #     "ubuntu_ssid": wifi_ssid,
+        #     "ubuntu_ip": _ubuntu_ip,
+        #     # "ubuntu_ip": "aiueo",
+        #     # "battery_voltage": battery_dict["average_voltage"],
+        #     # "battery_voltage": 6,
+        #     "battery": battery.battery_dict,
+        #     "limited_switch": DeviceControl.limit_switch,
+        #     # "micon":micon_dict,
+        #     "micon": temp_micon_dict,
+        #     "wifi_signal_strength": 0,  # wifiのウブンツの強度を読み取る
+        #     "DCmotor_speed": [int(speed) for speed in self.DCmotor_speed],
+        #     "BLmotor_speed": [int(speed) for speed in self.BLmotor_speed],
+        #     "servo_angle": [int(angle) for angle in self.servo_angle],
+        #     "angle_value": self.current_angle,
+        #     "start_time": self.start_time,
+        #     "joy": controller.joy_now,
+        #     "serial_str": self.send_ESP32_data
+        # }
+
         send_json: dict = {
-            "state": self.state,
-            "ubuntu_ssid": wifi_ssid,
-            "ubuntu_ip": _ubuntu_ip,
-            # "ubuntu_ip": "aiueo",
-            # "battery_voltage": battery_dict["average_voltage"],
-            # "battery_voltage": 6,
-            "battery": battery.battery_dict,
-            "limited_switch": DeviceControl.limit_switch,
-            # "micon":micon_dict,
-            "micon": temp_micon_dict,
-            "wifi_signal_strength": 0,  # wifiのウブンツの強度を読み取る
-            "DCmotor_speed": [int(speed) for speed in self.DCmotor_speed],
-            "BLmotor_speed": [int(speed) for speed in self.BLmotor_speed],
+            # "DCmotor_speed": [int(speed) for speed in self.DCmotor_speed],
+            # "BLmotor_speed": [int(speed) for speed in self.BLmotor_speed],
             "servo_angle": [int(angle) for angle in self.servo_angle],
-            "angle_value": self.current_angle,
-            "start_time": self.start_time,
+            # "start_time": self.start_time,
             "joy": controller.joy_now,
-            "serial_str": self.send_ESP32_data
         }
         msg.data = json.dumps(send_json)  # エンコード
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -774,23 +784,53 @@ class ROS2MainNode(Node):
             self.CyberGear_speed[2] * -1
         ]
 
-        # VESC
-        self.VESC_rpm[0] = self.VESC_raw[0] + self.VESC_adjust[0]
-
         # 低速モードの処理
         if self.is_slow_speed:
             self.CyberGear_speed[:4] = [speed * 0.2
                                         for speed in self.CyberGear_speed[:4]]
 
         # モータースピードが絶対値16未満の値を削除 (ジョイコンの戻りが悪いときでもブレーキを利かすため)
-        self.DCmotor_speed = [
-            0 if abs(i) < 16 else i for i in self.DCmotor_speed]
-        self.CyberGear_speed = [
-            0 if abs(i) < 1 else i for i in self.CyberGear_speed]
+        # self.DCmotor_speed = [
+        #     0 if abs(i) < 16 else i for i in self.DCmotor_speed]
+        # self.CyberGear_speed = [
+        #     0 if abs(i) < 1 else i for i in self.CyberGear_speed]
+
+        # 射出モード
+        if self.injection_mode == 0:  # 停止
+            self.VESC_raw[0] = 0
+            self.servo_raw[1] = 0
+
+        elif self.injection_mode == 1:  # 左下かご
+            self.VESC_raw[0] = 14000
+            if self.servo_raw[0] < 10:
+                self.servo_raw[1] = -70
+
+        elif self.injection_mode == 2:  # 左上かご
+            self.VESC_raw[0] = 32500
+            if self.servo_raw[0] < 10:
+                self.servo_raw[1] = -50
+
+        elif self.injection_mode == 3:  # 右下かご
+            self.VESC_raw[0] = 21500
+            if self.servo_raw[0] < 10:
+                self.servo_raw[1] = -70
+
+        elif self.injection_mode == 4:  # 右上かご
+            self.VESC_raw[0] = 37500
+            if self.servo_raw[0] < 10:
+                self.servo_raw[1] = -50
+
+        elif self.injection_mode == 5:  # Vゴール
+            self.VESC_raw[0] = 37500
+            if self.servo_raw[0] < 10:
+                self.servo_raw[1] = -40
+
+        # VESC
+        self.VESC_rpm[0] = self.VESC_raw[0] + self.VESC_adjust[0]
 
         # 装填サーボの処理
-        if self.time_pushed_load_button != 0 and (time.time() - self.time_pushed_load_button) > 1:
-            # 1sで0°に戻る
+        if self.time_pushed_load_button != 0 and (time.time() - self.time_pushed_load_button) > 1.2:
+            # 1.2sで0°に戻る
             self.servo_raw[0] = -40
             self.time_pushed_load_button = 0
 
@@ -817,31 +857,25 @@ class ROS2MainNode(Node):
         #     self.BLmotor_speed = [0] * len(self.BLmotor_speed)
         #     logger.critical(f"3セルバッテリーが危険:{battery.battery_dict['battery_3cell']['state']}")
 
-        # # TODO MIN MAXの処理を追加する
-        # self.send_ESP32_data: list[int] = [
-        #     int(self.state),  # 0 状態
-        #     1,  # 1 メカナム
-        #     1,  # 2 メカナム
-        #     1,  # 3 メカナム
-        #     1,  # 4 メカナム
-        #     int(self.DCmotor_speed[0]),  # 5 回収装填
-        #     int(self.DCmotor_speed[1]),  # 6 回収装填
-        #     int(self.BLmotor_speed[0]),  # 7 ダクテッドファン
-        #     int(max(min(self.servo_angle[0], 135), -135)),  # 8 サーボ
-        #     int(max(min(self.servo_angle[1], 135), -135)),  # 9 サーボ
-        #     1,  # 10
-        #     # 11 ESP32_1を再起動するか 0 or 1
-        #     int(convert_to_binary(micon_dict["ESP32"]["reboot"])),
-        #     # 12 ESP32_2を再起動するか 0 or 1
-        #     int(convert_to_binary(micon_dict["STM32"]["reboot"])),
-        #     # 13 4セルリポバッテリーのstate
-        #     int(battery.convert_battery_state_to_binary(battery,
-        #         battery.battery_dict["battery_4cell"]["state"])),
-        #     # 14 3セルリポバッテリーのstate
-        #     int(battery.convert_battery_state_to_binary(battery,
-        #         battery.battery_dict["battery_3cell"]["state"])),
-        #     int(max(min(self.VESC_rpm[0], 40000), 0))   # 15 VESC
-        # ]
+        # command = Float64MultiArray()
+        # # CyberGear_speedの値を浮動小数点数に変換してリストに格納
+        # command.data = [float(1), float(22), float(self.CyberGear_speed[0])]
+        # self.publisher_serial_write.publish(command)
+
+        # command = Float64MultiArray()
+        # # CyberGear_speedの値を浮動小数点数に変換してリストに格納
+        # command.data = [float(1), float(24), float(self.CyberGear_speed[1])]
+        # self.publisher_serial_write.publish(command)
+
+        # command = Float64MultiArray()
+        # # CyberGear_speedの値を浮動小数点数に変換してリストに格納
+        # command.data = [float(1), float(26), float(self.CyberGear_speed[2])]
+        # self.publisher_serial_write.publish(command)
+
+        # command = Float64MultiArray()
+        # # CyberGear_speedの値を浮動小数点数に変換してリストに格納
+        # command.data = [float(1), float(28), float(self.CyberGear_speed[3])]
+        # self.publisher_serial_write.publish(command)
 
         self.send_ESP32_data: list[int] = [
             int(self.DCmotor_speed[0]),  # 0 回収装填
@@ -863,27 +897,7 @@ class ROS2MainNode(Node):
 
         self.servo_setup = False
 
-        logger.debug(f"{self.VESC_rpm[0]}      {self.servo_angle[1]}")
-
-        # command = Float64MultiArray()
-        # # CyberGear_speedの値を浮動小数点数に変換してリストに格納
-        # command.data = [float(1), float(22), float(self.CyberGear_speed[0])]
-        # self.publisher_serial_write.publish(command)
-
-        # command = Float64MultiArray()
-        # # CyberGear_speedの値を浮動小数点数に変換してリストに格納
-        # command.data = [float(1), float(24), float(self.CyberGear_speed[1])]
-        # self.publisher_serial_write.publish(command)
-
-        # command = Float64MultiArray()
-        # # CyberGear_speedの値を浮動小数点数に変換してリストに格納
-        # command.data = [float(1), float(26), float(self.CyberGear_speed[2])]
-        # self.publisher_serial_write.publish(command)
-
-        # command = Float64MultiArray()
-        # # CyberGear_speedの値を浮動小数点数に変換してリストに格納
-        # command.data = [float(1), float(28), float(self.CyberGear_speed[3])]
-        # self.publisher_serial_write.publish(command)
+        logger.debug(f"{self.VESC_rpm[0]}    {self.servo_angle[1]}")
 
         # logger.info(self.send_ESP32_data)
 
@@ -893,7 +907,6 @@ class ROS2MainNode(Node):
         data2: bytearray = bytearray(json_str.encode())
 
         data2.extend(b'\x0d')
-        # data2.extend(b'\x0a')
 
         # logger.info(data2.hex())
         # logger.info(len(data2))
@@ -920,29 +933,12 @@ class ROS2MainNode(Node):
 
         controller.joy_setup(controller(), "joy0", joy)
 
-        # B ☓ボタン
-        if controller.joy_past["joy0"]["buttons"][0] == 0 and controller.joy_now["joy0"]["buttons"][0] == 1:
-            self.VESC_raw[0] = 14000
-            if self.servo_raw[0] < 10:
-                self.servo_raw[1] = -70
-
-        # A ○ボタン
-        if controller.joy_past["joy0"]["buttons"][1] == 0 and controller.joy_now["joy0"]["buttons"][1] == 1:
-            self.VESC_raw[0] = 21500
-            if self.servo_raw[0] < 10:
-                self.servo_raw[1] = -70
-
-        # X △ボタン
-        if controller.joy_past["joy0"]["buttons"][2] == 0 and controller.joy_now["joy0"]["buttons"][2] == 1:
-            self.VESC_raw[0] = 32500
-            if self.servo_raw[0] < 10:
-                self.servo_raw[1] = -50
-
-        # Y □ボタン
-        if controller.joy_past["joy0"]["buttons"][3] == 0 and controller.joy_now["joy0"]["buttons"][3] == 1:
-            self.VESC_raw[0] = 32500
-            if self.servo_raw[0] < 10:
-                self.servo_raw[1] = -30
+        # →ボタン
+        if controller.joy_past["joy0"]["buttons"][16] == 0 and controller.joy_now["joy0"]["buttons"][16] == 1:
+            if self.injection_mode > 4:
+                self.injection_mode = 0
+            else:
+                self.injection_mode += 1
 
         # if controller.joy_now["joy0"]["buttons"][2] == 1:  # Xボタン
             # 0°に旋回
@@ -975,8 +971,6 @@ class ROS2MainNode(Node):
 
         # Lボタン
         if controller.joy_now["joy0"]["buttons"][4] == 1:
-            # stop()
-            # self.stop()
             self.stop()
 
         # Rボタン
@@ -1024,11 +1018,9 @@ class ROS2MainNode(Node):
             # タイマースタート
             self.start_time = time.time()
 
-        # VESC
-        # ↑
-        if controller.joy_now["joy0"]["buttons"][13] == 1 and controller.joy_past["joy0"]["buttons"][13] == 0:
-            self.VESC_adjust[0] += 500
-
+        # 初期化
+        # ↓ボタン
+        if controller.joy_now["joy0"]["buttons"][14] == 1 and controller.joy_past["joy0"]["buttons"][14] == 0:
             self.servo_setup = True
 
             command = Float64MultiArray()
@@ -1036,28 +1028,23 @@ class ROS2MainNode(Node):
             command.data = [float(1), float(27), float(1)]
             self.publisher_serial_write.publish(command)
 
-        # ↓
-        elif controller.joy_now["joy0"]["buttons"][14] == 1 and controller.joy_past["joy0"]["buttons"][14] == 0:
+        # VESC
+        # △ボタン
+        if controller.joy_now["joy0"]["buttons"][2] == 1 and controller.joy_past["joy0"]["buttons"][2] == 0:
+            self.VESC_adjust[0] += 500
+
+        # ×ボタン
+        elif controller.joy_now["joy0"]["buttons"][0] == 1 and controller.joy_past["joy0"]["buttons"][0] == 0:
             self.VESC_adjust[0] += -500
 
-        # サーボ
-        # ←?→
-        if controller.joy_now["joy0"]["buttons"][15] == 1 and controller.joy_past["joy0"]["buttons"][15] == 0:
+        # 仰角サーボ
+        # ◯ボタン
+        if controller.joy_now["joy0"]["buttons"][1] == 1 and controller.joy_past["joy0"]["buttons"][1] == 0:
             self.servo_adjust[1] += 5
 
-        # ←?→
-        elif controller.joy_now["joy0"]["buttons"][16] == 1 and controller.joy_past["joy0"]["buttons"][16] == 0:
+        # □ボタン
+        elif controller.joy_now["joy0"]["buttons"][3] == 1 and controller.joy_past["joy0"]["buttons"][3] == 0:
             self.servo_adjust[1] += -5
-
-        # 回収モーター
-        # if controller.joy_now["joy0"]["buttons"][15] == 1:
-        #     # 左ジョイスティック 回収機構 展開
-        #     self.DCmotor_speed[4] = -255
-        # elif controller.joy_now["joy0"]["buttons"][16] == 1:
-        #     # 右ジョイスティック 回収機構 巻取り
-        #     self.DCmotor_speed[4] = 255
-        # else:
-        #     self.DCmotor_speed[4] = 0
 
         # 左ジョイスティック
         if controller.joy_past["joy0"]["buttons"][11] == 0 and controller.joy_now["joy0"]["buttons"][11] == 1:
@@ -1077,6 +1064,10 @@ class ROS2MainNode(Node):
         controller.joy_setup(controller(), "joy1", joy)
 
         self.DCmotor_speed[0] = controller.joy_now["joy1"]["axes"][1] * 255
+
+        # Lボタン
+        if controller.joy_now["joy0"]["buttons"][4] == 1:
+            self.stop()
 
         # サーボの制御
         # ZR 装填 サーボ初期位置
@@ -1231,6 +1222,7 @@ class ROS2MainNode(Node):
     def stop(self):
         # 強制停止
         self.state = 0
+        self.injection_mode = 0
         self.CyberGear_speed = [0] * len(self.CyberGear_speed)
         self.DCmotor_speed = [0] * len(self.DCmotor_speed)
         self.BLmotor_speed = [0] * len(self.BLmotor_speed)
@@ -1239,8 +1231,8 @@ class ROS2MainNode(Node):
         self.VESC_raw = [0] * len(self.VESC_raw)
         self.servo_angle = [0] * len(self.servo_angle)
         self.servo_adjust = [0] * len(self.servo_adjust)
-        self.servo_raw = [0] * len(self.servo_raw)
-        # self.servo_raw = [14, 0, 0]
+        # self.servo_raw = [0] * len(self.servo_raw)
+        self.servo_raw = [14, 0, 0]
 
 # def stop():
 #     # 強制停止

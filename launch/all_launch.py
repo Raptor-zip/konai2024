@@ -25,7 +25,7 @@ def generate_launch_description():
             Node(
                 package="joy",
                 executable="joy_node",
-                parameters=[{"device_id": 0, "deadzone": 0.2}],
+                parameters=[{"device_id": 0, "deadzone": 0.1}],
                 # parameters=[{"device_name": "PS4 Controller", "deadzone": 0.2}], # Sony Interactive Entertainment Wireless Controller.
                 remappings=[("/joy", "/joy0")],
             ),
@@ -37,15 +37,15 @@ def generate_launch_description():
             Node(
                 package="joy",
                 executable="joy_node",
-                parameters=[{"device_id": 1, "deadzone": 0.2}],
+                parameters=[{"device_id": 1, "deadzone": 0.1}],
                 remappings=[("/joy", "/joy1")],
             ),
-            # Node(
-            #     package="konai2024_python",
-            #     executable="webserver",
-            #     output="screen",
-            #     prefix="xterm -e",
-            # ),
+            Node(
+                package="konai2024_python",
+                executable="webserver",
+                output="screen",
+                prefix="xterm -e",
+            ),
             # Node(
             #     package="konai2024_python",
             #     executable="odometry",
