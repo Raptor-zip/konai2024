@@ -189,9 +189,6 @@ class controller:
         joy: dict = {"axes": received_joy.axes,
                      "buttons": received_joy.buttons}
 
-        # 旋回が逆になるから無理やり合わせる
-        joy["axes"][0] = joy["axes"][0] * -1
-
         # 各axesが0.3未満の場合に0に設定する
         joy["axes"] = [
             0 if abs(each_axes) < 0.3 else each_axes for each_axes in joy["axes"]]
@@ -688,8 +685,6 @@ class ROS2MainNode(Node):
             if controller.joy_now["joy0"]["buttons"][4] == 1:
                 self.stop()
 
-        logger.debug(self.CyberGear_speed)
-
         command = Float64MultiArray()
         # CyberGear_speedの値を浮動小数点数に変換してリストに格納
         command.data = [float(1), float(22), float(self.CyberGear_speed[0])]
@@ -772,8 +767,12 @@ class ROS2MainNode(Node):
             self.CyberGear_speed[:4] = [speed * 30 / _max_motor_speed
                                         for speed in self.CyberGear_speed[:4]]
 
-        self.CyberGear_speed[0] *= -1
-        self.CyberGear_speed[3] *= -1
+        self.CyberGear_speed = [
+            self.CyberGear_speed[0] * -1,
+            self.CyberGear_speed[1],
+            self.CyberGear_speed[3],
+            self.CyberGear_speed[2] * -1
+        ]
 
         # VESC
         self.VESC_rpm[0] = self.VESC_raw[0] + self.VESC_adjust[0]
@@ -864,6 +863,8 @@ class ROS2MainNode(Node):
 
         self.servo_setup = False
 
+        logger.debug(f"{self.VESC_rpm[0]}      {self.servo_angle[1]}")
+
         # command = Float64MultiArray()
         # # CyberGear_speedの値を浮動小数点数に変換してリストに格納
         # command.data = [float(1), float(22), float(self.CyberGear_speed[0])]
@@ -884,7 +885,7 @@ class ROS2MainNode(Node):
         # command.data = [float(1), float(28), float(self.CyberGear_speed[3])]
         # self.publisher_serial_write.publish(command)
 
-        logger.info(self.send_ESP32_data)
+        # logger.info(self.send_ESP32_data)
 
         json_str: str = ','.join(map(str, self.send_ESP32_data))
         # self.get_logger().info(json_str)
@@ -894,7 +895,7 @@ class ROS2MainNode(Node):
         data2.extend(b'\x0d')
         # data2.extend(b'\x0a')
 
-        logger.info(data2.hex())
+        # logger.info(data2.hex())
         # logger.info(len(data2))
 
         if self.count_print % 1 == 0:  # 15回に1回実行
@@ -921,21 +922,21 @@ class ROS2MainNode(Node):
 
         # B ☓ボタン
         if controller.joy_past["joy0"]["buttons"][0] == 0 and controller.joy_now["joy0"]["buttons"][0] == 1:
-            self.VESC_raw[0] = 16000
+            self.VESC_raw[0] = 14000
             if self.servo_raw[0] < 10:
-                self.servo_raw[1] = -60
+                self.servo_raw[1] = -70
 
         # A ○ボタン
         if controller.joy_past["joy0"]["buttons"][1] == 0 and controller.joy_now["joy0"]["buttons"][1] == 1:
-            self.VESC_raw[0] = 21000
+            self.VESC_raw[0] = 21500
             if self.servo_raw[0] < 10:
-                self.servo_raw[1] = -40
+                self.servo_raw[1] = -70
 
         # X △ボタン
         if controller.joy_past["joy0"]["buttons"][2] == 0 and controller.joy_now["joy0"]["buttons"][2] == 1:
-            self.VESC_raw[0] = 30000
+            self.VESC_raw[0] = 32500
             if self.servo_raw[0] < 10:
-                self.servo_raw[1] = -35
+                self.servo_raw[1] = -50
 
         # Y □ボタン
         if controller.joy_past["joy0"]["buttons"][3] == 0 and controller.joy_now["joy0"]["buttons"][3] == 1:
@@ -1078,8 +1079,14 @@ class ROS2MainNode(Node):
         self.DCmotor_speed[0] = controller.joy_now["joy1"]["axes"][1] * 255
 
         # サーボの制御
-        # ZR装填
+        # ZR 装填 サーボ初期位置
         if controller.joy_now["joy1"]["buttons"][7] == 1:
+            self.time_pushed_load_button = time.time()  # エポック秒
+            self.servo_raw[0] = abs(
+                self.servo_raw[1] + self.servo_adjust[1]) + 14
+
+        # ZL たまづまりサーボ
+        if controller.joy_now["joy1"]["buttons"][6] == 1:
             self.time_pushed_antiJammedServo_button = time.time()
             self.servo_raw[2] = -100
 
@@ -1233,6 +1240,7 @@ class ROS2MainNode(Node):
         self.servo_angle = [0] * len(self.servo_angle)
         self.servo_adjust = [0] * len(self.servo_adjust)
         self.servo_raw = [0] * len(self.servo_raw)
+        # self.servo_raw = [14, 0, 0]
 
 # def stop():
 #     # 強制停止

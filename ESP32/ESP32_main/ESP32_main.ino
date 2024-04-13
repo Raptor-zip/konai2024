@@ -67,6 +67,15 @@ const uint8_t amount_motor = sizeof(PIN_array) / sizeof(PIN_array[0]);
 // LED連携のピン
 #define COMMUNICATE_LED_PIN 13
 
+void servo_setup(){
+  krs.setStrc(0, 60);
+  krs.setSpd(0, 50);
+  krs.setStrc(1, 127);
+  krs.setSpd(1, 20);
+  krs.setStrc(2, 10);
+  krs.setSpd(2, 120);
+}
+
 void setup()
 {
   xTaskCreatePinnedToCore(Core0a_read_distance_sensors, "Core0a_read_distance_sensors", 4096, NULL, 1, &thp[0], 0);
@@ -100,12 +109,7 @@ void setup()
   delay(100);
   // krs.setID(2);
 
-  krs.setStrc(0, 127);
-  krs.setSpd(0, 50);
-  krs.setStrc(1, 127);
-  krs.setSpd(1, 20);
-  krs.setStrc(2, 10);
-  krs.setSpd(2, 120);
+  servo_setup();
 
   // 距離センサーの処理
   pinMode(PIN_SER, OUTPUT);
@@ -245,12 +249,7 @@ void loop()
         // サーボモーターの初期化
         krs.begin(); // サーボモータの通信初期設定
         delay(100);
-        krs.setStrc(0, 127);
-        krs.setSpd(0, 50);
-        krs.setStrc(1, 127);
-        krs.setSpd(1, 20);
-        krs.setStrc(2, 10);
-        krs.setSpd(2, 160);
+        servo_setup();
       }
 
       // VESCの制御
