@@ -821,9 +821,9 @@ class ROS2MainNode(Node):
                 self.servo_raw[1] = -50
 
         elif self.injection_mode == 5:  # Vゴール
-            self.VESC_raw[0] = 37500
+            self.VESC_raw[0] = 30500
             if self.servo_raw[0] < 10:
-                self.servo_raw[1] = -40
+                self.servo_raw[1] = -45
 
         # VESC
         self.VESC_rpm[0] = self.VESC_raw[0] + self.VESC_adjust[0]
