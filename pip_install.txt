@@ -9,3 +9,4 @@ playsound
 ipget
 pyserial
 evdev
+pynput

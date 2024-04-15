@@ -28,6 +28,7 @@ import evdev
 from matplotlib import pyplot as plt  # 描画用ライブラリ
 from logging import getLogger, handlers, DEBUG
 import logging
+from pynput import keyboard
 # import matplotlib
 # matplotlib.use('agg')
 
@@ -65,6 +66,63 @@ def location(depth: int = 0) -> tuple:
 
 
 ros2_main = None
+
+
+class MonKeyBoard:
+    def on_press(self, key):
+        print(key)
+        try:
+            print('press: {}'.format(key.char))
+
+            if key.char == "u":
+                ros2_main.VESC_adjust[0] += 500
+            elif key.char == "h":
+                ros2_main.servo_adjust[1] += -5
+            elif key.char == "j":
+                ros2_main.VESC_adjust[0] += -500
+            elif key.char == "k":
+                ros2_main.servo_adjust[1] += 5
+            elif key.char == "v":
+                self.servo_setup = True
+
+                command = Float64MultiArray()
+                # CyberGear_speedの値を浮動小数点数に変換してリストに格納
+                command.data = [float(1), float(27), float(1)]
+                self.publisher_serial_write.publish(command)
+            elif key.char == "b":
+                self.time_pushed_antiJammedServo_button = time.time()
+                self.servo_raw[2] = -100
+            elif key.char == "n":
+                # タイマースタート
+                self.start_time = time.time()
+
+        except AttributeError:
+            print('spkey press: {}'.format(key))
+
+            if (key == keyboard.Key.enter):
+                print("EnterKey")
+                ros2_main.inject()
+
+    def on_release(self, key):
+        print('release: {}'.format(key))
+        if (key == keyboard.Key.esc):
+            print("StopKey")
+            self.listener.stop()
+            self.listener = None
+
+    def start(self):
+        self.listener = keyboard.Listener(
+            on_press=self.on_press, on_release=self.on_release)
+        self.listener.start()
+
+    def getstatus(self):
+        if (self.listener == None):
+            return False
+        return True
+
+
+monitor = MonKeyBoard()
+monitor.start()
 
 
 def main() -> None:
@@ -174,7 +232,8 @@ class controller:
                     joy_value["axes"] = [0] * len(joy_value["axes"])
                     joy_value["buttons"] = [0] * len(joy_value["buttons"])
 
-                    stop()
+                    if ros2_main != None:
+                        ros2_main.stop()
 
     def joy_setup(self, joy_id: str, received_joy: Joy) -> None:
         self.joy_past.setdefault(  # 初回のみ実行 上書き不可
@@ -796,33 +855,34 @@ class ROS2MainNode(Node):
         #     0 if abs(i) < 1 else i for i in self.CyberGear_speed]
 
         # 射出モード
+        PREV_ANGLE = 15
         if self.injection_mode == 0:  # 停止
             self.VESC_raw[0] = 0
             self.servo_raw[1] = 0
 
         elif self.injection_mode == 1:  # 左下かご
             self.VESC_raw[0] = 14000
-            if self.servo_raw[0] < 10:
+            if self.servo_raw[0] < PREV_ANGLE:
                 self.servo_raw[1] = -70
 
         elif self.injection_mode == 2:  # 左上かご
             self.VESC_raw[0] = 32500
-            if self.servo_raw[0] < 10:
+            if self.servo_raw[0] < PREV_ANGLE:
                 self.servo_raw[1] = -50
 
         elif self.injection_mode == 3:  # 右下かご
             self.VESC_raw[0] = 21500
-            if self.servo_raw[0] < 10:
+            if self.servo_raw[0] < PREV_ANGLE:
                 self.servo_raw[1] = -70
 
         elif self.injection_mode == 4:  # 右上かご
             self.VESC_raw[0] = 37500
-            if self.servo_raw[0] < 10:
+            if self.servo_raw[0] < PREV_ANGLE:
                 self.servo_raw[1] = -50
 
         elif self.injection_mode == 5:  # Vゴール
             self.VESC_raw[0] = 30500
-            if self.servo_raw[0] < 10:
+            if self.servo_raw[0] < PREV_ANGLE:
                 self.servo_raw[1] = -45
 
         # VESC
@@ -897,9 +957,9 @@ class ROS2MainNode(Node):
 
         self.servo_setup = False
 
-        logger.debug(f"{self.VESC_rpm[0]}    {self.servo_angle[1]}")
+        # logger.debug(f"{self.VESC_rpm[0]}    {self.servo_angle[1]}")
 
-        # logger.info(self.send_ESP32_data)
+        logger.info(self.send_ESP32_data)
 
         json_str: str = ','.join(map(str, self.send_ESP32_data))
         # self.get_logger().info(json_str)
@@ -983,22 +1043,12 @@ class ROS2MainNode(Node):
         # サーボの制御
         # ZR装填 サーボ初期位置
         if controller.joy_now["joy0"]["buttons"][7] == 1:
-            self.time_pushed_load_button = time.time()  # エポック秒
-            self.servo_raw[0] = abs(
-                self.servo_raw[1] + self.servo_adjust[1]) + 14
+            self.inject()
 
-        # if controller.joy_now["joy0"]["buttons"][8] == 1:
-        #     micon_dict = {
-        #         "ESP32_1": {"is_connected": False,  # パソコンと接続しているか
-        #                     "number": 1,  # マイコンからデータ来るときに
-        #                     "serial_port": None,
-        #                     "serial_obj": None,
-        #                     "reboot": False},
-        #         "ESP32_2": {"is_connected": False,  # パソコンと接続しているか
-        #                     "number": 2,  # マイコンからデータ来るときに やっぱ消す！！！！！！！！！！！！！！！！！！！！！！！！！！
-        #                     "serial_port": None,
-        #                     "serial_obj": None,
-        #                     "reboot": False}}
+        # ZL たまづまりサーボ
+        if controller.joy_now["joy0"]["buttons"][6] == 1:
+            self.time_pushed_antiJammedServo_button = time.time()
+            self.servo_raw[2] = -100
 
         # リセット
         # + / options
@@ -1046,6 +1096,18 @@ class ROS2MainNode(Node):
         elif controller.joy_now["joy0"]["buttons"][3] == 1 and controller.joy_past["joy0"]["buttons"][3] == 0:
             self.servo_adjust[1] += -5
 
+        # 回収モーター
+        if controller.joy_now["joy0"]["buttons"][8] == 1 and controller.joy_past["joy0"]["buttons"][9] == 0:
+            self.DCmotor_speed[0] = -255
+        elif controller.joy_now["joy0"]["buttons"][9] == 1 and controller.joy_past["joy0"]["buttons"][8] == 0:
+            self.DCmotor_speed[0] = 255
+        else:
+            if "joy1" in controller.joy_now:
+                if controller.joy_now["joy1"]["axes"][1] > 0.1:
+                    self.DCmotor_speed[0] = 0
+            else:
+                self.DCmotor_speed[0] = 0
+
         # 左ジョイスティック
         if controller.joy_past["joy0"]["buttons"][11] == 0 and controller.joy_now["joy0"]["buttons"][11] == 1:
             # ESP32_1のソフトウェアリセット
@@ -1066,37 +1128,48 @@ class ROS2MainNode(Node):
         self.DCmotor_speed[0] = controller.joy_now["joy1"]["axes"][1] * 255
 
         # Lボタン
-        if controller.joy_now["joy0"]["buttons"][4] == 1:
+        if controller.joy_now["joy1"]["buttons"][4] == 1:
             self.stop()
 
         # サーボの制御
         # ZR 装填 サーボ初期位置
         if controller.joy_now["joy1"]["buttons"][7] == 1:
-            self.time_pushed_load_button = time.time()  # エポック秒
-            self.servo_raw[0] = abs(
-                self.servo_raw[1] + self.servo_adjust[1]) + 14
+            self.inject()
 
         # ZL たまづまりサーボ
         if controller.joy_now["joy1"]["buttons"][6] == 1:
             self.time_pushed_antiJammedServo_button = time.time()
             self.servo_raw[2] = -100
 
-        # self.servo_raw[2] = min(
-        #     max(controller.joy_now["joy1"]["axes"][3]*100, -100), 0)
+        # VESC
+        # △ボタン
+        if controller.joy_now["joy1"]["buttons"][2] == 1 and controller.joy_past["joy1"]["buttons"][2] == 0:
+            self.VESC_adjust[0] += 500
 
-        # 回収モーター
-        # if controller.joy_now["joy1"]["buttons"][15] == 1:
-        #     # 左ジョイスティック 回収機構 展開
-        #     self.DCmotor_speed[0] = -255
-        # elif controller.joy_now["joy1"]["buttons"][16] == 1:
-        #     # 右ジョイスティック 回収機構 巻取り
-        #     self.DCmotor_speed[0] = 255
-        # else:
-        #     self.DCmotor_speed[0] = 0
+        # ×ボタン
+        elif controller.joy_now["joy1"]["buttons"][0] == 1 and controller.joy_past["joy1"]["buttons"][0] == 0:
+            self.VESC_adjust[0] += -500
 
-        # if controller.joy_past["joy1"]["buttons"][10] == 0 and controller.joy_now["joy1"]["buttons"][10] == 1:  # PS/homeボタン
-        #     # タイマースタート
-        #     self.start_time = time.time()
+        # 仰角サーボ
+        # ◯ボタン
+        if controller.joy_now["joy1"]["buttons"][1] == 1 and controller.joy_past["joy1"]["buttons"][1] == 0:
+            self.servo_adjust[1] += 5
+
+        # □ボタン
+        elif controller.joy_now["joy1"]["buttons"][3] == 1 and controller.joy_past["joy1"]["buttons"][3] == 0:
+            self.servo_adjust[1] += -5
+
+        # →ボタン
+        if controller.joy_past["joy1"]["buttons"][16] == 0 and controller.joy_now["joy1"]["buttons"][16] == 1:
+            if self.injection_mode > 4:
+                self.injection_mode = 0
+            else:
+                self.injection_mode += 1
+
+    def inject(self):
+        self.time_pushed_load_button = time.time()  # エポック秒
+        self.servo_raw[0] = abs(
+            self.servo_raw[1] + self.servo_adjust[1]) + 14
 
     def turn(self, target_angle: float) -> float:
         # TODO ラジアンにして、来週的に度数法に直せばよくね？   ーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
