@@ -4,10 +4,11 @@ import time
 
 class MonKeyBoard:
     def on_press(self, key):
-        try:
-            print('press: {}'.format(key.char))
-        except AttributeError:
-            print('spkey press: {}'.format(key))
+        print('press: {}'.format(key))
+        # try:
+        #     print('press: {}'.format(key.char))
+        # except AttributeError:
+        #     print('spkey press: {}'.format(key))
 
     def on_release(self, key):
         print('release: {}'.format(key))

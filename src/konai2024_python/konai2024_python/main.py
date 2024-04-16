@@ -4,7 +4,9 @@ from sqlite3 import Time
 import sys
 import struct  # floatをbytesに変換するため
 from re import T
-from turtle import distance  # どのESP32を識別するためにls使うよう
+from turtle import distance
+from xmlrpc.client import Boolean
+from keyboard import is_pressed  # どのESP32を識別するためにls使うよう
 import matplotlib.pyplot as plt
 from sympy import false
 import rclpy
@@ -68,43 +70,51 @@ def location(depth: int = 0) -> tuple:
 ros2_main = None
 
 
-class MonKeyBoard:
+class MonitorKeyboard:
+    def __init__(self):
+        self.key_pressed = {}
+
     def on_press(self, key):
-        print(key)
-        try:
-            print('press: {}'.format(key.char))
+        # print(str(key))
+        # print(type(str(key)))
 
-            if key.char == "u":
-                ros2_main.VESC_adjust[0] += 500
-            elif key.char == "h":
-                ros2_main.servo_adjust[1] += -5
-            elif key.char == "j":
-                ros2_main.VESC_adjust[0] += -500
-            elif key.char == "k":
-                ros2_main.servo_adjust[1] += 5
-            elif key.char == "v":
-                self.servo_setup = True
+        if str(key) == "'u'":
+            ros2_main.VESC_adjust[0] += 500
+        elif str(key) == "'h'":
+            ros2_main.servo_adjust[1] += -5
+        elif str(key) == "'j'":
+            ros2_main.VESC_adjust[0] += -500
+        elif str(key) == "'k'":
+            ros2_main.servo_adjust[1] += 5
+        elif str(key) == "'v'":
+            ros2_main.servo_setup = True
 
-                command = Float64MultiArray()
-                # CyberGear_speedの値を浮動小数点数に変換してリストに格納
-                command.data = [float(1), float(27), float(1)]
-                self.publisher_serial_write.publish(command)
-            elif key.char == "b":
-                self.time_pushed_antiJammedServo_button = time.time()
-                self.servo_raw[2] = -100
-            elif key.char == "n":
-                # タイマースタート
-                self.start_time = time.time()
+            command = Float64MultiArray()
+            # CyberGear_speedの値を浮動小数点数に変換してリストに格納
+            command.data = [float(1), float(27), float(1)]
+            ros2_main.publisher_serial_write.publish(command)
+        elif str(key) == "'b'":
+            ros2_main.time_pushed_antiJammedServo_button = time.time()
+            ros2_main.servo_raw[2] = -100
+        elif str(key) == "'n'":
+            # タイマースタート
+            ros2_main.start_time = time.time()
+        elif key == keyboard.Key.enter:
+            ros2_main.inject()
+        else:
+            # print(str(key))
+            pass
 
-        except AttributeError:
-            print('spkey press: {}'.format(key))
-
-            if (key == keyboard.Key.enter):
-                print("EnterKey")
-                ros2_main.inject()
+        # 引数で指定されたキーが押されているかどうかを判定
+        self.key_pressed[str(key)] = True
+        logger.debug(self.key_pressed)
 
     def on_release(self, key):
-        print('release: {}'.format(key))
+        # print('release: {}'.format(key))
+        # 指定されたキーが離されたら状態をリセット
+        if str(key) in self.key_pressed:
+            del self.key_pressed[str(key)]
+
         if (key == keyboard.Key.esc):
             print("StopKey")
             self.listener.stop()
@@ -120,8 +130,11 @@ class MonKeyBoard:
             return False
         return True
 
+    def is_pressed(self, key: str) -> bool:
+        return self.key_pressed.get(key, False)
 
-monitor = MonKeyBoard()
+
+monitor = MonitorKeyboard()
 monitor.start()
 
 
@@ -183,7 +196,8 @@ class DeviceControl:
             "is_allowed_to_run": True,
             "duty": 0,
             "duty_min": -256,
-            "duty_max": 256
+            "duty_max": 256,
+            "duty_normal": 0
         },
 
         "motor2": {
@@ -715,34 +729,34 @@ class ROS2MainNode(Node):
             _ubuntu_ip: str = "WiFiエラー"
 
         msg = String()
-        # send_json: dict = {
-        #     "state": self.state,
-        #     "ubuntu_ssid": wifi_ssid,
-        #     "ubuntu_ip": _ubuntu_ip,
-        #     # "ubuntu_ip": "aiueo",
-        #     # "battery_voltage": battery_dict["average_voltage"],
-        #     # "battery_voltage": 6,
-        #     "battery": battery.battery_dict,
-        #     "limited_switch": DeviceControl.limit_switch,
-        #     # "micon":micon_dict,
-        #     "micon": temp_micon_dict,
-        #     "wifi_signal_strength": 0,  # wifiのウブンツの強度を読み取る
-        #     "DCmotor_speed": [int(speed) for speed in self.DCmotor_speed],
-        #     "BLmotor_speed": [int(speed) for speed in self.BLmotor_speed],
-        #     "servo_angle": [int(angle) for angle in self.servo_angle],
-        #     "angle_value": self.current_angle,
-        #     "start_time": self.start_time,
-        #     "joy": controller.joy_now,
-        #     "serial_str": self.send_ESP32_data
-        # }
-
         send_json: dict = {
-            # "DCmotor_speed": [int(speed) for speed in self.DCmotor_speed],
-            # "BLmotor_speed": [int(speed) for speed in self.BLmotor_speed],
+            "state": self.state,
+            "ubuntu_ssid": wifi_ssid,
+            "ubuntu_ip": _ubuntu_ip,
+            # "ubuntu_ip": "aiueo",
+            # "battery_voltage": battery_dict["average_voltage"],
+            # "battery_voltage": 6,
+            "battery": battery.battery_dict,
+            "limited_switch": DeviceControl.limit_switch,
+            # "micon":micon_dict,
+            "micon": temp_micon_dict,
+            "wifi_signal_strength": 0,  # wifiのウブンツの強度を読み取る
+            "DCmotor_speed": [int(speed) for speed in self.DCmotor_speed],
+            "BLmotor_speed": [int(speed) for speed in self.BLmotor_speed],
             "servo_angle": [int(angle) for angle in self.servo_angle],
-            # "start_time": self.start_time,
+            "angle_value": self.current_angle,
+            "start_time": self.start_time,
             "joy": controller.joy_now,
+            "serial_str": self.send_ESP32_data
         }
+
+        # send_json: dict = {
+        #     # "DCmotor_speed": [int(speed) for speed in self.DCmotor_speed],
+        #     # "BLmotor_speed": [int(speed) for speed in self.BLmotor_speed],
+        #     "servo_angle": [int(angle) for angle in self.servo_angle],
+        #     # "start_time": self.start_time,
+        #     "joy": controller.joy_now,
+        # }
         msg.data = json.dumps(send_json)  # エンコード
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.sendto(json.dumps(msg.data).encode(
@@ -787,6 +801,8 @@ class ROS2MainNode(Node):
         # print(reception_json["raw_angle"],self.angle_adjust,self.current_angle,flush=True)
 
         turn_minus1to1: float = 0
+        _distance: float = 0
+        _angle_rad: float = 0
 
         if self.state == 0:
             # 走行補助がオフなら
@@ -800,25 +816,54 @@ class ROS2MainNode(Node):
         elif self.state == 4:
             turn_minus1to1 = self.turn(270)
 
-        # front_left, front_right, rear_left, rear_right
-        _mecunum_speed: list[float] = [0, 0, 0, 0]
+        if monitor.is_pressed("'q'"):
+            turn_minus1to1 += -1
+        if monitor.is_pressed("'e'"):
+            turn_minus1to1 += 1
+
+        if monitor.is_pressed("'w'") and monitor.is_pressed("'a'"):
+            _angle_rad += math.pi * 7 / 4
+            _distance += 1
+        elif monitor.is_pressed("'w'") and monitor.is_pressed("'d'"):
+            _angle_rad += math.pi * 1 / 4
+            _distance += 1
+        elif monitor.is_pressed("'s'") and monitor.is_pressed("'a'"):
+            _angle_rad += math.pi * 5 / 4
+            _distance += 1
+        elif monitor.is_pressed("'s'") and monitor.is_pressed("'d'"):
+            _angle_rad += math.pi * 3 / 4
+            _distance += 1
+        elif monitor.is_pressed("'w'"):
+            _distance += 1
+        elif monitor.is_pressed("'s'"):
+            _angle_rad += math.pi * 4 / 4
+            _distance += 1
+        elif monitor.is_pressed("'a'"):
+            _angle_rad += math.pi * 6 / 4
+            _distance += 1
+        elif monitor.is_pressed("'d'"):
+            _angle_rad += math.pi * 2 / 4
+            _distance += 1
 
         if "joy0" in controller.joy_now:
             # 手動旋回と自動旋回を合わせる
             turn_minus1to1 += controller.joy_now["joy0"]["axes"][0]
 
-            _angle: float = (
-                1 - (math.atan2(controller.joy_now["joy0"]["axes"][2], controller.joy_now["joy0"]["axes"][3])) / (2 * math.pi)) % 1
-            # ジョイスティックの傾きの大きさを求める(最大1最小0) # これよりも、割る1.4141356のほうがよくね？
-            _distance: float = min(math.sqrt(
+            # ジョイスティックの傾きの大きさを求める(最大1最小0)
+            _distance += min(math.sqrt(
                 controller.joy_now["joy0"]["axes"][2]**2 + controller.joy_now["joy0"]["axes"][3]**2), 1)
 
-            _mecunum_speed = control_mecanum_wheels(
-                _angle, _distance)  # 0から1の範囲で指定（北を0、南を0.5として時計回りに）
+            if controller.joy_now["joy0"]["axes"][2]**2 + controller.joy_now["joy0"]["axes"][3]**2 > 0.1:
+                _angle_rad = math.atan2(
+                    controller.joy_now["joy0"]["axes"][3], controller.joy_now["joy0"]["axes"][2]) - math.pi / 2
 
         else:
             # logger.critical(f"joy0の読み取りに失敗")
-            self.get_logger().error("joy0の読み取りに失敗")
+            # self.get_logger().error("joy0の読み取りに失敗") // TODO コメントアウト外す
+            turn_minus1to1 = 0
+
+        turn_minus1to1 = min(max(turn_minus1to1, -1), 1)
+        _distance = min(max(_distance, 0), 1)
 
         self.CyberGear_speed[:4] = [
             turn_minus1to1 * 30 * -1,
@@ -828,7 +873,8 @@ class ROS2MainNode(Node):
 
         # 旋回と十字移動合わせる
         self.CyberGear_speed[:4] = [speed + value for speed, value in zip(
-            self.CyberGear_speed[:4], _mecunum_speed)]
+            self.CyberGear_speed[:4], control_mecanum_wheels(_angle_rad, _distance))]
+        # front_left, front_right, rear_left, rear_right
 
         # 絶対値が30を超えた場合、比率を保ったまま30以下にする
         _max_motor_speed: float = max(map(abs, self.CyberGear_speed[:4]))
@@ -844,7 +890,18 @@ class ROS2MainNode(Node):
         ]
 
         # 低速モードの処理
-        if self.is_slow_speed:
+        # Rボタン
+        if "joy0" in controller.joy_now:
+            if "joy1" in controller.joy_now:
+                self.is_slow_speed = controller.joy_now["joy0"]["buttons"][5] + controller.joy_now["joy1"]["buttons"][5] + monitor.is_pressed("Key.shift")
+            else:
+                self.is_slow_speed = controller.joy_now["joy0"]["buttons"][5] + monitor.is_pressed("Key.shift")
+        else:
+            self.is_slow_speed = monitor.is_pressed("Key.shift")
+
+        logger.info(self.is_slow_speed)
+
+        if self.is_slow_speed >= 1:
             self.CyberGear_speed[:4] = [speed * 0.2
                                         for speed in self.CyberGear_speed[:4]]
 
@@ -960,26 +1017,24 @@ class ROS2MainNode(Node):
         # logger.debug(f"{self.VESC_rpm[0]}    {self.servo_angle[1]}")
 
         logger.info(self.send_ESP32_data)
+        logger.info(self.CyberGear_speed)
 
         json_str: str = ','.join(map(str, self.send_ESP32_data))
         # self.get_logger().info(json_str)
         # logger.info(json_str)
-        data2: bytearray = bytearray(json_str.encode())
+        data: bytearray = bytearray(json_str.encode())
 
-        data2.extend(b'\x0d')
+        data.extend(b'\x0d')
 
-        # logger.info(data2.hex())
-        # logger.info(len(data2))
+        # logger.info(data.hex())
 
         if self.count_print % 1 == 0:  # 15回に1回実行
             # self.get_logger().info(data.hex())
-            # self.get_logger().info(data2.hex())
             # logger.info(data.hex())
-            # logger.info(data2.hex())
             pass
         self.count_print += 1
         try:
-            micon_dict["ESP32"]["serial_obj"].write(bytes(data2))
+            micon_dict["ESP32"]["serial_obj"].write(bytes(data))
             # each_micon_dict_values["serial_obj"].write(json_str_2.encode())
             # print(f"{each_micon_dict_key}への送信成功", flush=True)
             pass
@@ -1034,11 +1089,11 @@ class ROS2MainNode(Node):
             self.stop()
 
         # Rボタン
-        if controller.joy_now["joy0"]["buttons"][5] == 1:
-            # 低速モード
-            self.is_slow_speed = True
-        else:
-            self.is_slow_speed = False
+        # if controller.joy_now["joy0"]["buttons"][5] == 1:
+        #     # 低速モード
+        #     self.is_slow_speed = True
+        # else:
+        #     self.is_slow_speed = False
 
         # サーボの制御
         # ZR装填 サーボ初期位置
@@ -1324,15 +1379,13 @@ class ROS2MainNode(Node):
 # ros2_main = ROS2MainNode()
 
 
-def control_mecanum_wheels(direction: float, speed: float) -> list[float]:
-    # ラジアンに変換
-    angle: float = direction * 2.0 * math.pi
-
+def control_mecanum_wheels(angle_rad: float, speed: float) -> list[float]:
     # 回転数を-30から30の範囲に変換
-    front_left: float = math.sin(angle + math.pi / 4.0) * 30
-    front_right: float = math.cos(angle + math.pi / 4.0) * 30
-    rear_left: float = math.cos(angle + math.pi / 4.0) * 30
-    rear_right: float = math.sin(angle + math.pi / 4.0) * 30
+    front_left: float = math.sin(angle_rad + math.pi / 4.0) * 30
+    front_right: float = math.cos(angle_rad + math.pi / 4.0) * 30
+    rear_left: float = math.cos(angle_rad + math.pi / 4.0) * 30
+    rear_right: float = math.sin(angle_rad + math.pi / 4.0) * 30
+
     adjust = 30 / max([abs(front_left), abs(front_right),
                        abs(rear_left), abs(rear_right)])
     front_left = front_left * adjust * speed
