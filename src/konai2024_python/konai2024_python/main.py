@@ -1016,6 +1016,9 @@ class ROS2MainNode(Node):
             if controller.joy_now[self.joy_id]["buttons"][4] == 1:
                 self.stop()
 
+        if monitor.is_pressed("Key.enter"):
+            self.stop()
+
         # バッテリー保護
         # if battery.battery_dict["battery_4cell"]["state"] == "much_low" or battery.battery_dict["battery_4cell"]["state"] == "abnormality":
         #     # 4セルで動かすものは メカナムと回収機構
