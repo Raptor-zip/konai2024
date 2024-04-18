@@ -825,17 +825,6 @@ class ROS2MainNode(Node):
 
         # print(reception_json["raw_angle"],self.angle_adjust,self.current_angle,flush=True)
 
-        if controller.joy_now[self.joy_id]["buttons"][8] == 1 and controller.joy_past["joy0"]["buttons"][9] == 0:
-            self.DCmotor_speed[0] = -255
-        elif controller.joy_now["joy0"]["buttons"][9] == 1 and controller.joy_past["joy0"]["buttons"][8] == 0:
-            self.DCmotor_speed[0] = 255
-        else:
-            if "joy1" in controller.joy_now:
-                if abs(controller.joy_now["joy1"]["axes"][1]) > 0.1:
-                    self.DCmotor_speed[0] = 0
-            else:
-                self.DCmotor_speed[0] = 0
-
         if self.joy_id in controller.joy_now:
             # 回収モーター
             if controller.joy_now[self.joy_id]["buttons"][6] == 1 and controller.joy_now[self.joy_id]["buttons"][7] == 0:
