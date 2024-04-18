@@ -75,8 +75,15 @@ class MonitorKeyboard:
         self.key_pressed = {}
 
     def on_press(self, key):
-        # print(str(key))
+        print(str(key))
         # print(type(str(key)))
+
+        if str(key) == "'1'":
+            ros2_main.joy_id = "joy0"
+        elif str(key) == "'2'":
+            ros2_main.joy_id = "joy1"
+        elif str(key) == "'3'":
+            ros2_main.joy_id = "joy2"
 
         if str(key) == "'u'":
             ros2_main.VESC_adjust[0] += 500
@@ -99,8 +106,13 @@ class MonitorKeyboard:
         elif str(key) == "'n'":
             # タイマースタート
             ros2_main.start_time = time.time()
-        elif key == keyboard.Key.enter:
+        elif key == keyboard.Key.space:
             ros2_main.inject()
+        elif key == keyboard.Key.ctrl:
+            if ros2_main.injection_mode > 4:
+                ros2_main.injection_mode = 0
+            else:
+                ros2_main.injection_mode += 1
         else:
             # print(str(key))
             pass
@@ -246,8 +258,8 @@ class controller:
                     joy_value["axes"] = [0] * len(joy_value["axes"])
                     joy_value["buttons"] = [0] * len(joy_value["buttons"])
 
-                    if ros2_main != None:
-                        ros2_main.stop()
+                    # if ros2_main != None:
+                    #     ros2_main.stop()
 
     def joy_setup(self, joy_id: str, received_joy: Joy) -> None:
         self.joy_past.setdefault(  # 初回のみ実行 上書き不可
@@ -273,8 +285,8 @@ class controller:
         if _len_axes == 4 and _len_buttons == 17:
             self.joy_now.update({
                 joy_id:
-                {"axes": list(joy.axes),
-                 "buttons": list(joy.buttons)}
+                {"axes": list(joy["axes"]),
+                 "buttons": list(joy["buttons"])}
             })
         if _len_axes == 6 and _len_buttons == 17:
             self.joy_now.update({joy_id: self.convert_PS3_to_WiiU(joy)})
@@ -576,6 +588,10 @@ class Serial:
             # elif received_message_array[1] == 7:
             #     DeviceControl.limit_switch = bool(received_message_array[2])
 
+            elif received_message_array[0] == 1 and received_message_array[1] == 8:
+                # ジャイロセンサーのデータが来たときの処理
+                pass
+
         else:
             # デバッグ用メッセージ
             # print(
@@ -638,6 +654,10 @@ class ROS2MainNode(Node):
 
     time_pushed_load_button = 0  # 装填ボタンが押された時間
     time_pushed_antiJammedServo_button = 0
+    time_pushed_antiJammed_loadServo_button = 0
+
+    # controller_list: list[str] = ["joy0", "joy1"]
+    joy_id: str = "joy0"
 
     # TODO Initialize PID parameters dict型にしたい！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
     kp: float = 0.01  # Proportional gain 基本要素として必須。これをベースに、必要に応じて他の項を追加する
@@ -681,6 +701,11 @@ class ROS2MainNode(Node):
             Joy,
             "joy1",
             self.joy1_listener_callback,
+            10)
+        self.subscription = self.create_subscription(
+            Joy,
+            "joy2",
+            self.joy2_listener_callback,
             10)
         self.subscription = self.create_subscription(
             String, 'Web_to_Main', self.Web_to_Main_listener_callback, 10)
@@ -764,8 +789,8 @@ class ROS2MainNode(Node):
         # print(json.dumps(reception_json).encode('utf-8'))
         self.publisher_ESP32_to_Webserver.publish(msg)
 
-        if "joy0" in controller.joy_now:
-            if controller.joy_now["joy0"]["buttons"][4] == 1:
+        if self.joy_id in controller.joy_now:
+            if controller.joy_now[self.joy_id]["buttons"][4] == 1:
                 self.stop()
 
         command = Float64MultiArray()
@@ -800,21 +825,54 @@ class ROS2MainNode(Node):
 
         # print(reception_json["raw_angle"],self.angle_adjust,self.current_angle,flush=True)
 
+        if controller.joy_now[self.joy_id]["buttons"][8] == 1 and controller.joy_past["joy0"]["buttons"][9] == 0:
+            self.DCmotor_speed[0] = -255
+        elif controller.joy_now["joy0"]["buttons"][9] == 1 and controller.joy_past["joy0"]["buttons"][8] == 0:
+            self.DCmotor_speed[0] = 255
+        else:
+            if "joy1" in controller.joy_now:
+                if abs(controller.joy_now["joy1"]["axes"][1]) > 0.1:
+                    self.DCmotor_speed[0] = 0
+            else:
+                self.DCmotor_speed[0] = 0
+
+        if self.joy_id in controller.joy_now:
+            # 回収モーター
+            if controller.joy_now[self.joy_id]["buttons"][6] == 1 and controller.joy_now[self.joy_id]["buttons"][7] == 0:
+                self.DCmotor_speed[0] = -255
+            elif controller.joy_now[self.joy_id]["buttons"][7] == 1 and controller.joy_now[self.joy_id]["buttons"][6] == 0:
+                self.DCmotor_speed[0] = 255
+            else:
+                if monitor.is_pressed("'y'"):
+                    self.DCmotor_speed[0] = -255
+                elif monitor.is_pressed("'i'"):
+                    self.DCmotor_speed[0] = 255
+                else:
+                    self.DCmotor_speed[0] = 0
+
+        else:
+            if monitor.is_pressed("'y'"):
+                self.DCmotor_speed[0] = -255
+            elif monitor.is_pressed("'i'"):
+                self.DCmotor_speed[0] = 255
+            else:
+                self.DCmotor_speed[0] = 0
+
         turn_minus1to1: float = 0
         _distance: float = 0
         _angle_rad: float = 0
 
-        if self.state == 0:
-            # 走行補助がオフなら
-            turn_minus1to1 = 0
-        elif self.state == 1:
-            turn_minus1to1 = self.turn(0)
-        elif self.state == 2:
-            turn_minus1to1 = self.turn(90)
-        elif self.state == 3:
-            turn_minus1to1 = self.turn(180)
-        elif self.state == 4:
-            turn_minus1to1 = self.turn(270)
+        # if self.state == 0:
+        #     # 走行補助がオフなら
+        #     turn_minus1to1 = 0
+        # elif self.state == 1:
+        #     turn_minus1to1 = self.turn(0)
+        # elif self.state == 2:
+        #     turn_minus1to1 = self.turn(90)
+        # elif self.state == 3:
+        #     turn_minus1to1 = self.turn(180)
+        # elif self.state == 4:
+        #     turn_minus1to1 = self.turn(270)
 
         if monitor.is_pressed("'q'"):
             turn_minus1to1 += -1
@@ -845,17 +903,17 @@ class ROS2MainNode(Node):
             _angle_rad += math.pi * 2 / 4
             _distance += 1
 
-        if "joy0" in controller.joy_now:
+        if self.joy_id in controller.joy_now:
             # 手動旋回と自動旋回を合わせる
-            turn_minus1to1 += controller.joy_now["joy0"]["axes"][0]
+            turn_minus1to1 += controller.joy_now[self.joy_id]["axes"][0]
 
             # ジョイスティックの傾きの大きさを求める(最大1最小0)
             _distance += min(math.sqrt(
-                controller.joy_now["joy0"]["axes"][2]**2 + controller.joy_now["joy0"]["axes"][3]**2), 1)
+                controller.joy_now[self.joy_id]["axes"][2]**2 + controller.joy_now[self.joy_id]["axes"][3]**2), 1)
 
-            if controller.joy_now["joy0"]["axes"][2]**2 + controller.joy_now["joy0"]["axes"][3]**2 > 0.1:
+            if controller.joy_now[self.joy_id]["axes"][2]**2 + controller.joy_now[self.joy_id]["axes"][3]**2 > 0.1:
                 _angle_rad = math.atan2(
-                    controller.joy_now["joy0"]["axes"][3], controller.joy_now["joy0"]["axes"][2]) - math.pi / 2
+                    controller.joy_now[self.joy_id]["axes"][3], controller.joy_now[self.joy_id]["axes"][2]) - math.pi / 2
 
         else:
             # logger.critical(f"joy0の読み取りに失敗")
@@ -891,15 +949,15 @@ class ROS2MainNode(Node):
 
         # 低速モードの処理
         # Rボタン
-        if "joy0" in controller.joy_now:
-            if "joy1" in controller.joy_now:
-                self.is_slow_speed = controller.joy_now["joy0"]["buttons"][5] + controller.joy_now["joy1"]["buttons"][5] + monitor.is_pressed("Key.shift")
+        if self.joy_id in controller.joy_now:
+            if controller.joy_now[self.joy_id]["buttons"][5]:
+                self.is_slow_speed = True
             else:
-                self.is_slow_speed = controller.joy_now["joy0"]["buttons"][5] + monitor.is_pressed("Key.shift")
+                self.is_slow_speed = monitor.is_pressed("Key.shift")
         else:
             self.is_slow_speed = monitor.is_pressed("Key.shift")
 
-        logger.info(self.is_slow_speed)
+        # logger.info(self.is_slow_speed)
 
         if self.is_slow_speed >= 1:
             self.CyberGear_speed[:4] = [speed * 0.2
@@ -951,6 +1009,11 @@ class ROS2MainNode(Node):
             self.servo_raw[0] = -40
             self.time_pushed_load_button = 0
 
+        if self.time_pushed_antiJammed_loadServo_button != 0 and (time.time() - self.time_pushed_antiJammed_loadServo_button) > 0.4:
+            # 0.4sで0°に戻る
+            self.servo_raw[0] = -40
+            self.time_pushed_antiJammed_loadServo_button = 0
+
         # 玉詰まりサーボの処理
         if self.time_pushed_antiJammedServo_button != 0 and (time.time() - self.time_pushed_antiJammedServo_button) > 1.5:
             # 1.2sで0°に戻る
@@ -960,8 +1023,8 @@ class ROS2MainNode(Node):
         for i in range(len(self.servo_angle)):
             self.servo_angle[i] = self.servo_raw[i] + self.servo_adjust[i]
 
-        if "joy0" in controller.joy_now:
-            if controller.joy_now["joy0"]["buttons"][4] == 1:
+        if self.joy_id in controller.joy_now:
+            if controller.joy_now[self.joy_id]["buttons"][4] == 1:
                 self.stop()
 
         # バッテリー保護
@@ -1043,183 +1106,116 @@ class ROS2MainNode(Node):
             micon_dict["ESP32"]["is_connected"] = False
             # TODO 片方のマイコンが途切れたときに、詰まるから、このやり方よくない 非同期にするか、connect_serialを並行処理でずっとwhileしといて、bool変数がTrueになったら接続処理するとか
 
-    def joy0_listener_callback(self, joy):
+    def joy_all_listener_callback(self):
         global reception_json, micon_dict
+        if self.joy_id in controller.joy_now:
+            # Lボタン
+            if controller.joy_now[self.joy_id]["buttons"][4] == 1:
+                self.stop()
 
+            # Rボタン
+            if controller.joy_now[self.joy_id]["buttons"][5] == 1:
+                # 低速モード
+                self.is_slow_speed = True
+            else:
+                self.is_slow_speed = False
+
+            # リセット
+            # + / options
+            if controller.joy_now[self.joy_id]["buttons"][9] == 1:
+                self.time_pushed_antiJammed_loadServo_button = time.time()  # エポック秒
+                self.servo_raw[0] = abs(
+                    self.servo_raw[1] + self.servo_adjust[1]) + 14
+
+                # # 角度リセット
+                # if reception_json["raw_angle"] < 0:
+                #     # マイナスのとき
+                #     self.angle_adjust = - 180 - reception_json["raw_angle"]
+                # else:
+                #     self.angle_adjust = -1 * reception_json["raw_angle"]
+                # # 座標リセット
+                #     coordinates = [[1, 1], [2, 2]]
+
+            # PS/homeボタン
+            if controller.joy_past[self.joy_id]["buttons"][10] == 0 and controller.joy_now[self.joy_id]["buttons"][10] == 1:
+                # タイマースタート
+                self.start_time = time.time()
+
+            # 射出
+            # ↑ボタン
+            if controller.joy_now[self.joy_id]["buttons"][13] == 1:
+                self.inject()
+
+            # 初期化
+            # ↓ボタン
+            if controller.joy_now[self.joy_id]["buttons"][14] == 1 and controller.joy_past[self.joy_id]["buttons"][14] == 0:
+                self.servo_setup = True
+
+                command = Float64MultiArray()
+                # CyberGear_speedの値を浮動小数点数に変換してリストに格納
+                command.data = [float(1), float(27), float(1)]
+                self.publisher_serial_write.publish(command)
+
+            # たまづまりサーボ
+            # ←ボタン
+            if controller.joy_now[self.joy_id]["buttons"][15] == 1:
+                self.time_pushed_antiJammedServo_button = time.time()
+                self.servo_raw[2] = -100
+
+            # →ボタン
+            if controller.joy_past[self.joy_id]["buttons"][16] == 0 and controller.joy_now[self.joy_id]["buttons"][16] == 1:
+                if self.injection_mode > 4:
+                    self.injection_mode = 0
+                else:
+                    self.injection_mode += 1
+
+            # VESC
+            # △ボタン
+            if controller.joy_now[self.joy_id]["buttons"][2] == 1 and controller.joy_past[self.joy_id]["buttons"][2] == 0:
+                self.VESC_adjust[0] += 500
+
+            # ×ボタン
+            elif controller.joy_now[self.joy_id]["buttons"][0] == 1 and controller.joy_past[self.joy_id]["buttons"][0] == 0:
+                self.VESC_adjust[0] += -500
+
+            # 仰角サーボ
+            # ◯ボタン
+            if controller.joy_now[self.joy_id]["buttons"][1] == 1 and controller.joy_past[self.joy_id]["buttons"][1] == 0:
+                self.servo_adjust[1] += 5
+
+            # □ボタン
+            elif controller.joy_now[self.joy_id]["buttons"][3] == 1 and controller.joy_past[self.joy_id]["buttons"][3] == 0:
+                self.servo_adjust[1] += -5
+
+            # 左ジョイスティック
+            if controller.joy_past[self.joy_id]["buttons"][11] == 0 and controller.joy_now[self.joy_id]["buttons"][11] == 1:
+                # ESP32_1のソフトウェアリセット
+                micon_dict["ESP32"]["reboot"] = True
+                # 送信後に False に戻す
+
+            # 右ジョイスティック
+            if controller.joy_past[self.joy_id]["buttons"][12] == 0 and controller.joy_now[self.joy_id]["buttons"][12] == 1:
+                # STM32のソフトウェアリセット
+                micon_dict["STM32"]["reboot"] = True
+                # 送信後に False に戻す
+
+        else:
+            logger.error(f"{self.joy_id}の読み取りに失敗")
+
+    def joy0_listener_callback(self, joy):
         controller.joy_setup(controller(), "joy0", joy)
 
-        # →ボタン
-        if controller.joy_past["joy0"]["buttons"][16] == 0 and controller.joy_now["joy0"]["buttons"][16] == 1:
-            if self.injection_mode > 4:
-                self.injection_mode = 0
-            else:
-                self.injection_mode += 1
-
-        # if controller.joy_now["joy0"]["buttons"][2] == 1:  # Xボタン
-            # 0°に旋回
-            # self.state = 1
-            # self.turn_start_time = time.time()
-            # self.angle_when_turn = []
-            # self.time_when_turn = []
-            # self.angle_control_count = 0
-        # if controller.joy_now["joy0"]["buttons"][1] == 1:  # Aボタン
-        #     # 90°に旋回
-        #     self.state = 2
-        #     self.turn_start_time = time.time()
-        #     self.angle_when_turn = []
-        #     self.time_when_turn = []
-        #     self.angle_control_count = 0
-        # if controller.joy_now["joy0"]["buttons"][0] == 1:  # Bボタン
-        #     # 180°に旋回
-        #     self.state = 3
-        #     self.turn_start_time = time.time()
-        #     self.angle_when_turn = []
-        #     self.time_when_turn = []
-        #     self.angle_control_count = 0
-        # if controller.joy_now["joy0"]["buttons"][3] == 1:  # Yボタン
-        #     # 270°に旋回
-        #     self.state = 4
-        #     self.turn_start_time = time.time()
-        #     self.angle_when_turn = []
-        #     self.time_when_turn = []
-        #     self.angle_control_count = 0
-
-        # Lボタン
-        if controller.joy_now["joy0"]["buttons"][4] == 1:
-            self.stop()
-
-        # Rボタン
-        # if controller.joy_now["joy0"]["buttons"][5] == 1:
-        #     # 低速モード
-        #     self.is_slow_speed = True
-        # else:
-        #     self.is_slow_speed = False
-
-        # サーボの制御
-        # ZR装填 サーボ初期位置
-        if controller.joy_now["joy0"]["buttons"][7] == 1:
-            self.inject()
-
-        # ZL たまづまりサーボ
-        if controller.joy_now["joy0"]["buttons"][6] == 1:
-            self.time_pushed_antiJammedServo_button = time.time()
-            self.servo_raw[2] = -100
-
-        # リセット
-        # + / options
-        if controller.joy_now["joy0"]["buttons"][9] == 1:
-            # if controller.joy_now["joy0"]["buttons"][4] == 1 and controller.joy_now["joy0"]["buttons"][5] == 1:
-            # 角度リセット
-            if reception_json["raw_angle"] < 0:
-                # マイナスのとき
-                self.angle_adjust = - 180 - reception_json["raw_angle"]
-            else:
-                self.angle_adjust = -1 * reception_json["raw_angle"]
-            # 座標リセット
-                coordinates = [[1, 1], [2, 2]]
-
-        # PS/homeボタン
-        if controller.joy_past["joy0"]["buttons"][10] == 0 and controller.joy_now["joy0"]["buttons"][10] == 1:
-            # タイマースタート
-            self.start_time = time.time()
-
-        # 初期化
-        # ↓ボタン
-        if controller.joy_now["joy0"]["buttons"][14] == 1 and controller.joy_past["joy0"]["buttons"][14] == 0:
-            self.servo_setup = True
-
-            command = Float64MultiArray()
-            # CyberGear_speedの値を浮動小数点数に変換してリストに格納
-            command.data = [float(1), float(27), float(1)]
-            self.publisher_serial_write.publish(command)
-
-        # VESC
-        # △ボタン
-        if controller.joy_now["joy0"]["buttons"][2] == 1 and controller.joy_past["joy0"]["buttons"][2] == 0:
-            self.VESC_adjust[0] += 500
-
-        # ×ボタン
-        elif controller.joy_now["joy0"]["buttons"][0] == 1 and controller.joy_past["joy0"]["buttons"][0] == 0:
-            self.VESC_adjust[0] += -500
-
-        # 仰角サーボ
-        # ◯ボタン
-        if controller.joy_now["joy0"]["buttons"][1] == 1 and controller.joy_past["joy0"]["buttons"][1] == 0:
-            self.servo_adjust[1] += 5
-
-        # □ボタン
-        elif controller.joy_now["joy0"]["buttons"][3] == 1 and controller.joy_past["joy0"]["buttons"][3] == 0:
-            self.servo_adjust[1] += -5
-
-        # 回収モーター
-        if controller.joy_now["joy0"]["buttons"][8] == 1 and controller.joy_past["joy0"]["buttons"][9] == 0:
-            self.DCmotor_speed[0] = -255
-        elif controller.joy_now["joy0"]["buttons"][9] == 1 and controller.joy_past["joy0"]["buttons"][8] == 0:
-            self.DCmotor_speed[0] = 255
-        else:
-            if "joy1" in controller.joy_now:
-                if controller.joy_now["joy1"]["axes"][1] > 0.1:
-                    self.DCmotor_speed[0] = 0
-            else:
-                self.DCmotor_speed[0] = 0
-
-        # 左ジョイスティック
-        if controller.joy_past["joy0"]["buttons"][11] == 0 and controller.joy_now["joy0"]["buttons"][11] == 1:
-            # ESP32_1のソフトウェアリセット
-            micon_dict["ESP32"]["reboot"] = True
-            # 送信後に False に戻す
-
-        # 右ジョイスティック
-        if controller.joy_past["joy0"]["buttons"][12] == 0 and controller.joy_now["joy0"]["buttons"][12] == 1:
-            # STM32のソフトウェアリセット
-            micon_dict["STM32"]["reboot"] = True
-            # 送信後に False に戻す
+        self.joy_all_listener_callback()
 
     def joy1_listener_callback(self, joy):
-        global reception_json, micon_dict
-
         controller.joy_setup(controller(), "joy1", joy)
 
-        self.DCmotor_speed[0] = controller.joy_now["joy1"]["axes"][1] * 255
+        self.joy_all_listener_callback()
 
-        # Lボタン
-        if controller.joy_now["joy1"]["buttons"][4] == 1:
-            self.stop()
+    def joy2_listener_callback(self, joy):
+        controller.joy_setup(controller(), "joy2", joy)
 
-        # サーボの制御
-        # ZR 装填 サーボ初期位置
-        if controller.joy_now["joy1"]["buttons"][7] == 1:
-            self.inject()
-
-        # ZL たまづまりサーボ
-        if controller.joy_now["joy1"]["buttons"][6] == 1:
-            self.time_pushed_antiJammedServo_button = time.time()
-            self.servo_raw[2] = -100
-
-        # VESC
-        # △ボタン
-        if controller.joy_now["joy1"]["buttons"][2] == 1 and controller.joy_past["joy1"]["buttons"][2] == 0:
-            self.VESC_adjust[0] += 500
-
-        # ×ボタン
-        elif controller.joy_now["joy1"]["buttons"][0] == 1 and controller.joy_past["joy1"]["buttons"][0] == 0:
-            self.VESC_adjust[0] += -500
-
-        # 仰角サーボ
-        # ◯ボタン
-        if controller.joy_now["joy1"]["buttons"][1] == 1 and controller.joy_past["joy1"]["buttons"][1] == 0:
-            self.servo_adjust[1] += 5
-
-        # □ボタン
-        elif controller.joy_now["joy1"]["buttons"][3] == 1 and controller.joy_past["joy1"]["buttons"][3] == 0:
-            self.servo_adjust[1] += -5
-
-        # →ボタン
-        if controller.joy_past["joy1"]["buttons"][16] == 0 and controller.joy_now["joy1"]["buttons"][16] == 1:
-            if self.injection_mode > 4:
-                self.injection_mode = 0
-            else:
-                self.injection_mode += 1
+        self.joy_all_listener_callback()
 
     def inject(self):
         self.time_pushed_load_button = time.time()  # エポック秒
@@ -1469,7 +1465,7 @@ def receive_udp_webrtc() -> None:
             message, cli_addr = udp_socket_webserver.recvfrom(1024)
             # print(f"Received: {message.decode('utf-8')}", flush=True)
             reception_json_temp = json.loads(message.decode('utf-8'))
-            reception_json.update({"raw_angle": int(reception_json_temp)})
+            # reception_json.update({"raw_angle": int(reception_json_temp)})
             print(reception_json, flush=True)
         except Exception as e:
             print(

@@ -6,7 +6,7 @@ Madgwick MadgwickFilter;
 #define MPU6050_PWR_MGMT_1   0x6B
 #define MPU_ADDRESS  0x68
 
-uint32_t tick;
+uint64_t tick;
 
 int32_t c_x,c_y,c_z;
 
@@ -73,6 +73,7 @@ void loop() {
   float pitch = MadgwickFilter.getPitch();
   float yaw   = MadgwickFilter.getYaw() - 180;
 
+  Serial.print("$1,8,");
   Serial.println(yaw);
 
   tick += 10000;

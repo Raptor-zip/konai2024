@@ -26,20 +26,38 @@ def generate_launch_description():
                 package="joy",
                 executable="joy_node",
                 parameters=[{"device_id": 0, "deadzone": 0.1}],
-                # parameters=[{"device_name": "PS4 Controller", "deadzone": 0.2}], # Sony Interactive Entertainment Wireless Controller.
                 remappings=[("/joy", "/joy0")],
             ),
-            # Node(
-            #     package="joy",
-            #     executable="joy_node",
-            #     remappings=[("/joy", "/joy0")],
-            # ),
             Node(
                 package="joy",
                 executable="joy_node",
                 parameters=[{"device_id": 1, "deadzone": 0.1}],
                 remappings=[("/joy", "/joy1")],
             ),
+            Node(
+                package="joy",
+                executable="joy_node",
+                parameters=[{"device_id": 2, "deadzone": 0.1}],
+                remappings=[("/joy", "/joy2")],
+            ),
+            # Node(
+            #     package="joy",
+            #     executable="joy_node",
+            #     parameters=[{"device_id": 0, "deadzone": 0.1}],
+            #     # parameters=[{"device_name": "PS4 Controller", "deadzone": 0.2}], # Sony Interactive Entertainment Wireless Controller.
+            #     remappings=[("/joy", "/joy0")],
+            # ),
+            # Node(
+            #     package="joy",
+            #     executable="joy_node",
+            #     remappings=[("/joy", "/joy0")],
+            # ),
+            # Node(
+            #     package="joy",
+            #     executable="joy_node",
+            #     parameters=[{"device_id": 1, "deadzone": 0.1}],
+            #     remappings=[("/joy", "/joy1")],
+            # ),
             Node(
                 package="konai2024_python",
                 executable="webserver",
