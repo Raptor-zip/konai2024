@@ -92,7 +92,9 @@ unsigned char buf[20];
 
 // デバッグ用
 uint32_t debug;
+uint16_t debug_1 = 10;
 uint16_t debug_2 = 10;
+uint16_t debug_current_line = 1;
 
 // 1周期の時間を計測する用
 uint32_t begin_time;
@@ -188,15 +190,30 @@ int main(void)
 	//	    HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, &TxMailbox);
 	//	}
 
-	for (int i = 0; i < 4; i++)
+//	for (int i = 0; i < 4; i++)
+
+		for (int i = 1; i < 3; i++)
 	{
 		if (is_run_CyberGear)
 		{
+			debug_1 = i;
+//			debug_2 = 195;
+			debug_current_line = __LINE__;
 			CyberGear_Init(&my_cyber[i], &ecan, 0x70 + i, 0, HAL_Delay);
+//			debug_2 = 197;
+			debug_current_line = __LINE__;
 			CyberGear_ResetMotor(&my_cyber[i]);
+//			debug_2 = 199;
+			debug_current_line = __LINE__;
 			CyberGear_SetMode(&my_cyber[i], MODE_SPEED);
+//			debug_2 = 201;
+			debug_current_line = __LINE__;
 			CyberGear_SetConfig(&my_cyber[i], 12.0f, 30.0f, 4.0f);
+//			debug_2 = 203;
+			debug_current_line = __LINE__;
 			CyberGear_EnableMotor(&my_cyber[i]);
+//			debug_2 = 205;
+			debug_current_line = __LINE__;
 		}
 	}
 	HAL_Delay(10);
@@ -212,6 +229,7 @@ int main(void)
 		/* USER CODE END WHILE */
 
 		/* USER CODE BEGIN 3 */
+		debug_current_line = __LINE__;
 		begin_time = HAL_GetTick();
 		//		HAL_GPIO_TogglePin(BUILDIN_LED_GPIO_Port, BUILDIN_LED_Pin);
 
@@ -265,7 +283,7 @@ int main(void)
 		}
 		else if (uart_prev_count == uart_prev_count_past + 1)
 		{
-			debug_2 = 111;
+			debug_current_line = __LINE__;
 			//    char str[6];
 			//    sprintf(str, "\ndata[0] : %d\n", data[0]);
 			//    HAL_UART_Transmit(&huart2, (uint8_t *)str, strlen(str), 0xFFFF);
@@ -279,8 +297,8 @@ int main(void)
 				motor_speed[0] = command_content;
 				if (is_run_CyberGear)
 				{
-					CyberGear_ControlSpeed(&my_cyber[0],
-										   (float)motor_speed[0]);
+//					CyberGear_ControlSpeed(&my_cyber[0],
+//										   (float)motor_speed[0]);
 				}
 				if (motor_speed[0] > 5)
 				{
@@ -298,8 +316,8 @@ int main(void)
 				motor_speed[1] = command_content;
 				if (is_run_CyberGear)
 				{
-					CyberGear_ControlSpeed(&my_cyber[1],
-										   (float)motor_speed[1]);
+//					CyberGear_ControlSpeed(&my_cyber[1],
+//										   (float)motor_speed[1]);
 				}
 				break;
 
@@ -307,23 +325,31 @@ int main(void)
 				motor_speed[2] = command_content;
 				if (is_run_CyberGear)
 				{
-					CyberGear_ControlSpeed(&my_cyber[2],
-										   (float)motor_speed[2]);
+//					CyberGear_ControlSpeed(&my_cyber[2],
+//										   (float)motor_speed[2]);
 				}
 				break;
 
 			case 27:
 				debug_2 = 1000;
-				for (int i = 0; i < 4; i++)
+				debug_current_line = __LINE__;
+				for (int i = 1; i < 3; i++)
 				{
+					debug_1 = i;
 					if (is_run_CyberGear)
 					{
+						debug_current_line = __LINE__;
 						CyberGear_Init(&my_cyber[i], &ecan, 0x70 + i, 0,
 									   HAL_Delay);
+						debug_current_line = __LINE__;
 						CyberGear_ResetMotor(&my_cyber[i]);
+						debug_current_line = __LINE__;
 						CyberGear_SetMode(&my_cyber[i], MODE_SPEED);
+						debug_current_line = __LINE__;
 						CyberGear_SetConfig(&my_cyber[i], 12.0f, 30.0f, 4.0f);
+						debug_current_line = __LINE__;
 						CyberGear_EnableMotor(&my_cyber[i]);
+						debug_current_line = __LINE__;
 					}
 				}
 				break;
@@ -332,18 +358,18 @@ int main(void)
 				motor_speed[3] = command_content;
 				if (is_run_CyberGear)
 				{
-					CyberGear_ControlSpeed(&my_cyber[3],
-										   (float)motor_speed[3]);
+//					CyberGear_ControlSpeed(&my_cyber[3],
+//										   (float)motor_speed[3]);
 				}
 				break;
 			}
 
-			CyberGear_pos[0] = my_cyber[0].cyberfeedback.feedback_pos;
-			CyberGear_pos[1] = my_cyber[1].cyberfeedback.feedback_pos;
-			CyberGear_pos[2] = my_cyber[2].cyberfeedback.feedback_pos;
-			CyberGear_pos[3] = my_cyber[3].cyberfeedback.feedback_pos;
+//			CyberGear_pos[0] = my_cyber[0].cyberfeedback.feedback_pos;
+//			CyberGear_pos[1] = my_cyber[1].cyberfeedback.feedback_pos;
+//			CyberGear_pos[2] = my_cyber[2].cyberfeedback.feedback_pos;
+//			CyberGear_pos[3] = my_cyber[3].cyberfeedback.feedback_pos;
 
-			//		HAL_Delay(1);
+					HAL_Delay(1);
 		}
 
 		uart_prev_count_past = uart_prev_count;

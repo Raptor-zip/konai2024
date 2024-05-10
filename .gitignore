@@ -1,4 +1,5 @@
 experiment
+src/konai2024_python/konai2024_python/main.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

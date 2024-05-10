@@ -163,6 +163,11 @@ void setup()
   pinMode(BLmotor_Pin[0], OUTPUT);
   ducted_fan.attach(BLmotor_Pin[0]);
 
+  ducted_fan.writeMicroseconds(2000);
+  delay(2000);
+  ducted_fan.writeMicroseconds(1000);
+  delay(2000);
+
   // LEDの射出との連携
   pinMode(COMMUNICATE_LED_PIN, OUTPUT);
   digitalWrite(COMMUNICATE_LED_PIN, HIGH);
@@ -199,6 +204,18 @@ void loop()
   // Serial.println("us");
 
   startTime = micros();
+
+  // ducted_fan.writeMicroseconds(2000);
+
+  // delay(2000);
+
+  // ducted_fan.writeMicroseconds(1000);
+
+  // delay(2000);
+
+  // ducted_fan.writeMicroseconds(2000);
+  
+  // delay(10000);
 
   if (Serial.available() > 0)
   {
@@ -255,9 +272,14 @@ void loop()
       // VESCの制御
       UART.setRPM(float(intArray[7]), 0); // 連続して送らないとタイムアウトで勝手に切れる 安全装置ナイス
 
-      analogWrite(LED_BUILTIN , intArray[4]* -1);
+      // PWM出力のデバイスの制御
+      ducted_fan.writeMicroseconds(intArray[10]);
+      Serial.println(intArray[10]);
+      // ducted_fan.writeMicroseconds(2000);
 
-      // ducted_fan.writeMicroseconds(intArray[7]);
+      // analogWrite(LED_BUILTIN , intArray[4]* -1);
+
+      // analogWrite(LED_BUILTIN , intArray[10]/10);
 
       // ducted_fan.detach();  // 接続解除
       // digitalWrite(BLmotor_Pin[0], LOW);  // ブラシレスモーターのPWM停止
@@ -298,8 +320,8 @@ void loop()
   if (millis() - last_receive_time > 100)
   {
     digitalWrite(LED_BUILTIN, LOW); // ESP32内蔵LED
-    ducted_fan.detach();               // 接続解除
-    digitalWrite(BLmotor_Pin[0], LOW); // PWM停止
+    // ducted_fan.detach();               // 接続解除
+    // digitalWrite(BLmotor_Pin[0], LOW); // PWM停止
     krs.setFree(0); //フリー指令 ID:0 をフリー状態に
     krs.setFree(1); //フリー指令 ID:1 をフリー状態に
     krs.setFree(2); //フリー指令 ID:1 をフリー状態に
